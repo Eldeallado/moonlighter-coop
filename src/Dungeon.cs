@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
@@ -18,6 +18,7 @@ namespace MoonlighterCoop
         public static bool ApplyingRemote;      // a travel the host asked for is running on the guest
         public static bool Following;           // the guest is walking through a door to follow the host
         public static DungeonSaveInfo PendingInfo;
+        public static int FloorSeed;            // host picks one per floor; both generate with it
         public static int InfosSent, InfosReceived;
         private static float _roomMismatchSince = -1f;
         private static float _followCooldown;
@@ -44,15 +45,25 @@ namespace MoonlighterCoop
             return string.Join("|", parts).GetHashCode().ToString("X8") + "/" + dm.dungeonRooms.Count;
         }
 
+        /// Same rooms AND same things inside them (details, breakables, chests, enemies).
+        public static string ContentSignature()
+        {
+            var dm = DungeonManager.Instance;
+            if (dm == null || dm.dungeonRooms == null) return "";
+            var parts = dm.dungeonRooms.Where(r => r != null).OrderBy(r => r.x).ThenBy(r => r.y).ThenBy(r => r.isSecret)
+                .Select(r => $"{r.x},{r.y}:{r.GetComponentsInChildren<SpriteRenderer>(true).Length}:{r.roomEnemies.Count}");
+            return string.Join("|", parts).GetHashCode().ToString("X8");
+        }
+
         // ---------- host side ----------
 
         public static void SendTravel(Travel kind, ItemMaster.Culture culture, int level)
         {
             if (!Session.IsHost || !Net.Connected) return;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
-            w.Write((byte)kind); w.Write((int)culture); w.Write(level);
+            w.Write((byte)kind); w.Write((int)culture); w.Write(level); w.Write(FloorSeed);
             Net.Send(Msg.Travel, ms.ToArray());
-            Plugin.Log.LogInfo($"[dungeon] host travel {kind} {culture} {level}");
+            Plugin.Log.LogInfo($"[dungeon] host travel {kind} {culture} {level} seed {FloorSeed}");
         }
 
         private static void OnGenerated()
@@ -86,9 +97,10 @@ namespace MoonlighterCoop
             var kind = (Travel)r.ReadByte();
             var culture = (ItemMaster.Culture)r.ReadInt32();
             int level = r.ReadInt32();
+            FloorSeed = r.ReadInt32();
             var hero = HeroMerchant.Instance;
             if (hero == null) return;
-            Plugin.Log.LogInfo($"[dungeon] guest follows travel {kind} {culture} {level}");
+            Plugin.Log.LogInfo($"[dungeon] guest follows travel {kind} {culture} {level} seed {FloorSeed}");
             ApplyingRemote = true;
             try
             {
@@ -228,6 +240,8 @@ namespace MoonlighterCoop
                 Plugin.Log.LogInfo("[dungeon] guest tried to change floor on its own: blocked (the host leads)");
                 return false;
             }
+            // A new floor: the host picks the dice both sides will generate it with.
+            if (Session.IsHost) Dungeon.FloorSeed = Net.Connected ? new System.Random().Next(1, int.MaxValue) : 0;
             return true;
         }
         static void Postfix(HeroMerchant __instance, ItemMaster.Culture culture)
@@ -259,6 +273,7 @@ namespace MoonlighterCoop
         static bool Prefix(ItemMaster.Culture culture, int level, bool test, ref IEnumerator __result)
         {
             if (!Session.IsGuest || !Net.Connected || Dungeon._bypass || test) return true;
+            if (Dungeon.FloorSeed != 0) return true;   // same seed as the host: generate normally
             __result = Dungeon.GuestGenerate(culture, level);
             return false;
         }
@@ -277,3 +292,4 @@ namespace MoonlighterCoop
         }
     }
 }
+

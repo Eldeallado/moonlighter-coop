@@ -28,6 +28,7 @@ while (((Get-Date) - $t0).TotalSeconds -lt $Timeout) {
     if ($line.Substring(6) -ne $lastLine) { $line; $lastLine = $line.Substring(6) }
     if ($h.zone -like "dungeon:*" -and $h.zone -eq $g.zone) { $roomsFollowed[$h.zone] = $true; if ($h.zone -ne $lastShared) { $sharedChanges++; $lastShared = $h.zone } }
     if ($h.dungeon_sig -and $h.dungeon_sig -eq $g.dungeon_sig) { $sigMatch = $true }
+    if ($h.content_sig -and $g.content_sig) { if ($h.content_sig -eq $g.content_sig) { $contentMatch = $true } else { $contentDiff = "$($h.content_sig) vs $($g.content_sig)" } }
     if ($step -ge 4 -and $h.zone -eq "town" -and $g.zone -eq "town" -and $g.loading_panel -eq "False") { $doneTown = $true; break }
     Start-Sleep -Milliseconds 800
 }
@@ -37,6 +38,7 @@ function Check($name, $ok, $detail) { $script:results += [pscustomobject]@{ Chec
 $h = Read-Status $hostDir "host"; $g = Read-Status $guestDir "join"
 Check "guest got the host's floor" ([int]$g.infos_received -ge 1) "sent=$($h.infos_sent) received=$($g.infos_received)"
 Check "same floor layout" $sigMatch "signature matched at least once"
+Check "same things inside the rooms" ([bool]$contentMatch) "match=$contentMatch last diff=$contentDiff seed=$($h.floor_seed)/$($g.floor_seed)"
 Check "guest followed into 3 rooms" ($roomsFollowed.Count -ge 3) ("rooms shared: " + ($roomsFollowed.Keys -join " "))
 Check "guest led through a door (host went too)" (([int]$g.door_requests_sent -ge 1) -and ([int]$h.door_requests_done -ge 1)) "asked=$($g.door_requests_sent) host_went=$($h.door_requests_done)"
 Check "4+ room changes made together" ($sharedChanges -ge 4) "shared room changes: $sharedChanges"
@@ -45,6 +47,7 @@ Check "no loading screen left on guest" ($g.loading_panel -eq "False") "loading_
 $results | Format-Table -AutoSize | Out-String -Width 200
 "SUITE: $(($results | Where-Object Result -eq 'PASS').Count)/$($results.Count) passed"
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
+
 
 
 

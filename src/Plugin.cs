@@ -25,6 +25,7 @@ namespace MoonlighterCoop
         public static string JoinAddress = "127.0.0.1";
         public static int Port = 7795;
         public static bool Bot;
+        public static bool Windowed;
         public static string Tag = "solo";
 
         private float _menuSeenAt = -1f;
@@ -36,7 +37,9 @@ namespace MoonlighterCoop
             Instance = this;
             Log = Logger;
             ParseArgs();
-            new Harmony(Guid).PatchAll();
+            var harmony = new Harmony(Guid);
+            harmony.PatchAll();
+            SeededObjects.Patch(harmony);
             Session.Start();
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
             // The game turns its own log off; keep errors and the loading/room flow for debugging.
@@ -65,6 +68,9 @@ namespace MoonlighterCoop
                     case "-coopport":
                         if (i + 1 < a.Length) int.TryParse(a[++i], out Port);
                         break;
+                    case "-coopwindowed":
+                        Windowed = true;
+                        break;
                     case "-coopbot":
                         Bot = true;
                         break;
@@ -80,7 +86,7 @@ namespace MoonlighterCoop
         private void Update()
         {
             // QA copies: a small window, whatever the game's own display option says.
-            if (Bot && !_windowed && Time.frameCount > 30)
+            if ((Bot || Windowed) && !_windowed && Time.frameCount > 30)
             {
                 _windowed = true;
                 Screen.SetResolution(800, 450, FullScreenMode.Windowed);
@@ -239,7 +245,16 @@ namespace MoonlighterCoop
                 if (Puppet.Instance == null || Puppet.Instance.Zone != Session.LocalZone()) return;
                 hero.SetGodMode();
                 var target = dm.currentDungeonRoom.roomEnemies.FirstOrDefault(e => e != null && e.enemyStats != null && e.enemyStats.isAlive && EnemySync.IdOf(e) != null && e.gameObject.activeInHierarchy);
-                if (target == null) return;
+                if (target == null)
+                {
+                    if (BreakableSync.Sent < 2)
+                    {
+                        var box = FindObjectsOfType<BreakableObjectBehaviour>().Select(b => b.GetComponent<Enemy>())
+                            .FirstOrDefault(en => en != null && en.enemyStats != null && en.enemyStats.isAlive && en.enemyRoom == dm.currentDungeonRoom && en.enemyBehaviour != null && en.enemyBehaviour.isActiveAndEnabled);
+                        if (box != null) { Log.LogInfo($"[bot] guest breaks {box.name}"); box.DealDamageToEnemy(999f); _combatNext = now + 1.5f; }
+                    }
+                    return;
+                }
                 Log.LogInfo($"[bot] guest hits {EnemySync.IdOf(target)}");
                 target.DealDamageToEnemy(60f);
                 _combatNext = now + 0.6f;
@@ -303,4 +318,6 @@ namespace MoonlighterCoop
         }
     }
 }
+
+
 

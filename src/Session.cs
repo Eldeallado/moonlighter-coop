@@ -134,6 +134,9 @@ namespace MoonlighterCoop
                 case Msg.EnemyDeath:
                     if (IsGuest) EnemySync.OnDeath(data);
                     break;
+                case Msg.BreakAt:
+                    BreakableSync.OnBreakAt(data);
+                    break;
                 case Msg.DoorRequest:
                     if (IsHost) Dungeon.OnDoorRequest(data);
                     break;
@@ -216,6 +219,10 @@ namespace MoonlighterCoop
             }
             sb.AppendLine($"ping_ms={LastPing:F0}");
             sb.AppendLine($"dungeon_sig={(GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded() ? Dungeon.Signature() : "")}");
+            sb.AppendLine($"content_sig={(GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded() && GameManager.Instance.NotLoadingScene ? Dungeon.ContentSignature() : "")}");
+            sb.AppendLine($"floor_seed={Dungeon.FloorSeed}");
+            sb.AppendLine($"breaks_sent={BreakableSync.Sent}");
+            sb.AppendLine($"breaks_applied={BreakableSync.Applied}");
             sb.AppendLine($"infos_sent={Dungeon.InfosSent}");
             sb.AppendLine($"infos_received={Dungeon.InfosReceived}");
             sb.AppendLine($"loading_panel={(GUIManager.Instance != null && GUIManager.Instance.dungeonLoadingPanel != null && GUIManager.Instance.dungeonLoadingPanel.IsActive())}");
@@ -249,5 +256,7 @@ namespace MoonlighterCoop
         }
     }
 }
+
+
 
 
