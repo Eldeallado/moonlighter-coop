@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
@@ -17,6 +17,9 @@ namespace MoonlighterCoop
         Travel = 6,
         DungeonInfo = 7,
         DoorRequest = 8,
+        Enemies = 9,
+        EnemyHit = 10,
+        EnemyDeath = 11,
     }
 
     /// One framed TCP connection: [int32 length][byte type][payload]. Reads on a thread, handled on Unity's thread.
@@ -143,3 +146,4 @@ namespace MoonlighterCoop
         public static void Send(Msg type, byte[] data) => Peer?.Send(type, data);
     }
 }
+

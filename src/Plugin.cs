@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -95,8 +95,8 @@ namespace MoonlighterCoop
             if (Plugin.Role == "") return;
             var p = Puppet.Instance;
             GUI.Label(new Rect(8, 8, 600, 22),
-                $"Coop {Version} [{Role}] {(Net.Connected ? $"conectado ({Session.LastPing:F0} ms)" : "esperando conexión…")}" +
-                (p != null ? $"  compañero: {(p.Visible ? "aquí" : p.Zone)}" : ""));
+                $"Coop {Version} [{Role}] {(Net.Connected ? $"conectado ({Session.LastPing:F0} ms)" : "esperando conexiÃ³nâ€¦")}" +
+                (p != null ? $"  compaÃ±ero: {(p.Visible ? "aquÃ­" : p.Zone)}" : ""));
         }
 
         private void BotTick()
@@ -197,8 +197,58 @@ namespace MoonlighterCoop
             door.OnPlayerEnter(hero.gameObject);
         }
 
+        // QA "combat": the host walks into rooms until one has enemies; only the guest attacks them.
+        public static bool CombatRoomSeen, CombatRoomCleared;
+        private float _combatNext;
+        private void BotCombatTick()
+        {
+            var hero = HeroMerchant.Instance; var gm = GameManager.Instance; var dm = DungeonManager.Instance;
+            if (hero == null || gm == null || !Net.Connected) return;
+            float now = Time.unscaledTime;
+            if (now < _combatNext) return;
+            bool settled = gm.NotLoadingScene && !(GUIManager.Instance.dungeonLoadingPanel?.IsActive() ?? false);
+            if (!settled) return;
+            if (Session.IsHost)
+            {
+                if (!gm.IsDungeonSceneLoaded())
+                {
+                    if (ScenarioStep == 0 && Session.LocalZone() == "town" && Puppet.Instance != null && Puppet.Instance.Visible)
+                    {
+                        if (_scenarioAt < 0f) { _scenarioAt = now + 8f; return; }
+                        if (now < _scenarioAt) return;
+                        Log.LogInfo("[bot] combat: enter Golem dungeon"); ScenarioStep = 1; hero.LoadDungeonScene(ItemMaster.Culture.Golem); _combatNext = now + 15f;
+                    }
+                    return;
+                }
+                if (dm == null || dm.currentDungeonRoom == null) return;
+                var room = dm.currentDungeonRoom;
+                int alive = room.roomEnemies.Count(e => e != null && e.enemyStats != null && e.enemyStats.isAlive);
+                if (alive > 0) { CombatRoomSeen = true; hero.SetGodMode(); return; }
+                if (EnemySync.DeathsSent > 0) { CombatRoomSeen = true; CombatRoomCleared = true; return; }
+                var door = room.roomDoors.Where(d => d != null && d.destinationRoom != null && !(d.destinationRoom is DungeonBossRoom) && d.isOpened && !d.isDisabled)
+                    .OrderBy(d => d.destinationRoom.hasBeenVisited ? 1 : 0).FirstOrDefault();
+                if (door == null) return;
+                ScenarioStep++;
+                Log.LogInfo($"[bot] combat: look for enemies in {door.destinationRoom.x},{door.destinationRoom.y}");
+                door.OnPlayerEnter(hero.gameObject);
+                _combatNext = now + 7f;
+            }
+            else
+            {
+                if (dm == null || dm.currentDungeonRoom == null || !gm.IsDungeonSceneLoaded()) return;
+                if (Puppet.Instance == null || Puppet.Instance.Zone != Session.LocalZone()) return;
+                hero.SetGodMode();
+                var target = dm.currentDungeonRoom.roomEnemies.FirstOrDefault(e => e != null && e.enemyStats != null && e.enemyStats.isAlive && EnemySync.IdOf(e) != null && e.gameObject.activeInHierarchy);
+                if (target == null) return;
+                Log.LogInfo($"[bot] guest hits {EnemySync.IdOf(target)}");
+                target.DealDamageToEnemy(60f);
+                _combatNext = now + 0.6f;
+            }
+        }
+
         private void BotMoveTick()
         {
+            if (Scenario == "combat") { BotCombatTick(); return; }
             if (Scenario == "dungeon" && Session.IsGuest) { BotGuestDungeonTick(); return; }
             if (Scenario == "dungeon") { BotDungeonTick(); return; }
             var hero = HeroMerchant.Instance;
@@ -253,3 +303,4 @@ namespace MoonlighterCoop
         }
     }
 }
+

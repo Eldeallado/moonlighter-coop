@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using FullSerializer;
@@ -72,6 +72,7 @@ namespace MoonlighterCoop
                 }
             }
             LoadingWatchdog(now);
+            EnemySync.HostTick();
             if (Net.Connected && IsGuest && Puppet.Instance != null) Dungeon.GuestFollowTick(Puppet.Instance.Zone);
             if (now >= _nextStatus) { _nextStatus = now + 0.5f; WriteStatus(); }
         }
@@ -124,6 +125,15 @@ namespace MoonlighterCoop
                 case Msg.DungeonInfo:
                     if (IsGuest) Dungeon.OnInfo(data);
                     break;
+                case Msg.Enemies:
+                    if (IsGuest) EnemySync.OnStates(data);
+                    break;
+                case Msg.EnemyHit:
+                    if (IsHost) EnemySync.OnHit(data);
+                    break;
+                case Msg.EnemyDeath:
+                    if (IsGuest) EnemySync.OnDeath(data);
+                    break;
                 case Msg.DoorRequest:
                     if (IsHost) Dungeon.OnDoorRequest(data);
                     break;
@@ -173,6 +183,14 @@ namespace MoonlighterCoop
             Plugin.LoadSlotFromMenu(slot);
         }
 
+        private static int RoomEnemiesAlive()
+        {
+            var dm = DungeonManager.Instance;
+            if (dm == null || dm.currentDungeonRoom == null || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded()) return -1;
+            int n = 0; foreach (var e in dm.currentDungeonRoom.roomEnemies) if (e != null && e.enemyStats != null && e.enemyStats.isAlive) n++;
+            return n;
+        }
+
         private static void WriteStatus()
         {
             var hero = HeroMerchant.Instance;
@@ -202,6 +220,14 @@ namespace MoonlighterCoop
             sb.AppendLine($"infos_received={Dungeon.InfosReceived}");
             sb.AppendLine($"loading_panel={(GUIManager.Instance != null && GUIManager.Instance.dungeonLoadingPanel != null && GUIManager.Instance.dungeonLoadingPanel.IsActive())}");
             sb.AppendLine($"scenario_step={Plugin.ScenarioStep}");
+            sb.AppendLine($"enemy_hits_sent={EnemySync.HitsSent}");
+            sb.AppendLine($"enemy_hits_applied={EnemySync.HitsApplied}");
+            sb.AppendLine($"enemy_deaths_sent={EnemySync.DeathsSent}");
+            sb.AppendLine($"enemy_deaths_applied={EnemySync.DeathsApplied}");
+            sb.AppendLine($"enemy_states_applied={EnemySync.StatesApplied}");
+            sb.AppendLine($"room_enemies_alive={RoomEnemiesAlive()}");
+            sb.AppendLine($"combat_seen={Plugin.CombatRoomSeen}");
+            sb.AppendLine($"combat_cleared={Plugin.CombatRoomCleared}");
             sb.AppendLine($"door_requests_sent={Dungeon.DoorRequestsSent}");
             sb.AppendLine($"door_requests_done={Dungeon.DoorRequestsDone}");
             sb.AppendLine($"guest_loaded={GuestLoaded}");
@@ -223,3 +249,5 @@ namespace MoonlighterCoop
         }
     }
 }
+
+
