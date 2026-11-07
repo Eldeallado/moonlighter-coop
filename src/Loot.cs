@@ -81,18 +81,7 @@ namespace MoonlighterCoop
                 Removed++;
             }
             _items.Remove(id);
-            var hero = HeroMerchant.Instance;
-            var master = ItemDatabase.GetItemByName(name, GameManager.Instance.GetCurrentGamePlusLevel());
-            if (hero == null || master == null) return;
-            var copy = ItemStack.Create(master, qty);
-            if (hero.heroMerchantInventory.TryAddItem(copy)) Received++;
-            else
-            {
-                // Bag full: leave it at our feet.
-                Applying = true;
-                try { copy.Drop(hero.transform.position, 20f); } finally { Applying = false; }
-            }
-            if (copy != null && copy.Quantity == 0) Object.Destroy(copy.gameObject);
+            // Both bags are one shared bag now (Shared.cs): the picker's bag change reaches us as a snapshot.
         }
     }
 

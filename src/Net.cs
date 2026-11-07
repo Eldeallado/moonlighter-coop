@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
@@ -32,6 +32,8 @@ namespace MoonlighterCoop
         TownArea = 21,
         Vote = 22,
         VoteResult = 23,
+        Gold = 24,
+        Bag = 25,
     }
 
     /// One framed TCP connection: [int32 length][byte type][payload]. Reads on a thread, handled on Unity's thread.

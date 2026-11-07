@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -192,6 +192,7 @@ namespace MoonlighterCoop
                     return "ok";
                 }
                 case "nextfloor": hero.LoadNextLevelDungeonScene(DungeonManager.Instance.culture); return "ok";
+                case "gold": hero.addGold(int.Parse(p[1])); return "ok";
                 case "hurt": hero.DealDamageToPlayer(F(p[1]), "QA"); return "ok";
                 case "info": return Info();
                 default: return "unknown " + p[0];
@@ -207,6 +208,7 @@ namespace MoonlighterCoop
             var hc = hero != null ? hero.heroMerchantController : null;
             if (hc != null) sb.Append($"stick={hc.inputDevice.LeftStick.X:F2},{hc.inputDevice.LeftStick.Y:F2} canMove={hc.canMove} panel={(GUIManager.Instance.currentInventory ? GUIManager.Instance.currentInventory.name : "none")} notLoading={GameManager.Instance.NotLoadingScene} moveInput={hc.IsMoveInputEnabled()} vel={hc._velX:F1},{hc._velY:F1} enabledSet={hc.inputDevice.Enabled} tags={string.Join("/", new[] { "IdleShop", "WalkShop", "Idle", "Walk", "WalkGrass" }.Where(tg => hc.characterAnimator.GetCurrentAnimatorStateInfo(0).IsTag(tg)))} trans={hc.characterAnimator.IsInTransition(0)} paused={GameManager.Instance.isGamePaused} ts={Time.timeScale} ");
             sb.Append($"injected={Driver.Injected} zone={Session.LocalZone()} pos={(hero ? V(hero.transform.position) : "-")} hp={(hero ? (float)hero.heroMerchantStats.currentHealth.Value : 0):F0}");
+            if (hero) sb.Append($" gold={hero.GetCurrentGold()} bag=[{string.Join(",", hero.heroMerchantInventory.slots.Where(s => s.item != null && s.item.master != null).Select(s => s.item.master.name + "x" + s.item.Quantity))}]");
             sb.Append($" ghost={Downed.Me} partnerGhost={Downed.Partner} partner={(Puppet.Instance ? V(Puppet.Instance.transform.position) + (Puppet.Instance.Visible ? "" : "(away)") : "-")}");
             if (dm != null && dm.currentDungeonRoom != null && gm.IsDungeonSceneLoaded())
             {
