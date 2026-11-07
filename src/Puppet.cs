@@ -127,7 +127,7 @@ namespace MoonlighterCoop
                 }
                 sr.gameObject.SetActive(true);
                 sr.sprite = SpriteCache.Get(sprite);
-                var m = SpriteCache.GetMaterial(mat);
+                var m = MaterialFor(path, mat);
                 if (m != null && sr.sharedMaterial != m) sr.sharedMaterial = m;
                 sr.transform.localPosition = rel;
                 sr.transform.localScale = scale;
@@ -141,6 +141,28 @@ namespace MoonlighterCoop
             foreach (var kv in _parts)
                 if (!_seen.Contains(kv.Key)) kv.Value.gameObject.SetActive(false);
             gameObject.SetActive(Visible);
+        }
+
+        // Will's body uses a per-object material instance ("... (Instance)"); a lookup by name finds some other
+        // object's copy (flashing, faded). Use our own copy of the local Will's material for the same part.
+        private readonly Dictionary<string, Material> _ownMaterials = new Dictionary<string, Material>();
+        private Material MaterialFor(string path, string remoteName)
+        {
+            if (string.IsNullOrEmpty(remoteName)) return null;
+            if (remoteName.EndsWith(" (Instance)"))
+            {
+                if (_ownMaterials.TryGetValue(path, out var own) && own != null) return own;
+                var hero = HeroMerchant.Instance;
+                var local = hero != null ? hero.transform.Find(path)?.GetComponent<SpriteRenderer>() : null;
+                Material src = local != null ? local.sharedMaterial : null;
+                if (src == null) src = SpriteCache.GetMaterial(remoteName.Substring(0, remoteName.Length - " (Instance)".Length));
+                if (src == null) return null;
+                own = new Material(src) { name = "CoopPuppet " + src.name };
+                if (own.HasProperty("_FlashAmount")) own.SetFloat("_FlashAmount", 0f);
+                _ownMaterials[path] = own;
+                return own;
+            }
+            return SpriteCache.GetMaterial(remoteName);
         }
 
         private void Update()

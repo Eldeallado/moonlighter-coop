@@ -188,6 +188,14 @@ namespace MoonlighterCoop
             sb.AppendLine($"puppet={(p ? $"{p.transform.position.x:F1},{p.transform.position.y:F1}" : "none")}");
             sb.AppendLine($"puppet_parts={(p ? p.GetComponentsInChildren<SpriteRenderer>(false).Length : 0)}");
             sb.AppendLine($"sprite_misses={SpriteCache.Misses}");
+            if (p != null)
+                foreach (var sr in p.GetComponentsInChildren<SpriteRenderer>(false))
+                    sb.AppendLine($"puppet_part={sr.name} sprite={(sr.sprite ? sr.sprite.name : "NULL")} layer={sr.sortingLayerName}/{sr.sortingOrder} mat={(sr.sharedMaterial ? sr.sharedMaterial.name : "NULL")} col={sr.color} z={sr.transform.position.z} vis={sr.isVisible}");
+            if (hero != null)
+            {
+                var will = hero.transform.Find("HeroMerchantArt/Will")?.GetComponent<SpriteRenderer>();
+                if (will != null) sb.AppendLine($"hero_will sprite={(will.sprite ? will.sprite.name : "NULL")} layer={will.sortingLayerName}/{will.sortingOrder} mat={(will.sharedMaterial ? will.sharedMaterial.name : "NULL")} z={will.transform.position.z}");
+            }
             sb.AppendLine($"ping_ms={LastPing:F0}");
             sb.AppendLine($"dungeon_sig={(GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded() ? Dungeon.Signature() : "")}");
             sb.AppendLine($"infos_sent={Dungeon.InfosSent}");
