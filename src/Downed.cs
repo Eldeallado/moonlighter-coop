@@ -50,6 +50,9 @@ namespace MoonlighterCoop
             var c = hero.heroMerchantController;
             var st = hero.heroMerchantStats;
             try { c.SetPlayerShaderToDefault(); } catch { }   // the game never clears the red damage flash here
+            // The death sequence stops time (it would show the results next): start it again.
+            GameManager.Instance.UnpauseGame();
+            GameManager.Instance.SetDefaultGameSpeed();
             c.SetDefaultMode();
             c.ResetHeroMerchantAnimator();
             c.EnableHeroMerchantArt();

@@ -101,6 +101,14 @@ namespace MoonlighterCoop
             var hero = HeroMerchant.Instance;
             if (hero == null) return;
             Plugin.Log.LogInfo($"[dungeon] guest follows travel {kind} {culture} {level} seed {FloorSeed}");
+            // The run may have ended (results screen up on both): close ours, the host chose what comes next.
+            var gui = GUIManager.Instance;
+            if (gui != null && gui.currentInventory != null && gui.currentInventory.GetType().Name.Contains("Result"))
+            {
+                gui.AllowPanelChange();
+                gui.DisableCurrentPanel();
+                GameManager.Instance.UnpauseGame();
+            }
             ApplyingRemote = true;
             try
             {

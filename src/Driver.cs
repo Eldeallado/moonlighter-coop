@@ -24,8 +24,11 @@ namespace MoonlighterCoop
         private static readonly ConcurrentQueue<(string cmd, Action<string> reply)> _queue = new ConcurrentQueue<(string, Action<string>)>();
         private Vector2 _stick;
         private Vector2? _walkTarget;
+        private readonly Queue<Vector2> _path = new Queue<Vector2>();
+        private Vector2 _pushDir; private float _pushUntil;
         private float _walkUntil;
         private readonly Dictionary<string, float> _buttonsUntil = new Dictionary<string, float>();
+        private readonly Dictionary<string, float> _guiUntil = new Dictionary<string, float>();
 
         public static void Start(int port)
         {
@@ -85,14 +88,28 @@ namespace MoonlighterCoop
             var hero = HeroMerchant.Instance;
             var act = Actions;
             Pad.Clear();
+            // Menus and panels (results screen, shop...) read the GUI actions, not Will's.
+            var gin = GUIManager.Instance != null ? (object)GUIManager.Instance.input : null;
+            foreach (var kv in _guiUntil.ToList())
+            {
+                if (Time.unscaledTime > kv.Value) { _guiUntil.Remove(kv.Key); continue; }
+                var gb = gin != null ? Traverse.Create(gin).Field(kv.Key).GetValue<PlayerAction>() : null;
+                if (gb != null) Pad[gb] = 1f;
+            }
             if (hero == null || act == null) return;
             var stick = _stick;
             // Loading a save from the menu by script skips the wake-up that normally allows movement.
             if ((_walkTarget.HasValue || stick != Vector2.zero) && !hero.heroMerchantController.canMove && !Downed.Me && GameManager.Instance.NotLoadingScene && !(bool)hero.heroMerchantStats.isDead && GUIManager.Instance.currentInventory == null) hero.heroMerchantController.AllowMovement();
+            if (!_walkTarget.HasValue && _path.Count > 0) { _walkTarget = _path.Dequeue(); _walkUntil = Time.unscaledTime + 4f; }
+            if (!_walkTarget.HasValue && _path.Count == 0 && Time.unscaledTime < _pushUntil) stick = _pushDir;
             if (_walkTarget.HasValue)
             {
                 var d = _walkTarget.Value - (Vector2)hero.transform.position;
-                if (d.magnitude < 6f || Time.unscaledTime > _walkUntil) { _walkTarget = null; stick = Vector2.zero; }
+                if (d.magnitude < 6f || Time.unscaledTime > _walkUntil)
+                {
+                    _walkTarget = null; stick = Vector2.zero;
+                    if (_path.Count == 0 && _pushDir != Vector2.zero && _pushUntil < 0f) _pushUntil = Time.unscaledTime + 1.8f;
+                }
                 else stick = d.normalized;
             }
             if (stick.x > 0.2f) Pad[act.LeftStickRight] = stick.x;
@@ -105,6 +122,24 @@ namespace MoonlighterCoop
                 var b = Traverse.Create(act).Field(kv.Key).GetValue<PlayerAction>();
                 if (b != null) Pad[b] = 1f;
             }
+        }
+
+        // Walk around holes and walls with the game's own navigation map of the current room.
+        private void PathTo(Vector2 target, Vector2 pushAfter)
+        {
+            _path.Clear(); _walkTarget = null; _stick = Vector2.zero;
+            _pushDir = pushAfter; _pushUntil = pushAfter == Vector2.zero ? 0f : -1f;
+            var nav = DungeonManager.Instance != null ? DungeonManager.Instance.polyNavInstance : null;
+            if (nav == null) nav = UnityEngine.Object.FindObjectOfType<PolyNav2D>();
+            var start = (Vector2)HeroMerchant.Instance.transform.position;
+            if (nav == null) { _path.Enqueue(target); return; }
+            var end = nav.PointIsValid(target) ? target : nav.GetCloserEdgePoint(target);
+            nav.FindPath(start, end, pts =>
+            {
+                if (pts == null || pts.Length == 0) { _path.Enqueue(target); return; }
+                foreach (var pt in pts) _path.Enqueue(pt);
+                _path.Enqueue(target);
+            });
         }
 
         private static float F(string s) => float.Parse(s, CultureInfo.InvariantCulture);
@@ -121,6 +156,16 @@ namespace MoonlighterCoop
                 case "stick": _walkTarget = null; _stick = new Vector2(F(p[1]), F(p[2])); return "ok";
                 case "stop": _walkTarget = null; _stick = Vector2.zero; _buttonsUntil.Clear(); return "ok";
                 case "allow": hero.heroMerchantController.AllowMovement(); hero.heroMerchantController.EnableMoveInput(); return "ok";
+                case "goto": PathTo(new Vector2(F(p[1]), F(p[2])), Vector2.zero); return "ok";
+                case "door":
+                {
+                    var room = dm.currentDungeonRoom;
+                    var d = room.roomDoors.FirstOrDefault(x => x != null && x.destinationRoom != null && x.name.IndexOf(p[1], StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (d == null) return "no door " + p[1];
+                    var dir = ((Vector2)(d.transform.position - room.transform.position)).normalized;
+                    PathTo((Vector2)d.transform.position - dir * 30f, dir);
+                    return "ok";
+                }
                 case "walkto":
                     _walkTarget = new Vector2(F(p[1]), F(p[2]));
                     _walkUntil = Time.unscaledTime + (p.Length > 3 ? F(p[3]) : 6f);
@@ -130,8 +175,10 @@ namespace MoonlighterCoop
                     _walkUntil = Time.unscaledTime + 6f;
                     return "ok";
                 case "press": _buttonsUntil[p[1]] = Time.unscaledTime + (p.Length > 2 ? F(p[2]) : 0.15f); return "ok";
+                case "gpress": _guiUntil[p[1]] = Time.unscaledTime + (p.Length > 2 ? F(p[2]) : 0.15f); return "ok";
                 case "tp": hero.heroMerchantController.TeleportTo(new Vector3(F(p[1]), F(p[2]))); return "ok";
                 case "god": if (p[1] == "on") hero.SetGodMode(); else { hero.SetNormalMode(); hero.heroMerchantStats.SetVencible(); } return "ok";
+                case "inv": if (p[1] == "on") { hero.SetNormalMode(); hero.heroMerchantStats.SetInvencible(); } else hero.heroMerchantStats.SetVencible(); return "ok";
                 case "dungeon": hero.LoadDungeonScene((ItemMaster.Culture)Enum.Parse(typeof(ItemMaster.Culture), p[1])); return "ok";
                 case "town": hero.LoadTownScene(); return "ok";
                 case "hurt": hero.DealDamageToPlayer(F(p[1]), "QA"); return "ok";
@@ -179,6 +226,9 @@ namespace MoonlighterCoop
         }
     }
 }
+
+
+
 
 
 
