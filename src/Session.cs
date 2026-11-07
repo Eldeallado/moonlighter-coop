@@ -24,13 +24,14 @@ namespace MoonlighterCoop
         public static void Start()
         {
             if (IsHost) Net.StartHost(Plugin.Port);
+            Dungeon.Init();
         }
 
         public static string LocalZone()
         {
             var gm = GameManager.Instance;
             if (gm == null || HeroMerchant.Instance == null) return "";
-            if (gm.IsDungeonSceneLoaded()) return "dungeon";
+            if (gm.IsDungeonSceneLoaded()) return Dungeon.RoomZone();
             if (gm.IsTownSceneLoaded()) return "town";
             return "";
         }
@@ -70,7 +71,29 @@ namespace MoonlighterCoop
                     if (now - _menuSeenAt > 6f) { var d = _pendingSave; _pendingSave = null; LoadHostSave(d); }
                 }
             }
+            LoadingWatchdog(now);
+            if (Net.Connected && IsGuest && Puppet.Instance != null) Dungeon.GuestFollowTick(Puppet.Instance.Zone);
             if (now >= _nextStatus) { _nextStatus = now + 0.5f; WriteStatus(); }
+        }
+
+        // Loading the save from the menu shows a "dummy" loading panel; on the guest nothing hid it again.
+        private static float _loadingStuckSince = -1f;
+        private static void LoadingWatchdog(float now)
+        {
+            var gui = GUIManager.Instance;
+            var gm = GameManager.Instance;
+            var panel = gui != null ? gui.dungeonLoadingPanel : null;
+            // Only the "dummy" panel from loading a save: the real dungeon loading panel must never be touched.
+            bool stuck = panel != null && panel.IsActive() && gm != null && HeroMerchant.Instance != null
+                         && gm.IsTownSceneLoaded() && !gm.IsDungeonSceneLoaded() && gm.NotLoadingScene
+                         && Traverse.Create(panel).Field("_dummy").GetValue<bool>();
+            if (!stuck) { _loadingStuckSince = -1f; return; }
+            if (_loadingStuckSince < 0f) { _loadingStuckSince = now; return; }
+            if (now - _loadingStuckSince < 4f) return;
+            _loadingStuckSince = -1f;
+            Plugin.Log.LogInfo("[session] loading panel still up in town: hiding it");
+            if (gui.currentInventory == panel) gui.DisableCurrentPanel();
+            else panel.Disable();
         }
 
         private static byte[] _pendingSave;
@@ -94,6 +117,15 @@ namespace MoonlighterCoop
                 case Msg.Pose:
                     PosesReceived++;
                     Puppet.Ensure().Apply(data, LocalZone());
+                    break;
+                case Msg.Travel:
+                    if (IsGuest) Dungeon.OnTravel(data);
+                    break;
+                case Msg.DungeonInfo:
+                    if (IsGuest) Dungeon.OnInfo(data);
+                    break;
+                case Msg.DoorRequest:
+                    if (IsHost) Dungeon.OnDoorRequest(data);
                     break;
                 case Msg.Ping:
                     Net.Send(Msg.Pong, data);
@@ -157,6 +189,13 @@ namespace MoonlighterCoop
             sb.AppendLine($"puppet_parts={(p ? p.GetComponentsInChildren<SpriteRenderer>(false).Length : 0)}");
             sb.AppendLine($"sprite_misses={SpriteCache.Misses}");
             sb.AppendLine($"ping_ms={LastPing:F0}");
+            sb.AppendLine($"dungeon_sig={(GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded() ? Dungeon.Signature() : "")}");
+            sb.AppendLine($"infos_sent={Dungeon.InfosSent}");
+            sb.AppendLine($"infos_received={Dungeon.InfosReceived}");
+            sb.AppendLine($"loading_panel={(GUIManager.Instance != null && GUIManager.Instance.dungeonLoadingPanel != null && GUIManager.Instance.dungeonLoadingPanel.IsActive())}");
+            sb.AppendLine($"scenario_step={Plugin.ScenarioStep}");
+            sb.AppendLine($"door_requests_sent={Dungeon.DoorRequestsSent}");
+            sb.AppendLine($"door_requests_done={Dungeon.DoorRequestsDone}");
             sb.AppendLine($"guest_loaded={GuestLoaded}");
             sb.AppendLine($"save_sent={SaveSent}");
             sb.AppendLine($"slot={(GameManager.Instance != null && GameManager.Instance.currentGameSlot != null ? GameManager.Instance.currentGameSlot.seed : 0)}");

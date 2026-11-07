@@ -1,8 +1,9 @@
-param(
+﻿param(
     [int]$GuestDelay = 20,
     [int]$Wait = 110,
     [switch]$KeepOpen
 )
+. "$PSScriptRoot\windows.ps1"
 # Starts a host and a guest copy with -coopbot and checks they see each other.
 $ws = "E:\CoopAnything"
 $hostDir = "$ws\test-host"; $guestDir = "$ws\test-guest"
@@ -12,9 +13,9 @@ Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep 2
 Remove-Item "$hostDir\BepInEx\coop_*", "$guestDir\BepInEx\coop_*" -ErrorAction SilentlyContinue
 
-$h = Start-Process "$hostDir\Moonlighter.exe" -ArgumentList "$common -coop host" -WorkingDirectory $hostDir -PassThru
+$h = Start-Copy $hostDir "$common -coop host" 0
 Start-Sleep $GuestDelay
-$g = Start-Process "$guestDir\Moonlighter.exe" -ArgumentList "$common -coop join 127.0.0.1" -WorkingDirectory $guestDir -PassThru
+$g = Start-Copy $guestDir "$common -coop join 127.0.0.1" 820
 Start-Sleep $Wait
 
 function Read-Status($dir, $tag) {
@@ -55,3 +56,5 @@ $results | Format-Table -AutoSize | Out-String -Width 160
 $pass = ($results | Where-Object Result -eq "PASS").Count
 "SUITE: $pass/$($results.Count) passed"
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
+
+

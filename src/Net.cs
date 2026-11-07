@@ -14,6 +14,9 @@ namespace MoonlighterCoop
         Pose = 3,
         Ping = 4,
         Pong = 5,
+        Travel = 6,
+        DungeonInfo = 7,
+        DoorRequest = 8,
     }
 
     /// One framed TCP connection: [int32 length][byte type][payload]. Reads on a thread, handled on Unity's thread.

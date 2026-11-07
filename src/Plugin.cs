@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -38,6 +39,15 @@ namespace MoonlighterCoop
             new Harmony(Guid).PatchAll();
             Session.Start();
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
+            // The game turns its own log off; keep errors and the loading/room flow for debugging.
+            Debug.unityLogger.logEnabled = true;
+            Application.logMessageReceived += (msg, stack, type) =>
+            {
+                if (type == LogType.Exception || type == LogType.Error && !msg.StartsWith("Check for DLC"))
+                    Log.LogWarning($"[unity {type}] {msg}\n{stack}");
+                else if (msg.Contains("DungeonLoading") || msg.Contains("DisableCurrentPanel") || msg.Contains("ChangeRoomTo"))
+                    Log.LogInfo("[unity] " + msg.Split('\n')[0]);
+            };
             Log.LogInfo($"Moonlighter Coop {Version} role={Role} bot={Bot} tag={Tag}");
         }
 
@@ -58,13 +68,23 @@ namespace MoonlighterCoop
                     case "-coopbot":
                         Bot = true;
                         break;
+                    case "-coopscenario":
+                        if (i + 1 < a.Length) Scenario = a[++i].ToLowerInvariant();
+                        break;
                 }
             }
             Tag = Role == "" ? "solo" : Role;
         }
 
+        private bool _windowed;
         private void Update()
         {
+            // QA copies: a small window, whatever the game's own display option says.
+            if (Bot && !_windowed && Time.frameCount > 30)
+            {
+                _windowed = true;
+                Screen.SetResolution(800, 450, FullScreenMode.Windowed);
+            }
             if (Input.GetKeyDown(KeyCode.F8)) Dump();
             Session.Tick();
             if (Bot) BotTick();
@@ -81,7 +101,7 @@ namespace MoonlighterCoop
 
         private void BotTick()
         {
-            if (Session.IsHost) BotMoveTick();
+            BotMoveTick();
             if (Session.IsGuest) return; // the guest loads the host's save, not its own
             if (_botLoaded)
             {
@@ -118,8 +138,69 @@ namespace MoonlighterCoop
         private Vector3 _botOrigin;
         private float _botNextStep;
         private int _botStep;
+        public static string Scenario = "walk";
+        public static int ScenarioStep;
+        private float _scenarioAt = -1f;
+
+        // QA "dungeon": host enters the Golem dungeon, changes room twice, goes home.
+        private void BotDungeonTick()
+        {
+            var hero = HeroMerchant.Instance;
+            var gm = GameManager.Instance;
+            if (hero == null || gm == null || !Net.Connected) return;
+            float now = Time.unscaledTime;
+            bool settled = gm.NotLoadingScene && !(GUIManager.Instance.dungeonLoadingPanel?.IsActive() ?? false);
+            if (_scenarioAt < 0f) { if (Session.LocalZone() == "town" && Puppet.Instance != null && Puppet.Instance.Visible) _scenarioAt = now + 8f; return; }
+            if (now < _scenarioAt || !settled) return;
+            switch (ScenarioStep)
+            {
+                case 0:
+                    Log.LogInfo("[bot] step 0: enter Golem dungeon");
+                    hero.LoadDungeonScene(ItemMaster.Culture.Golem);
+                    ScenarioStep = 1; _scenarioAt = now + 15f; break;
+                case 1:
+                case 2:
+                    if (!gm.IsDungeonSceneLoaded() || DungeonManager.Instance == null) return;
+                    var room = DungeonManager.Instance.currentDungeonRoom;
+                    var door = room.roomDoors.FirstOrDefault(d => d != null && d.destinationRoom != null && !(d.destinationRoom is DungeonBossRoom) && d.isOpened && !d.isDisabled);
+                    if (door == null) { Log.LogWarning("[bot] no open door here"); ScenarioStep = 3; return; }
+                    Log.LogInfo($"[bot] step {ScenarioStep}: go through {door.name} to {door.destinationRoom.x},{door.destinationRoom.y}");
+                    door.OnPlayerEnter(hero.gameObject);
+                    ScenarioStep++; _scenarioAt = now + (ScenarioStep == 2 ? 28f : 12f); break;
+                case 3:
+                    Log.LogInfo("[bot] step 3: go home");
+                    hero.LoadTownScene();
+                    ScenarioStep = 4; _scenarioAt = now + 20f; break;
+            }
+        }
+
+        // QA "dungeon", guest side: once the host has led into a second room, the guest leads once.
+        private readonly HashSet<string> _guestRooms = new HashSet<string>();
+        private float _guestSameRoomSince = -1f;
+        private bool _guestLed;
+        private void BotGuestDungeonTick()
+        {
+            var hero = HeroMerchant.Instance;
+            var dm = DungeonManager.Instance;
+            var gm = GameManager.Instance;
+            if (_guestLed || hero == null || dm == null || dm.currentDungeonRoom == null || gm == null || !gm.IsDungeonSceneLoaded() || !gm.NotLoadingScene) return;
+            string zone = Session.LocalZone();
+            _guestRooms.Add(zone);
+            if (_guestRooms.Count < 2 || Puppet.Instance == null || Puppet.Instance.Zone != zone) { _guestSameRoomSince = -1f; return; }
+            float now = Time.unscaledTime;
+            if (_guestSameRoomSince < 0f) { _guestSameRoomSince = now; return; }
+            if (now - _guestSameRoomSince < 6f) return;
+            var door = dm.currentDungeonRoom.roomDoors.FirstOrDefault(d => d != null && d.destinationRoom != null && !(d.destinationRoom is DungeonBossRoom) && d.isOpened && !d.isDisabled);
+            if (door == null) return;
+            _guestLed = true;
+            Log.LogInfo($"[bot] guest walks through {door.name} to {door.destinationRoom.x},{door.destinationRoom.y}");
+            door.OnPlayerEnter(hero.gameObject);
+        }
+
         private void BotMoveTick()
         {
+            if (Scenario == "dungeon" && Session.IsGuest) { BotGuestDungeonTick(); return; }
+            if (Scenario == "dungeon") { BotDungeonTick(); return; }
             var hero = HeroMerchant.Instance;
             if (hero == null || Session.LocalZone() != "town" || !Net.Connected) return;
             if (_botOrigin == Vector3.zero) { _botOrigin = hero.transform.position; _botNextStep = Time.unscaledTime + 5f; }
