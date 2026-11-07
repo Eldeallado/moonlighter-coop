@@ -21,6 +21,14 @@ namespace MoonlighterCoop
         EnemyHit = 10,
         EnemyDeath = 11,
         BreakAt = 12,
+        ItemDrop = 13,
+        ItemTaken = 14,
+        Downed = 15,
+        Revive = 16,
+        EndRun = 17,
+        FountainHeal = 18,
+        BreakDetailAt = 19,
+        RoomDoors = 20,
     }
 
     /// One framed TCP connection: [int32 length][byte type][payload]. Reads on a thread, handled on Unity's thread.
@@ -147,5 +155,7 @@ namespace MoonlighterCoop
         public static void Send(Msg type, byte[] data) => Peer?.Send(type, data);
     }
 }
+
+
 
 

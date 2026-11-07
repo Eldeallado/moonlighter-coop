@@ -73,6 +73,8 @@ namespace MoonlighterCoop
             }
             LoadingWatchdog(now);
             EnemySync.HostTick();
+            DoorSync.HostTick();
+            Downed.Tick();
             if (Net.Connected && IsGuest && Puppet.Instance != null) Dungeon.GuestFollowTick(Puppet.Instance.Zone);
             if (now >= _nextStatus) { _nextStatus = now + 0.5f; WriteStatus(); }
         }
@@ -134,6 +136,14 @@ namespace MoonlighterCoop
                 case Msg.EnemyDeath:
                     if (IsGuest) EnemySync.OnDeath(data);
                     break;
+                case Msg.ItemDrop: if (IsGuest) Loot.OnItemDrop(data); break;
+                case Msg.ItemTaken: Loot.OnItemTaken(data); break;
+                case Msg.Downed: Downed.OnPartnerDowned(data); break;
+                case Msg.Revive: Downed.OnRevive(data); break;
+                case Msg.EndRun: Downed.OnEndRun(); break;
+                case Msg.FountainHeal: Downed.OnFountainHeal(); break;
+                case Msg.BreakDetailAt: BreakableSync.OnBreakDetailAt(data); break;
+                case Msg.RoomDoors: if (IsGuest) DoorSync.OnRoomDoors(data); break;
                 case Msg.BreakAt:
                     BreakableSync.OnBreakAt(data);
                     break;
@@ -194,10 +204,13 @@ namespace MoonlighterCoop
             return n;
         }
 
+        private static float _hpMin = 99999f;
+
         private static void WriteStatus()
         {
             var hero = HeroMerchant.Instance;
             var p = Puppet.Instance;
+            if (hero != null && GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded()) _hpMin = Mathf.Min(_hpMin, (float)hero.heroMerchantStats.currentHealth.Value);
             var sb = new StringBuilder();
             sb.AppendLine($"role={Plugin.Role}");
             sb.AppendLine($"connected={Net.Connected}");
@@ -222,6 +235,17 @@ namespace MoonlighterCoop
             sb.AppendLine($"content_sig={(GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded() && GameManager.Instance.NotLoadingScene ? Dungeon.ContentSignature() : "")}");
             sb.AppendLine($"floor_seed={Dungeon.FloorSeed}");
             sb.AppendLine($"breaks_sent={BreakableSync.Sent}");
+            sb.AppendLine($"loot_sent={Loot.DropsSent}");
+            sb.AppendLine($"loot_shown={Loot.DropsShown}");
+            sb.AppendLine($"loot_taken={Loot.Taken}");
+            sb.AppendLine($"loot_removed={Loot.Removed}");
+            sb.AppendLine($"loot_received={Loot.Received}");
+            sb.AppendLine($"downed_me={Downed.Me}");
+            sb.AppendLine($"downed_partner={Downed.Partner}");
+            sb.AppendLine($"revives={Downed.Revives}");
+            sb.AppendLine($"target_swaps={TargetSwap.Swaps}");
+            sb.AppendLine($"hp={(hero != null ? (float)hero.heroMerchantStats.currentHealth.Value : -1f):F0}");
+            sb.AppendLine($"hp_min={_hpMin:F0}");
             sb.AppendLine($"breaks_applied={BreakableSync.Applied}");
             sb.AppendLine($"infos_sent={Dungeon.InfosSent}");
             sb.AppendLine($"infos_received={Dungeon.InfosReceived}");
@@ -256,6 +280,9 @@ namespace MoonlighterCoop
         }
     }
 }
+
+
+
 
 
 

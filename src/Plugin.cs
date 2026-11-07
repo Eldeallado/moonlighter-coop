@@ -26,6 +26,7 @@ namespace MoonlighterCoop
         public static int Port = 7795;
         public static bool Bot;
         public static bool Windowed;
+        public static bool Drive;
         public static string Tag = "solo";
 
         private float _menuSeenAt = -1f;
@@ -40,6 +41,8 @@ namespace MoonlighterCoop
             var harmony = new Harmony(Guid);
             harmony.PatchAll();
             SeededObjects.Patch(harmony);
+            TargetSwap.Patch(harmony);
+            if (Drive) Driver.Start(Role == "join" ? 7801 : 7800);
             Session.Start();
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
             // The game turns its own log off; keep errors and the loading/room flow for debugging.
@@ -67,6 +70,9 @@ namespace MoonlighterCoop
                         break;
                     case "-coopport":
                         if (i + 1 < a.Length) int.TryParse(a[++i], out Port);
+                        break;
+                    case "-coopdrive":
+                        Drive = true;
                         break;
                     case "-coopwindowed":
                         Windowed = true;
@@ -261,8 +267,96 @@ namespace MoonlighterCoop
             }
         }
 
+        // QA "coop": combat (guest mortal), shared loot pick-up, guest downed + revived by the host, both down = home.
+        private float _coopAt = -1f;
+        private int _coopPhase;
+        private bool _sawPartnerDown;
+        private void BotCoopTick()
+        {
+            var hero = HeroMerchant.Instance; var gm = GameManager.Instance;
+            float now = Time.unscaledTime;
+            if (hero == null || gm == null || !Net.Connected) return;
+            bool inDungeon = gm.IsDungeonSceneLoaded();
+            if (Session.IsGuest && Downed.Me && _coopPhase < 2) _coopPhase = 2;            // fell in the fight: skip ahead
+            if (Session.IsHost && inDungeon && Loot.Taken == 0 && !Downed.Me)
+            {
+                var own = FindObjectsOfType<ItemStack>().FirstOrDefault(s => Loot.IdOf(s) != 0 && s.gameObject.activeInHierarchy && s.pickOnWalk != null && s.pickOnWalk.CanPick);
+                if (own != null) { Log.LogInfo($"[bot] host picks up {own.master.name}"); own.pickOnWalk.TryToAdd(); }
+            }
+            bool hostReviving = Session.IsHost && inDungeon && (Downed.Partner || _coopPhase > 0);
+            if (!hostReviving && (!inDungeon || !Plugin.CombatRoomCleared && Session.IsHost || EnemySync.DeathsApplied == 0 && Session.IsGuest && _coopPhase < 2))
+            {
+                // Phase 0: reuse the combat bot to find and clear a room (the guest is not god mode here).
+                if (Session.IsHost || !inDungeon) { BotCombatTick(); return; }
+                var dm0 = DungeonManager.Instance;
+                if (dm0 == null || dm0.currentDungeonRoom == null || Puppet.Instance == null || Puppet.Instance.Zone != Session.LocalZone()) return;
+                if (now < _combatNext) return;
+                var t0 = dm0.currentDungeonRoom.roomEnemies.FirstOrDefault(e => e != null && e.enemyStats != null && e.enemyStats.isAlive && EnemySync.IdOf(e) != null && e.gameObject.activeInHierarchy);
+                if (t0 == null) return;
+                if (_coopAt < 0f) { _coopAt = now + 6f; return; }   // let the enemies hurt the guest a bit first
+                if (now < _coopAt) return;
+                t0.DealDamageToEnemy(40f);
+                _combatNext = now + 0.8f;
+                return;
+            }
+            if (Session.IsGuest)
+            {
+                switch (_coopPhase)
+                {
+                    case 0: // pick up a shared item once the host's loot has landed here
+                        var item = FindObjectsOfType<ItemStack>().FirstOrDefault(s => Loot.IdOf(s) != 0 && s.gameObject.activeInHierarchy && s.pickOnWalk != null);
+                        if (item == null) { if (_coopAt < 0f || now - _coopAt > 25f) { _coopAt = now; } else if (now - _coopAt > 20f) _coopPhase = 1; return; }
+                        Log.LogInfo($"[bot] guest picks up {item.master.name}");
+                        item.pickOnWalk.TryToAdd();
+                        _coopPhase = 1; _coopAt = now + 4f; return;
+                    case 1: // fall
+                        if (now < _coopAt) return;
+                        Log.LogInfo("[bot] guest dies");
+                        hero.DealDamageToPlayer(99999f, "QA");
+                        _coopPhase = 2; return;
+                    case 2: // wait to be revived, then fall again
+                        if (Downed.Revives > 0 && !Downed.Me) { _coopPhase = Loot.Taken == 0 ? 5 : 3; _coopAt = now + 6f; }
+                        return;
+                    case 5: // revived before picking anything up: pick up now
+                        var it = FindObjectsOfType<ItemStack>().FirstOrDefault(s => Loot.IdOf(s) != 0 && s.gameObject.activeInHierarchy && s.pickOnWalk != null);
+                        if (it != null) { Log.LogInfo($"[bot] guest picks up {it.master.name}"); it.pickOnWalk.TryToAdd(); }
+                        if (it != null || now > _coopAt + 15f) { _coopPhase = 3; _coopAt = now + 5f; }
+                        return;
+                    case 3:
+                        if (now < _coopAt) return;
+                        Log.LogInfo("[bot] guest dies again");
+                        hero.DealDamageToPlayer(99999f, "QA");
+                        _coopPhase = 4; return;
+                }
+            }
+            else
+            {
+                if (Downed.Partner && Puppet.Instance != null)
+                {
+                    if (_coopPhase == 0)
+                    {
+                        Log.LogInfo("[bot] host goes to the downed guest");
+                        hero.heroMerchantController.TeleportTo(Puppet.Instance.transform.position + new Vector3(12f, 0f));
+                        _coopPhase = 1;
+                    }
+                    else if (_coopPhase >= 2 && !_sawPartnerDown)
+                    {
+                        _sawPartnerDown = true;
+                        Log.LogInfo("[bot] guest is down again: host dies too");
+                        hero.heroMerchantController.TeleportTo(Puppet.Instance.transform.position + new Vector3(200f, 0f));
+                        hero.SetNormalMode();
+                        hero.heroMerchantStats.SetVencible();
+                        hero.DealDamageToPlayer(99999f, "QA");
+                    }
+                }
+                else if (_coopPhase == 1) { _coopPhase = 2; hero.heroMerchantController.TeleportTo(hero.transform.position + new Vector3(150f, 0f)); }
+            }
+        }
+
         private void BotMoveTick()
         {
+            if (Scenario == "none") return;
+            if (Scenario == "coop") { BotCoopTick(); return; }
             if (Scenario == "combat") { BotCombatTick(); return; }
             if (Scenario == "dungeon" && Session.IsGuest) { BotGuestDungeonTick(); return; }
             if (Scenario == "dungeon") { BotDungeonTick(); return; }
@@ -318,6 +412,9 @@ namespace MoonlighterCoop
         }
     }
 }
+
+
+
 
 
 

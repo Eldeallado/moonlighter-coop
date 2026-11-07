@@ -8,9 +8,9 @@ $common = "-screen-fullscreen 0 -screen-width 800 -screen-height 450 -coopbot -c
 Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep 2
 Remove-Item "$hostDir\BepInEx\coop_*", "$guestDir\BepInEx\coop_*" -ErrorAction SilentlyContinue
-$h = Start-Copy $hostDir "$common -coop host" 0
+$h = Start-Copy $hostDir "$common -coop host" -1920
 Start-Sleep 20
-$g = Start-Copy $guestDir "$common -coop join 127.0.0.1" 820
+$g = Start-Copy $guestDir "$common -coop join 127.0.0.1" -1100
 
 function Read-Status($dir, $tag) {
     $f = "$dir\BepInEx\coop_${tag}_status.txt"; $o = @{}
@@ -47,6 +47,7 @@ Check "no loading screen left on guest" ($g.loading_panel -eq "False") "loading_
 $results | Format-Table -AutoSize | Out-String -Width 200
 "SUITE: $(($results | Where-Object Result -eq 'PASS').Count)/$($results.Count) passed"
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
+
 
 
 

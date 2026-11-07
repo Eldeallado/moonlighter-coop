@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -40,7 +40,7 @@ namespace MoonlighterCoop
             {
                 var t = sr.transform;
                 w.Write(PathOf(t, root));
-                w.Write(sr.sprite.name);
+                w.Write(sr.sprite.texture != null ? sr.sprite.texture.name + "/" + sr.sprite.name : sr.sprite.name);
                 var rel = t.position - root.position;
                 w.Write(rel.x); w.Write(rel.y);
                 var s = t.lossyScale;
@@ -55,6 +55,7 @@ namespace MoonlighterCoop
                 w.Write(sr.sortingLayerName);
                 w.Write(sr.sortingOrder - baseOrder);
                 w.Write(sr.sharedMaterial != null ? sr.sharedMaterial.name : "");
+                w.Write(sr.sharedMaterial != null && sr.sharedMaterial.HasProperty("_FlashAmount") ? sr.sharedMaterial.GetFloat("_FlashAmount") : 0f);
             }
             return ms.ToArray();
         }
@@ -117,6 +118,7 @@ namespace MoonlighterCoop
                 string layer = r.ReadString();
                 int relOrder = r.ReadInt32();
                 string mat = r.ReadString();
+                float flash = r.ReadSingle();
                 _seen.Add(path);
                 if (!_parts.TryGetValue(path, out var sr))
                 {
@@ -129,6 +131,7 @@ namespace MoonlighterCoop
                 sr.sprite = SpriteCache.Get(sprite);
                 var m = MaterialFor(path, mat);
                 if (m != null && sr.sharedMaterial != m) sr.sharedMaterial = m;
+                if (m != null && m.name.StartsWith("CoopPuppet") && m.HasProperty("_FlashAmount")) m.SetFloat("_FlashAmount", flash);
                 sr.transform.localPosition = rel;
                 sr.transform.localScale = scale;
                 sr.transform.localRotation = Quaternion.Euler(0, 0, rot);
@@ -154,8 +157,9 @@ namespace MoonlighterCoop
                 if (_ownMaterials.TryGetValue(path, out var own) && own != null) return own;
                 var hero = HeroMerchant.Instance;
                 var local = hero != null ? hero.transform.Find(path)?.GetComponent<SpriteRenderer>() : null;
-                Material src = local != null ? local.sharedMaterial : null;
-                if (src == null) src = SpriteCache.GetMaterial(remoteName.Substring(0, remoteName.Length - " (Instance)".Length));
+                // The clean asset, not the local Will's instance (which may be mid red flash).
+                Material src = SpriteCache.GetMaterial(remoteName.Substring(0, remoteName.Length - " (Instance)".Length));
+                if (src == null && local != null) src = local.sharedMaterial;
                 if (src == null) return null;
                 own = new Material(src) { name = "CoopPuppet " + src.name };
                 if (own.HasProperty("_FlashAmount")) own.SetFloat("_FlashAmount", 0f);
@@ -185,8 +189,9 @@ namespace MoonlighterCoop
             if (Time.unscaledTime >= _nextSpriteScan)
             {
                 _nextSpriteScan = Time.unscaledTime + 2f;
+                // Sprite names repeat across sheets (Will and enemies both have "Idle_..."): key by sheet too.
                 foreach (var sp in Resources.FindObjectsOfTypeAll<Sprite>())
-                    if (sp != null) _sprites[sp.name] = sp;
+                    if (sp != null) _sprites[(sp.texture != null ? sp.texture.name + "/" : "") + sp.name] = sp;
                 if (_sprites.TryGetValue(name, out s) && s != null) return s;
             }
             Misses++;
@@ -208,3 +213,4 @@ namespace MoonlighterCoop
         }
     }
 }
+

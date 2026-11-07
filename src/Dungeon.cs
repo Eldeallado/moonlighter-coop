@@ -117,7 +117,7 @@ namespace MoonlighterCoop
                         }
                         break;
                     case Travel.Town:
-                        hero.LoadTownScene();
+                        if (GameManager.Instance.IsDungeonSceneLoaded()) hero.LoadTownScene();
                         break;
                 }
             }
@@ -157,6 +157,8 @@ namespace MoonlighterCoop
         }
 
         internal static bool _bypass;
+        private static string _lastFollowKey = "";
+        private static int _followTries;
         private static float _nextDoorRequest;
         public static int DoorRequestsSent, DoorRequestsDone;
 
@@ -213,6 +215,9 @@ namespace MoonlighterCoop
             DungeonRoom target = boss ? dm.bossRoom : dm.dungeonRooms.FirstOrDefault(r => r != null && r.x == x && r.y == y && r.isSecret == secret && !(r is DungeonBossRoom));
             if (target == null) { Plugin.Log.LogWarning($"[dungeon] host room {key} not found here"); return; }
             var door = dm.currentDungeonRoom.roomDoors.FirstOrDefault(d => d != null && d.destinationRoom == target);
+            // If walking through the door already failed for this room, move there for sure.
+            if (_lastFollowKey == key) _followTries++; else { _lastFollowKey = key; _followTries = 1; }
+            if (_followTries > 1) door = null;
             Plugin.Log.LogInfo($"[dungeon] guest follows host to room {key} via {(door != null ? door.name : "teleport")}");
             Following = true;
             try
@@ -292,4 +297,5 @@ namespace MoonlighterCoop
         }
     }
 }
+
 

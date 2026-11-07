@@ -73,34 +73,82 @@ namespace MoonlighterCoop
         public static bool Applying;
         public static int Sent, Applied;
 
+        private static string BaseName(Enemy e) => e.name.Replace("(Clone)", "").Trim();
+
+        /// Any Enemy without a shared id (boxes, pots, slimes split from a slime, turrets' spawns...):
+        /// when it dies on one PC, the nearest living one with the same name dies on the other.
         public static void Broke(Enemy e)
         {
-            if (Applying || !Net.Connected || e == null || e.GetComponent<BreakableObjectBehaviour>() == null) return;
+            if (Applying || EnemySync.ApplyingDeath || !Net.Connected || e == null) return;
+            if (GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded()) return;
+            bool breakable = e.GetComponent<BreakableObjectBehaviour>() != null;
+            // Unshared real enemies: only the host decides they die.
+            if (!breakable && !Session.IsHost) return;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
-            w.Write(e.transform.position.x); w.Write(e.transform.position.y);
+            w.Write(e.transform.position.x); w.Write(e.transform.position.y); w.Write(BaseName(e)); w.Write(breakable);
             Net.Send(Msg.BreakAt, ms.ToArray());
             Sent++;
+        }
+
+        // Grass, small pots and other "details" break on touch and are not Enemies.
+        public static void DetailBroke(BreakableDetail d)
+        {
+            if (Applying || !Net.Connected || d == null) return;
+            var ms = new MemoryStream(); var w = new BinaryWriter(ms);
+            w.Write(d.transform.position.x); w.Write(d.transform.position.y);
+            Net.Send(Msg.BreakDetailAt, ms.ToArray());
+            Sent++;
+        }
+
+        public static void OnBreakDetailAt(byte[] data)
+        {
+            var r = new BinaryReader(new MemoryStream(data));
+            var pos = new Vector2(r.ReadSingle(), r.ReadSingle());
+            BreakableDetail best = null; float bestD = 4f * 4f;
+            foreach (var b in UnityEngine.Object.FindObjectsOfType<BreakableDetail>())
+            {
+                float d = ((Vector2)b.transform.position - pos).sqrMagnitude;
+                if (d < bestD) { bestD = d; best = b; }
+            }
+            if (best == null) return;
+            Applying = true;
+            try { Traverse.Create(best).Method("PlayBreakAnimation").GetValue(); }
+            finally { Applying = false; }
+            Applied++;
         }
 
         public static void OnBreakAt(byte[] data)
         {
             var r = new BinaryReader(new MemoryStream(data));
             var pos = new Vector2(r.ReadSingle(), r.ReadSingle());
-            BreakableObjectBehaviour best = null; float bestD = 6f * 6f;
-            foreach (var b in UnityEngine.Object.FindObjectsOfType<BreakableObjectBehaviour>())
+            string name = r.ReadString(); bool breakable = r.ReadBoolean();
+            Enemy best = null; float bestD = breakable ? 6f : 80f; bestD *= bestD;
+            foreach (var en in UnityEngine.Object.FindObjectsOfType<Enemy>())
             {
-                var en = b.GetComponent<Enemy>();
-                if (en == null || en.enemyStats == null || !en.enemyStats.isAlive) continue;
-                float d = ((Vector2)b.transform.position - pos).sqrMagnitude;
-                if (d < bestD) { bestD = d; best = b; }
+                if (en == null || en.enemyStats == null || !en.enemyStats.isAlive || EnemySync.IdOf(en) != null) continue;
+                if (BaseName(en) != name) continue;
+                float d = ((Vector2)en.transform.position - pos).sqrMagnitude;
+                if (d < bestD) { bestD = d; best = en; }
             }
             if (best == null) return;
-            var e = best.GetComponent<Enemy>();
+            var e = best;
             Applying = true;
             try { e.enemyStats.CurrentHealth = 0f; if (e.enemyStats.isAlive) e.enemyStats.Die(); }
             finally { Applying = false; }
             Applied++;
         }
+    }
+
+    [HarmonyPatch(typeof(BreakableDetail), "PlayBreakAnimation")]
+    static class BreakableDetailSync
+    {
+        static bool Prefix(BreakableDetail __instance, out bool __state)
+        {
+            // Only report the first break (it can be touched again while breaking).
+            __state = __instance.GetComponent<Collider2D>() == null || __instance.GetComponent<Collider2D>().enabled;
+            return true;
+        }
+        static void Postfix(BreakableDetail __instance, bool __state) { if (__state) BreakableSync.DetailBroke(__instance); }
     }
 
     [HarmonyPatch(typeof(EnemyStats), nameof(EnemyStats.Die))]

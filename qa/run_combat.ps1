@@ -7,9 +7,9 @@ $common = "-screen-fullscreen 0 -screen-width 800 -screen-height 450 -coopbot -c
 Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep 2
 Get-ChildItem "$hostDir\BepInEx", "$guestDir\BepInEx" -Filter "coop_*" -ErrorAction SilentlyContinue | ForEach-Object { $_.Delete() }
-$h = Start-Copy $hostDir "$common -coop host" 0
+$h = Start-Copy $hostDir "$common -coop host" -1920
 Start-Sleep 20
-$g = Start-Copy $guestDir "$common -coop join 127.0.0.1" 820
+$g = Start-Copy $guestDir "$common -coop join 127.0.0.1" -1100
 function Read-Status($dir, $tag) {
     $f = "$dir\BepInEx\coop_${tag}_status.txt"; $o = @{}
     if (Test-Path $f) { try { Get-Content $f -ErrorAction Stop | ForEach-Object { $k, $v = $_ -split "=", 2; $o[$k] = $v } } catch {} }
@@ -39,4 +39,5 @@ Check "enemies dead on guest too" (($g.room_enemies_alive -eq "0") -and ([int]$g
 $results | Format-Table -AutoSize | Out-String -Width 200
 "SUITE: $(($results | Where-Object Result -eq 'PASS').Count)/$($results.Count) passed"
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
+
 

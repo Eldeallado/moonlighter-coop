@@ -13,9 +13,9 @@ Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep 2
 Remove-Item "$hostDir\BepInEx\coop_*", "$guestDir\BepInEx\coop_*" -ErrorAction SilentlyContinue
 
-$h = Start-Copy $hostDir "$common -coop host" 0
+$h = Start-Copy $hostDir "$common -coop host" -1920
 Start-Sleep $GuestDelay
-$g = Start-Copy $guestDir "$common -coop join 127.0.0.1" 820
+$g = Start-Copy $guestDir "$common -coop join 127.0.0.1" -1100
 Start-Sleep $Wait
 
 function Read-Status($dir, $tag) {
@@ -56,5 +56,6 @@ $results | Format-Table -AutoSize | Out-String -Width 160
 $pass = ($results | Where-Object Result -eq "PASS").Count
 "SUITE: $pass/$($results.Count) passed"
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
+
 
 
