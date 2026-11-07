@@ -143,6 +143,8 @@ namespace MoonlighterCoop
                 case Msg.EndRun: Downed.OnEndRun(); break;
                 case Msg.FountainHeal: Downed.OnFountainHeal(); break;
                 case Msg.BreakDetailAt: BreakableSync.OnBreakDetailAt(data); break;
+                case Msg.Vote: Vote.OnVote(data); break;
+                case Msg.VoteResult: if (IsGuest) Vote.OnResult(data); break;
                 case Msg.TownArea: TownSync.OnTownArea(data); break;
                 case Msg.RoomDoors: if (IsGuest) DoorSync.OnRoomDoors(data); break;
                 case Msg.BreakAt:
@@ -281,6 +283,7 @@ namespace MoonlighterCoop
         }
     }
 }
+
 
 
 

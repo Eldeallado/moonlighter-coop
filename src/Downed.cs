@@ -73,6 +73,7 @@ namespace MoonlighterCoop
             var hero = HeroMerchant.Instance;
             if (hero == null) return;
             EndingRun = true;
+            Vote.Reset();
             Dungeon.ApplyingRemote = true;
             try { hero.OnWillDeathAnimationEnded(); }
             finally { Dungeon.ApplyingRemote = false; }
@@ -222,3 +223,4 @@ namespace MoonlighterCoop
         static bool Prefix() => !Downed.Me;
     }
 }
+

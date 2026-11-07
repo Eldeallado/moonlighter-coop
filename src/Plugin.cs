@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -107,8 +107,8 @@ namespace MoonlighterCoop
             if (Plugin.Role == "") return;
             var p = Puppet.Instance;
             GUI.Label(new Rect(8, 8, 600, 22),
-                $"Coop {Version} [{Role}] {(Net.Connected ? $"conectado ({Session.LastPing:F0} ms)" : "esperando conexiÃ³nâ€¦")}" +
-                (p != null ? $"  compaÃ±ero: {(p.Visible ? "aquÃ­" : p.Zone)}" : ""));
+                $"Coop {Version} [{Role}] {(Net.Connected ? $"conectado ({Session.LastPing:F0} ms)" : "esperando conexión…")}" +
+                (p != null ? $"  compañero: {(p.Visible ? "aquí" : p.Zone)}" : ""));
         }
 
         private void BotTick()
@@ -412,6 +412,7 @@ namespace MoonlighterCoop
         }
     }
 }
+
 
 
 

@@ -30,6 +30,8 @@ namespace MoonlighterCoop
         BreakDetailAt = 19,
         RoomDoors = 20,
         TownArea = 21,
+        Vote = 22,
+        VoteResult = 23,
     }
 
     /// One framed TCP connection: [int32 length][byte type][payload]. Reads on a thread, handled on Unity's thread.
@@ -156,6 +158,7 @@ namespace MoonlighterCoop
         public static void Send(Msg type, byte[] data) => Peer?.Send(type, data);
     }
 }
+
 
 
 

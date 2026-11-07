@@ -16,6 +16,7 @@ namespace MoonlighterCoop
         public enum Travel : byte { NextLevel = 1, Town = 2 }
 
         public static bool ApplyingRemote;      // a travel the host asked for is running on the guest
+        public static bool InHeroTravel;        // inside HeroMerchant's own travel (it already told the guest)
         public static bool Following;           // the guest is walking through a door to follow the host
         public static DungeonSaveInfo PendingInfo;
         public static int FloorSeed;            // host picks one per floor; both generate with it
@@ -255,10 +256,12 @@ namespace MoonlighterCoop
             }
             // A new floor: the host picks the dice both sides will generate it with.
             if (Session.IsHost) Dungeon.FloorSeed = Net.Connected ? new System.Random().Next(1, int.MaxValue) : 0;
+            Dungeon.InHeroTravel = true;
             return true;
         }
         static void Postfix(HeroMerchant __instance, ItemMaster.Culture culture)
         {
+            Dungeon.InHeroTravel = false;
             if (Session.IsHost)
                 Dungeon.SendTravel(Dungeon.Travel.NextLevel, culture, Traverse.Create(__instance).Field("_currentDungeonLevel").GetValue<int>());
         }
@@ -274,9 +277,10 @@ namespace MoonlighterCoop
                 Plugin.Log.LogInfo("[dungeon] guest tried to go home on its own: blocked (the host leads)");
                 return false;
             }
+            Dungeon.InHeroTravel = true;
             return true;
         }
-        static void Postfix() { if (Session.IsHost) Dungeon.SendTravel(Dungeon.Travel.Town, ItemMaster.Culture.Merchant, 0); }
+        static void Postfix() { Dungeon.InHeroTravel = false; if (Session.IsHost) Dungeon.SendTravel(Dungeon.Travel.Town, ItemMaster.Culture.Merchant, 0); }
     }
 
     // Guest: build the host's floor instead of a random one.
@@ -305,5 +309,6 @@ namespace MoonlighterCoop
         }
     }
 }
+
 
 
