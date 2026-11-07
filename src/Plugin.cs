@@ -44,6 +44,7 @@ namespace MoonlighterCoop
             TargetSwap.Patch(harmony);
             if (Drive) Driver.Start(Role == "join" ? 7801 : 7800);
             Session.Start();
+            gameObject.AddComponent<RecolorLocalWill>();
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
             // The game turns its own log off; keep errors and the loading/room flow for debugging.
             Debug.unityLogger.logEnabled = true;

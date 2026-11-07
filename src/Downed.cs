@@ -116,6 +116,20 @@ namespace MoonlighterCoop
             Plugin.Log.LogInfo("[downed] revived");
         }
 
+        private static void ClearGhost(HeroMerchant hero)
+        {
+            Me = false;
+            var c = hero.heroMerchantController;
+            SetGhost(hero, false);
+            hero.SetFlying(false);
+            c.AllowAttack();
+            c.EnableAttackInput();
+            hero.heroMerchantStats.SetVencible();
+            hero.heroMerchantStats.RecoverAllHealth();
+            Net.Send(Msg.Downed, new byte[] { 0 });
+            Plugin.Log.LogInfo("[downed] back in town: no longer a ghost");
+        }
+
         private static void SetGhost(HeroMerchant hero, bool ghost)
         {
             var art = hero.transform.Find("HeroMerchantArt");
@@ -136,7 +150,16 @@ namespace MoonlighterCoop
         public static void Tick()
         {
             var hero = HeroMerchant.Instance;
-            if (!InDungeon || hero == null) { if (!Net.Connected || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded()) { Me = false; Partner = false; EndingRun = false; } return; }
+            if (!InDungeon || hero == null)
+            {
+                if (!Net.Connected || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded())
+                {
+                    // Out of the dungeon (run over, or gone home): nobody stays a ghost.
+                    if (Me && hero != null && GameManager.Instance != null && GameManager.Instance.NotLoadingScene) ClearGhost(hero);
+                    if (!Me) { Partner = false; EndingRun = false; }
+                }
+                return;
+            }
             if (Me)
             {
                 hero.heroMerchantController.DisableAttackInput();

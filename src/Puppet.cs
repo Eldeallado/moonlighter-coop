@@ -33,6 +33,7 @@ namespace MoonlighterCoop
             {
                 if (sr == null || !sr.enabled || sr.sprite == null || !sr.gameObject.activeInHierarchy) continue;
                 if (sr.color.a <= 0.01f) continue;
+                if (sr.name.Contains("Light")) continue;   // Will's own light glow: a lighting effect, not art
                 parts.Add(sr);
             }
             w.Write((short)parts.Count);
@@ -40,7 +41,8 @@ namespace MoonlighterCoop
             {
                 var t = sr.transform;
                 w.Write(PathOf(t, root));
-                w.Write(sr.sprite.texture != null ? sr.sprite.texture.name + "/" + sr.sprite.name : sr.sprite.name);
+                var spr = Recolor.Original(sr.sprite);   // the guest's red copies travel as the original art
+                w.Write(spr.texture != null ? spr.texture.name + "/" + spr.name : spr.name);
                 var rel = t.position - root.position;
                 w.Write(rel.x); w.Write(rel.y);
                 var s = t.lossyScale;
@@ -129,6 +131,8 @@ namespace MoonlighterCoop
                 }
                 sr.gameObject.SetActive(true);
                 sr.sprite = SpriteCache.Get(sprite);
+                // On the host, the guest's Will is the red one.
+                if (Session.IsHost && path.StartsWith("HeroMerchantArt") && !path.Contains("Light")) sr.sprite = Recolor.Red(sr.sprite);
                 var m = MaterialFor(path, mat);
                 if (m != null && sr.sharedMaterial != m) sr.sharedMaterial = m;
                 if (m != null && m.name.StartsWith("CoopPuppet") && m.HasProperty("_FlashAmount")) m.SetFloat("_FlashAmount", flash);

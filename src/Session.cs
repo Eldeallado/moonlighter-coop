@@ -72,6 +72,7 @@ namespace MoonlighterCoop
                 }
             }
             LoadingWatchdog(now);
+            Regroup();
             EnemySync.HostTick();
             DoorSync.HostTick();
             Downed.Tick();
@@ -98,6 +99,29 @@ namespace MoonlighterCoop
             if (gui.currentInventory == panel) gui.DisableCurrentPanel();
             else panel.Disable();
         }
+
+        // After arriving somewhere new in town, the guest appears next to the host (the game places each Will
+        // by where he came from, so they could end up far apart).
+        private static string _regroupedIn = "";
+        private static float _zoneSince;
+        private static string _lastZone = "";
+        public static int Regroups;
+        private static void Regroup()
+        {
+            if (!IsGuest || !Net.Connected) return;
+            var hero = HeroMerchant.Instance; var p = Puppet.Instance; var gm = GameManager.Instance;
+            string zone = LocalZone();
+            if (zone != _lastZone) { _lastZone = zone; _zoneSince = Time.unscaledTime; _regroupedIn = ""; }
+            if (hero == null || p == null || gm == null || !zone.StartsWith("town") || !p.Visible || !gm.NotLoadingScene) return;
+            if (_regroupedIn == zone || Time.unscaledTime - _zoneSince < 1.5f) return;
+            _regroupedIn = zone;
+            if (((Vector2)(p.transform.position - hero.transform.position)).magnitude < 120f) return;
+            hero.heroMerchantController.TeleportTo(p.transform.position + new Vector3(20f, 0f));
+            CameraManager.Instance.TeleportCameraToPoint(hero.gameObject);
+            Regroups++;
+            Plugin.Log.LogInfo($"[session] regrouped next to the host in {zone}");
+        }
+        public static void ZoneLeft() { _regroupedIn = ""; }
 
         private static byte[] _pendingSave;
         private static float _menuSeenAt = -1f;
