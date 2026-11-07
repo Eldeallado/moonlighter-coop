@@ -192,6 +192,8 @@ namespace MoonlighterCoop
                     return "ok";
                 }
                 case "nextfloor": hero.LoadNextLevelDungeonScene(DungeonManager.Instance.culture); return "ok";
+                case "steamhost": SteamCoop.Host(); return "ok";
+                case "steamstatus": return $"available={SteamCoop.Available} lobby={SteamCoop.Lobby} status={SteamCoop.Status} role={Plugin.Role}";
                 case "gold": hero.addGold(int.Parse(p[1])); return "ok";
                 case "hurt": hero.DealDamageToPlayer(F(p[1]), "QA"); return "ok";
                 case "info": return Info();

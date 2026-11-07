@@ -27,6 +27,7 @@ namespace MoonlighterCoop
         public static bool Bot;
         public static bool Windowed;
         public static bool Drive;
+        public static bool TcpMode;   // -coop host|join on the command line (same PC / LAN / VPN); otherwise Steam
         public static string Tag = "solo";
 
         private float _menuSeenAt = -1f;
@@ -87,6 +88,7 @@ namespace MoonlighterCoop
                 }
             }
             Tag = Role == "" ? "solo" : Role;
+            TcpMode = Role != "";
         }
 
         private bool _windowed;
@@ -99,17 +101,30 @@ namespace MoonlighterCoop
                 Screen.SetResolution(800, 450, FullScreenMode.Windowed);
             }
             if (Input.GetKeyDown(KeyCode.F8)) Dump();
+            if (Input.GetKeyDown(KeyCode.F2) && !TcpMode) SteamCoop.Host();
             Session.Tick();
             if (Bot) BotTick();
         }
 
         private void OnGUI()
         {
-            if (Plugin.Role == "") return;
+            if (Plugin.Role == "")
+            {
+                GUI.Label(new Rect(8, 8, 700, 22), SteamCoop.Available ? "Coop online: pulsa F2 para crear partida e invitar a un amigo de Steam" : "");
+                return;
+            }
             var p = Puppet.Instance;
             GUI.Label(new Rect(8, 8, 600, 22),
                 $"Coop {Version} [{Role}] {(Net.Connected ? $"conectado ({Session.LastPing:F0} ms)" : "esperando conexión…")}" +
                 (p != null ? $"  compañero: {(p.Visible ? "aquí" : p.Zone)}" : ""));
+            if (!string.IsNullOrEmpty(SteamCoop.Status) && !Net.Connected) GUI.Label(new Rect(8, 28, 800, 22), SteamCoop.Status);
+            var hint = Vote.Hint() ?? Downed.Hint();
+            if (hint != null)
+            {
+                var style = new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter, wordWrap = true };
+                style.normal.textColor = Color.yellow;
+                GUI.Label(new Rect(20, Screen.height * 0.12f, Screen.width - 40, 60), hint, style);
+            }
         }
 
         private void BotTick()

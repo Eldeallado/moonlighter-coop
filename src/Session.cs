@@ -40,7 +40,8 @@ namespace MoonlighterCoop
         public static void Tick()
         {
             float now = Time.unscaledTime;
-            if (IsGuest) Net.TickJoin(Plugin.JoinAddress, Plugin.Port, now);
+            SteamCoop.Tick();
+            if (IsGuest && Plugin.TcpMode) Net.TickJoin(Plugin.JoinAddress, Plugin.Port, now);
             var peer = Net.Peer;
             if (peer != null)
             {

@@ -36,15 +36,25 @@ namespace MoonlighterCoop
         Bag = 25,
     }
 
+    public interface IPeer
+    {
+        ConcurrentQueue<(Msg type, byte[] data)> Inbox { get; }
+        bool Closed { get; }
+        string Remote { get; }
+        void Send(Msg type, byte[] data);
+        void Close();
+    }
+
     /// One framed TCP connection: [int32 length][byte type][payload]. Reads on a thread, handled on Unity's thread.
-    public class Peer
+    public class Peer : IPeer
     {
         private readonly TcpClient _client;
         private readonly NetworkStream _stream;
         private readonly object _sendLock = new object();
-        public readonly ConcurrentQueue<(Msg type, byte[] data)> Inbox = new ConcurrentQueue<(Msg, byte[])>();
-        public volatile bool Closed;
-        public string Remote;
+        public ConcurrentQueue<(Msg type, byte[] data)> Inbox { get; } = new ConcurrentQueue<(Msg, byte[])>();
+        private volatile bool _closed;
+        public bool Closed { get => _closed; private set => _closed = value; }
+        public string Remote { get; }
 
         public Peer(TcpClient client)
         {
@@ -106,7 +116,7 @@ namespace MoonlighterCoop
 
     public static class Net
     {
-        public static Peer Peer;
+        public static IPeer Peer;
         private static TcpListener _listener;
         private static float _nextConnectTry;
         private static bool _connecting;
