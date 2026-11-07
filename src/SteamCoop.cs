@@ -8,14 +8,15 @@ namespace MoonlighterCoop
     /// A peer over Steam P2P (relayed by Steam, no ports to open). Frames are [type][payload], reliable.
     public class SteamPeer : IPeer
     {
-        public readonly CSteamID Id;
+        public readonly CSteamID SteamId;
+        public int Id { get; set; }
         public ConcurrentQueue<(Msg type, byte[] data)> Inbox { get; } = new ConcurrentQueue<(Msg, byte[])>();
         public bool Closed { get; private set; }
         public string Remote { get; }
 
         public SteamPeer(CSteamID id)
         {
-            Id = id;
+            SteamId = id;
             Remote = "steam:" + SteamFriends.GetFriendPersonaName(id);
         }
 
@@ -27,7 +28,7 @@ namespace MoonlighterCoop
             Buffer.BlockCopy(data, 0, buf, 1, data.Length);
             // Poses and enemy states can go unreliable (newest wins); everything else must arrive.
             var mode = type == Msg.Pose || type == Msg.Enemies ? EP2PSend.k_EP2PSendUnreliableNoDelay : EP2PSend.k_EP2PSendReliable;
-            if (!SteamNetworking.SendP2PPacket(Id, buf, (uint)buf.Length, mode, 0))
+            if (!SteamNetworking.SendP2PPacket(SteamId, buf, (uint)buf.Length, mode, 0))
                 Plugin.Log.LogWarning($"[steam] send {type} ({buf.Length} bytes) failed");
         }
 
@@ -35,7 +36,7 @@ namespace MoonlighterCoop
         {
             if (Closed) return;
             Closed = true;
-            SteamNetworking.CloseP2PSessionWithUser(Id);
+            SteamNetworking.CloseP2PSessionWithUser(SteamId);
         }
 
         public void MarkClosed() => Closed = true;
@@ -75,7 +76,7 @@ namespace MoonlighterCoop
             _connectFail = Callback<P2PSessionConnectFail_t>.Create(r =>
             {
                 Plugin.Log.LogWarning($"[steam] P2P with {r.m_steamIDRemote} failed: {r.m_eP2PSessionError}");
-                if (Net.Peer is SteamPeer sp && sp.Id == r.m_steamIDRemote) sp.MarkClosed();
+                if (Net.Peer is SteamPeer sp && sp.SteamId == r.m_steamIDRemote) sp.MarkClosed();
             });
             // Started from an invite while the game was closed.
             var a = Environment.GetCommandLineArgs();
@@ -131,9 +132,9 @@ namespace MoonlighterCoop
         private static void OnSessionRequest(P2PSessionRequest_t r)
         {
             // Only the host accepts, and only one partner for now.
-            if (!Session.IsHost || (Net.Connected && !(Net.Peer is SteamPeer sp && sp.Id == r.m_steamIDRemote))) return;
+            if (!Session.IsHost || (Net.Connected && !(Net.Peer is SteamPeer sp && sp.SteamId == r.m_steamIDRemote))) return;
             SteamNetworking.AcceptP2PSessionWithUser(r.m_steamIDRemote);
-            if (!(Net.Peer is SteamPeer p2 && p2.Id == r.m_steamIDRemote && !p2.Closed))
+            if (!(Net.Peer is SteamPeer p2 && p2.SteamId == r.m_steamIDRemote && !p2.Closed))
             {
                 Net.Peer = new SteamPeer(r.m_steamIDRemote);
                 Status = "Conectado con " + SteamFriends.GetFriendPersonaName(r.m_steamIDRemote);
@@ -159,7 +160,7 @@ namespace MoonlighterCoop
                     SteamNetworking.AcceptP2PSessionWithUser(from);
                     Net.Peer = new SteamPeer(from);
                 }
-                if (Net.Peer is SteamPeer sp && sp.Id == from)
+                if (Net.Peer is SteamPeer sp && sp.SteamId == from)
                 {
                     var data = new byte[got - 1];
                     Buffer.BlockCopy(_buf, 1, data, 0, (int)got - 1);

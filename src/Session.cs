@@ -42,25 +42,35 @@ namespace MoonlighterCoop
             float now = Time.unscaledTime;
             SteamCoop.Tick();
             if (IsGuest && Plugin.TcpMode) Net.TickJoin(Plugin.JoinAddress, Plugin.Port, now);
-            var peer = Net.Peer;
-            if (peer != null)
+            foreach (var peer in Net.Live)
             {
-                while (peer.Inbox.TryDequeue(out var m)) Handle(m.type, m.data);
-                if (!peer.Closed)
+                while (peer.Inbox.TryDequeue(out var m)) Handle(peer, m.type, m.data);
+                if (peer.Closed) continue;
+                if (_helloSentTo.Add(peer)) peer.Send(Msg.Hello, Encoding.UTF8.GetBytes(Plugin.Version));
+                // Host: each new guest gets its player number and the host's save.
+                if (IsHost && _helloFrom.Contains(peer) && !_saveSentTo.Contains(peer) && HeroMerchant.Instance != null && GameManager.Instance.currentGameSlot != null)
                 {
-                    if (!_helloSent) { _helloSent = true; Net.Send(Msg.Hello, Encoding.UTF8.GetBytes(Plugin.Version)); }
-                    if (IsHost && _helloReceived && !SaveSent && HeroMerchant.Instance != null && GameManager.Instance.currentGameSlot != null)
-                        SendSave();
-                    if (now >= _nextPose)
-                    {
-                        _nextPose = now + 0.05f;
-                        Net.Send(Msg.Pose, PoseCapture.Capture(LocalZone()));
-                    }
-                    if (now >= _nextPing)
-                    {
-                        _nextPing = now + 2f;
-                        Net.Send(Msg.Ping, BitConverter.GetBytes(now));
-                    }
+                    _saveSentTo.Add(peer);
+                    peer.Send(Msg.Welcome, new[] { (byte)peer.Id });
+                    SendSave(peer);
+                }
+            }
+            if (IsHost && Net.Connected && now >= _nextCount)
+            {
+                _nextCount = now + 1f;
+                Net.Send(Msg.PlayerCount, new[] { (byte)Players });
+            }
+            if (Net.Connected)
+            {
+                if (now >= _nextPose)
+                {
+                    _nextPose = now + 0.05f;
+                    Net.Send(Msg.Pose, PoseCapture.Capture(LocalZone(), MyId));
+                }
+                if (now >= _nextPing)
+                {
+                    _nextPing = now + 2f;
+                    Net.Send(Msg.Ping, BitConverter.GetBytes(now));
                 }
             }
             // The guest keeps the host's save until its own main menu is up (it can arrive before).
@@ -129,15 +139,35 @@ namespace MoonlighterCoop
         private static byte[] _pendingSave;
         private static float _menuSeenAt = -1f;
 
-        private static bool _helloSent;
+        private static readonly System.Collections.Generic.HashSet<IPeer> _helloSentTo = new System.Collections.Generic.HashSet<IPeer>();
+        private static readonly System.Collections.Generic.HashSet<IPeer> _helloFrom = new System.Collections.Generic.HashSet<IPeer>();
+        private static readonly System.Collections.Generic.HashSet<IPeer> _saveSentTo = new System.Collections.Generic.HashSet<IPeer>();
 
-        private static void Handle(Msg type, byte[] data)
+        /// My player number: 0 = host, 1.. = guests (the host tells each guest its number).
+        public static int MyId;
+        public static int Players => IsHost ? 1 + Net.ConnectedCount : Math.Max(2, _knownPlayers);
+        private static int _knownPlayers;
+        private static float _nextCount;
+
+        // Things one player does that every other player must see: the host passes them on.
+        private static readonly System.Collections.Generic.HashSet<Msg> Relayed = new System.Collections.Generic.HashSet<Msg>
+        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun };
+
+        private static void Handle(IPeer from, Msg type, byte[] data)
         {
+            if (IsHost && Relayed.Contains(type)) Net.SendExcept(from, type, data);
             switch (type)
             {
+                case Msg.Welcome:
+                    if (IsGuest) { MyId = data[0]; Plugin.Log.LogInfo($"[session] I am player {MyId}"); }
+                    break;
+                case Msg.PlayerCount:
+                    _knownPlayers = data[0];
+                    break;
                 case Msg.Hello:
                     var v = Encoding.UTF8.GetString(data);
                     _helloReceived = true;
+                    _helloFrom.Add(from);
                     Plugin.Log.LogInfo($"[session] hello from peer, version {v}");
                     if (v != Plugin.Version) Plugin.Log.LogWarning($"[session] version mismatch: mine {Plugin.Version}, theirs {v}");
                     break;
@@ -146,7 +176,7 @@ namespace MoonlighterCoop
                     break;
                 case Msg.Pose:
                     PosesReceived++;
-                    Puppet.Ensure().Apply(data, LocalZone());
+                    Puppet.Ensure(data[0]).Apply(data, LocalZone());
                     break;
                 case Msg.Travel:
                     if (IsGuest) Dungeon.OnTravel(data);
@@ -172,7 +202,7 @@ namespace MoonlighterCoop
                 case Msg.BreakDetailAt: BreakableSync.OnBreakDetailAt(data); break;
                 case Msg.Gold: Shared.OnGold(data); break;
                 case Msg.Bag: Shared.OnBag(data); break;
-                case Msg.Vote: Vote.OnVote(data); break;
+                case Msg.Vote: Vote.OnVote(from.Id, data); break;
                 case Msg.VoteResult: if (IsGuest) Vote.OnResult(data); break;
                 case Msg.TownArea: TownSync.OnTownArea(data); break;
                 case Msg.RoomDoors: if (IsGuest) DoorSync.OnRoomDoors(data); break;
@@ -183,7 +213,7 @@ namespace MoonlighterCoop
                     if (IsHost) Dungeon.OnDoorRequest(data);
                     break;
                 case Msg.Ping:
-                    Net.Send(Msg.Pong, data);
+                    from.Send(Msg.Pong, data);   // only to whoever asked (their clock)
                     break;
                 case Msg.Pong:
                     LastPing = (Time.unscaledTime - BitConverter.ToSingle(data, 0)) * 1000f;
@@ -191,7 +221,7 @@ namespace MoonlighterCoop
             }
         }
 
-        private static void SendSave()
+        private static void SendSave(IPeer to)
         {
             SaveSent = true;
             var gm = GameManager.Instance;
@@ -202,8 +232,8 @@ namespace MoonlighterCoop
             w.Write(gm.currentGameSlot.seed);
             w.Write(json.Length);
             w.Write(json);
-            Net.Send(Msg.Save, ms.ToArray());
-            Plugin.Log.LogInfo($"[session] sent save to guest: slot {gm.currentGameSlot.seed}, {json.Length} bytes");
+            to.Send(Msg.Save, ms.ToArray());
+            Plugin.Log.LogInfo($"[session] sent save to guest {to.Id}: slot {gm.currentGameSlot.seed}, {json.Length} bytes");
         }
 
         private static void LoadHostSave(byte[] payload)

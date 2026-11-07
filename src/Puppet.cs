@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -10,11 +10,12 @@ namespace MoonlighterCoop
         private static readonly List<SpriteRenderer> _renderers = new List<SpriteRenderer>();
         private static float _nextRescan;
 
-        public static byte[] Capture(string zone)
+        public static byte[] Capture(string zone, int playerId)
         {
             var hero = HeroMerchant.Instance;
             var ms = new MemoryStream();
             var w = new BinaryWriter(ms);
+            w.Write((byte)playerId);
             w.Write(zone);
             if (hero == null) { w.Write(false); return ms.ToArray(); }
             w.Write(true);
@@ -77,7 +78,20 @@ namespace MoonlighterCoop
     /// The other player, drawn from the sprites they send.
     public class Puppet : MonoBehaviour
     {
-        public static Puppet Instance;
+        /// Every other player's Will, by player number (0 = host).
+        public static readonly Dictionary<int, Puppet> All = new Dictionary<int, Puppet>();
+        /// "The partner" for code written for two: the host on a guest, the first guest on the host.
+        public static Puppet Instance
+        {
+            get
+            {
+                if (Session.IsGuest) return All.TryGetValue(0, out var h) ? h : null;
+                Puppet first = null;
+                foreach (var kv in All) if (kv.Value != null && (first == null || kv.Key < first.PlayerId)) first = kv.Value;
+                return first;
+            }
+        }
+        public int PlayerId;
         private readonly Dictionary<string, SpriteRenderer> _parts = new Dictionary<string, SpriteRenderer>();
         private readonly HashSet<string> _seen = new HashSet<string>();
         private Vector3 _target;
@@ -85,18 +99,21 @@ namespace MoonlighterCoop
         public string Zone = "";
         public bool Visible;
 
-        public static Puppet Ensure()
+        public static Puppet Ensure(int id)
         {
-            if (Instance != null) return Instance;
-            var go = new GameObject("CoopPuppet");
+            if (All.TryGetValue(id, out var p) && p != null) return p;
+            var go = new GameObject("CoopPuppet " + id);
             DontDestroyOnLoad(go);
-            Instance = go.AddComponent<Puppet>();
-            return Instance;
+            p = go.AddComponent<Puppet>();
+            p.PlayerId = id;
+            All[id] = p;
+            return p;
         }
 
         public void Apply(byte[] data, string localZone)
         {
             var r = new BinaryReader(new MemoryStream(data));
+            r.ReadByte();   // player number (already used to pick this puppet)
             Zone = r.ReadString();
             bool hasHero = r.ReadBoolean();
             Visible = hasHero && Zone == localZone && Zone != "";
@@ -132,7 +149,8 @@ namespace MoonlighterCoop
                 sr.gameObject.SetActive(true);
                 sr.sprite = SpriteCache.Get(sprite);
                 // On the host, the guest's Will is the red one.
-                if (Session.IsHost && path.StartsWith("HeroMerchantArt") && !path.Contains("Light")) sr.sprite = Recolor.Red(sr.sprite);
+                // Each guest has its colour (1 red, 2 yellow...); the host's Will stays as it is.
+                if (PlayerId > 0 && path.StartsWith("HeroMerchantArt") && !path.Contains("Light")) sr.sprite = Recolor.Tint(sr.sprite, PlayerId);
                 var m = MaterialFor(path, mat);
                 if (m != null && sr.sharedMaterial != m) sr.sharedMaterial = m;
                 if (m != null && m.name.StartsWith("CoopPuppet") && m.HasProperty("_FlashAmount")) m.SetFloat("_FlashAmount", flash);

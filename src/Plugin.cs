@@ -27,6 +27,7 @@ namespace MoonlighterCoop
         public static bool Bot;
         public static bool Windowed;
         public static bool Drive;
+        public static int DrivePort;
         public static bool TcpMode;   // -coop host|join on the command line (same PC / LAN / VPN); otherwise Steam
         public static string Tag = "solo";
 
@@ -43,7 +44,7 @@ namespace MoonlighterCoop
             harmony.PatchAll();
             SeededObjects.Patch(harmony);
             TargetSwap.Patch(harmony);
-            if (Drive) Driver.Start(Role == "join" ? 7801 : 7800);
+            if (Drive) Driver.Start(DrivePort > 0 ? DrivePort : Role == "join" ? 7801 : 7800);
             Session.Start();
             gameObject.AddComponent<RecolorLocalWill>();
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
@@ -72,6 +73,9 @@ namespace MoonlighterCoop
                         break;
                     case "-coopport":
                         if (i + 1 < a.Length) int.TryParse(a[++i], out Port);
+                        break;
+                    case "-coopdriveport":
+                        if (i + 1 < a.Length) int.TryParse(a[++i], out DrivePort);
                         break;
                     case "-coopdrive":
                         Drive = true;

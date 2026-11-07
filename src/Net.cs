@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -34,6 +36,8 @@ namespace MoonlighterCoop
         VoteResult = 23,
         Gold = 24,
         Bag = 25,
+        Welcome = 26,
+        PlayerCount = 27,
     }
 
     public interface IPeer
@@ -41,6 +45,7 @@ namespace MoonlighterCoop
         ConcurrentQueue<(Msg type, byte[] data)> Inbox { get; }
         bool Closed { get; }
         string Remote { get; }
+        int Id { get; set; }
         void Send(Msg type, byte[] data);
         void Close();
     }
@@ -55,6 +60,7 @@ namespace MoonlighterCoop
         private volatile bool _closed;
         public bool Closed { get => _closed; private set => _closed = value; }
         public string Remote { get; }
+        public int Id { get; set; }
 
         public Peer(TcpClient client)
         {
@@ -116,12 +122,35 @@ namespace MoonlighterCoop
 
     public static class Net
     {
-        public static IPeer Peer;
+        /// Host: every connected guest. Guest: just the host. Each guest gets a player number (1, 2, ...).
+        public static readonly List<IPeer> Peers = new List<IPeer>();
+        private static readonly object _lock = new object();
+        private static int _nextId = 1;
         private static TcpListener _listener;
         private static float _nextConnectTry;
         private static bool _connecting;
 
-        public static bool Connected => Peer != null && !Peer.Closed;
+        public static bool Connected { get { lock (_lock) return Peers.Any(p => !p.Closed); } }
+        public static int ConnectedCount { get { lock (_lock) return Peers.Count(p => !p.Closed); } }
+        public static List<IPeer> Live { get { lock (_lock) return Peers.Where(p => !p.Closed).ToList(); } }
+
+        /// The first live peer (the host, on a guest). Setting it adds a peer.
+        public static IPeer Peer
+        {
+            get { lock (_lock) return Peers.FirstOrDefault(p => !p.Closed); }
+            set { if (value != null) Add(value); }
+        }
+
+        public static void Add(IPeer p)
+        {
+            lock (_lock)
+            {
+                Peers.RemoveAll(x => x.Closed);
+                if (Peers.Contains(p)) return;
+                if (Session.IsHost) p.Id = _nextId++;
+                Peers.Add(p);
+            }
+        }
 
         public static void StartHost(int port)
         {
@@ -136,12 +165,9 @@ namespace MoonlighterCoop
             try
             {
                 var c = _listener.EndAcceptTcpClient(ar);
-                if (Connected) { c.Close(); }
-                else
-                {
-                    Peer = new Peer(c);
-                    Plugin.Log.LogInfo("[net] guest connected from " + Peer.Remote);
-                }
+                var peer = new Peer(c);
+                Add(peer);
+                Plugin.Log.LogInfo($"[net] guest {peer.Id} connected from {peer.Remote}");
             }
             catch (Exception e) { Plugin.Log.LogWarning("[net] accept: " + e.Message); }
             try { _listener.BeginAcceptTcpClient(OnAccept, null); } catch { }
@@ -159,7 +185,7 @@ namespace MoonlighterCoop
                 try
                 {
                     c.EndConnect(ar);
-                    Peer = new Peer(c);
+                    Add(new Peer(c));
                     Plugin.Log.LogInfo($"[net] connected to host {address}:{port}");
                 }
                 catch { c.Close(); }
@@ -167,7 +193,11 @@ namespace MoonlighterCoop
             }, null);
         }
 
-        public static void Send(Msg type, byte[] data) => Peer?.Send(type, data);
+        /// Host: to every guest. Guest: to the host.
+        public static void Send(Msg type, byte[] data) { foreach (var p in Live) p.Send(type, data); }
+
+        /// Host: pass a guest's message on to the other guests.
+        public static void SendExcept(IPeer except, Msg type, byte[] data) { foreach (var p in Live) if (p != except) p.Send(type, data); }
     }
 }
 

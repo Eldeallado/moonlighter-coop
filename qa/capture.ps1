@@ -15,7 +15,7 @@ foreach ($p in Get-Process Moonlighter -ErrorAction SilentlyContinue) {
     [CoopQa.Shot]::GetWindowRect($p.MainWindowHandle, [ref]$r) | Out-Null
     $w = $r.Right - $r.Left; $h = $r.Bottom - $r.Top
     if ($w -le 0 -or $h -le 0) { continue }
-    $role = if ($p.Path -like "*test-guest*") { "invitado" } else { "anfitrion" }
+    $role = if ($p.Path -like "*test-guest2*") { "invitado2" } elseif ($p.Path -like "*test-guest*") { "invitado" } else { "anfitrion" }
     $bmp = New-Object System.Drawing.Bitmap $w, $h
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.CopyFromScreen($r.Left, $r.Top, 0, 0, $bmp.Size)

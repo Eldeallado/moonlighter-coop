@@ -1,4 +1,4 @@
-﻿param([ValidateSet("host","guest")]$Who = "guest", [int]$MaxRooms = 6)
+param([ValidateSet("host","guest","guest2")]$Who = "guest", [int]$MaxRooms = 6)
 # Walks $Who through doors (preferring rooms not seen yet) until a room has enemies. Prints both players' view.
 $q = $PSScriptRoot
 function Parse($info) {

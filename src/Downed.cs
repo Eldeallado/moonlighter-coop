@@ -10,7 +10,11 @@ namespace MoonlighterCoop
     public static class Downed
     {
         public static bool Me;          // the local Will is down
-        public static bool Partner;     // the other Will is down
+        /// Other players who are ghosts right now (by player number).
+        public static readonly System.Collections.Generic.HashSet<int> Ghosts = new System.Collections.Generic.HashSet<int>();
+        public static bool Partner => Ghosts.Count > 0;
+        public static bool EveryoneElseDown => Ghosts.Count >= Session.Players - 1;
+        public static bool IsGhost(int player) => Ghosts.Contains(player);
         public static bool EndingRun;   // let the game's own death run (both down)
         private static float _reviveProgress;
         private static float _nextFountainMsg;
@@ -25,9 +29,9 @@ namespace MoonlighterCoop
         public static bool OnLocalDeathEnded()
         {
             if (EndingRun || !InDungeon) return true;
-            if (Partner)
+            if (EveryoneElseDown)
             {
-                // Both down: end the run on both PCs.
+                // Everyone down: end the run on both PCs.
                 Plugin.Log.LogInfo("[downed] both players are down: the run ends");
                 Net.Send(Msg.EndRun, new byte[0]);
                 EndRun();
@@ -35,7 +39,7 @@ namespace MoonlighterCoop
             }
             Me = true;
             BecomeGhost();
-            Net.Send(Msg.Downed, new byte[] { 1 });
+            Net.Send(Msg.Downed, new byte[] { 1, (byte)Session.MyId });
             Plugin.Log.LogInfo("[downed] I am a ghost; my partner can revive me");
             return false;
         }
@@ -85,7 +89,12 @@ namespace MoonlighterCoop
             EndRun();
         }
 
-        public static void OnPartnerDowned(byte[] data) { Partner = data.Length > 0 && data[0] == 1; _reviveProgress = 0f; }
+        public static void OnPartnerDowned(byte[] data)
+        {
+            int who = data.Length > 1 ? data[1] : 0;
+            if (data.Length > 0 && data[0] == 1) Ghosts.Add(who); else Ghosts.Remove(who);
+            _reviveProgress = 0f;
+        }
 
         public static void ReviveMe(float healthFraction)
         {
@@ -112,7 +121,7 @@ namespace MoonlighterCoop
             c.EnableMoveInput();
             c.AllowMovement();
             Revives++;
-            Net.Send(Msg.Downed, new byte[] { 0 });
+            Net.Send(Msg.Downed, new byte[] { 0, (byte)Session.MyId });
             Plugin.Log.LogInfo("[downed] revived");
         }
 
@@ -126,7 +135,7 @@ namespace MoonlighterCoop
             c.EnableAttackInput();
             hero.heroMerchantStats.SetVencible();
             hero.heroMerchantStats.RecoverAllHealth();
-            Net.Send(Msg.Downed, new byte[] { 0 });
+            Net.Send(Msg.Downed, new byte[] { 0, (byte)Session.MyId });
             Plugin.Log.LogInfo("[downed] back in town: no longer a ghost");
         }
 
@@ -156,7 +165,7 @@ namespace MoonlighterCoop
                 {
                     // Out of the dungeon (run over, or gone home): nobody stays a ghost.
                     if (Me && hero != null && GameManager.Instance != null && GameManager.Instance.NotLoadingScene) ClearGhost(hero);
-                    if (!Me) { Partner = false; EndingRun = false; }
+                    if (!Me) { Ghosts.Clear(); EndingRun = false; }
                 }
                 return;
             }

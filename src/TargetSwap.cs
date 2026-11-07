@@ -36,15 +36,21 @@ namespace MoonlighterCoop
             __state = null;
             if (!Session.IsHost || !Net.Connected) return;
             var hero = HeroMerchant.Instance;
-            var p = Puppet.Instance;
-            if (hero == null || p == null || !p.Visible || Downed.Partner) return;   // guest not here, or a ghost
+            if (hero == null) return;
             var me = hero.transform.position;
-            var guest = p.transform.position;
             var at = __instance.transform.position;
-            bool guestCloser = (guest - at).sqrMagnitude < (me - at).sqrMagnitude;
-            if (!Downed.Me && !guestCloser) return;
+            // Nearest living player in this room: the host itself, or any guest's Will here that is not a ghost.
+            float best = Downed.Me ? float.MaxValue : (me - at).sqrMagnitude;
+            Vector3? target = null;
+            foreach (var p in Puppet.All.Values)
+            {
+                if (p == null || !p.Visible || Downed.IsGhost(p.PlayerId)) continue;
+                float d = (p.transform.position - at).sqrMagnitude;
+                if (d < best) { best = d; target = p.transform.position; }
+            }
+            if (!target.HasValue) return;
             __state = me;
-            hero.transform.position = new Vector3(guest.x, guest.y, me.z);
+            hero.transform.position = new Vector3(target.Value.x, target.Value.y, me.z);
             Swaps++;
         }
 

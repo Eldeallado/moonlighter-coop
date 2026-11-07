@@ -36,5 +36,6 @@
   <Target Name="CopyToTestCopies" AfterTargets="Build">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="E:\CoopAnything\test-host\BepInEx\plugins" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="E:\CoopAnything\test-guest\BepInEx\plugins" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="E:\CoopAnything\test-guest2\BepInEx\plugins" />
   </Target>
 </Project>

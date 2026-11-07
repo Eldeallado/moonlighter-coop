@@ -17,7 +17,7 @@ namespace MoonlighterCoop
         public static bool SuppressTravel;      // guest: do the panel's clean-up but let the host lead the trip
         public static int Decisions;
 
-        public static int Players => 1 + (Net.Connected ? 1 : 0);
+        public static int Players => Session.Players;
 
         public static void Reset() { Mine = Choice.None; Others.Clear(); }
 
@@ -29,10 +29,10 @@ namespace MoonlighterCoop
             if (Session.IsHost) TryDecide();
         }
 
-        public static void OnVote(byte[] data)
+        public static void OnVote(int from, byte[] data)
         {
-            Others["partner"] = (Choice)data[0];
-            Plugin.Log.LogInfo($"[vote] partner votes {Others["partner"]}");
+            Others["p" + from] = (Choice)data[0];
+            Plugin.Log.LogInfo($"[vote] player {from} votes {(Choice)data[0]}");
             if (Session.IsHost) TryDecide();
         }
 
@@ -63,6 +63,8 @@ namespace MoonlighterCoop
             try
             {
                 Traverse.Create(panel).Field("_ReplayPressed").SetValue(c == Choice.Replay);
+                // The panel only replays after a normal death; in co-op the run ended through the ghosts.
+                if (c == Choice.Replay) Traverse.Create(panel).Field("_willDied").SetValue(true);
                 Traverse.Create(panel).Method("EndResult").GetValue();
             }
             finally { Deciding = false; SuppressTravel = false; }
@@ -70,10 +72,10 @@ namespace MoonlighterCoop
 
         public static string Hint()
         {
-            if (Object.FindObjectOfType<DungeonResultsPanel>() == null || !Net.Connected) return null;
+            if (!Net.Connected || !(GUIManager.Instance != null && GUIManager.Instance.currentInventory is DungeonResultsPanel)) return null;
             string Name(Choice c) => c == Choice.Replay ? "jugar de nuevo" : c == Choice.Village ? "ir a la villa" : "…";
-            var other = Others.TryGetValue("partner", out var o) ? o : Choice.None;
-            return $"Votación — tú: {Name(Mine)}   compañero: {Name(other)}   (gana la mayoría; empate: anfitrión)";
+            int votes = (Mine != Choice.None ? 1 : 0) + Others.Count;
+            return $"Votación — tú: {Name(Mine)}   ({votes}/{Players} han votado; gana la mayoría, empate: anfitrión)";
         }
     }
 
