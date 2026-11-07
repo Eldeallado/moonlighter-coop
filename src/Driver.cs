@@ -183,6 +183,14 @@ namespace MoonlighterCoop
                 case "town": hero.LoadTownScene(); return "ok";
                 case "village": UnityEngine.Object.FindObjectOfType<ShopEntranceDoor>().GoToVillage(); return "ok";
                 case "shop": UnityEngine.Object.FindObjectOfType<ShopEntranceDoor>().GoToShop(false); return "ok";
+                case "goroom":
+                {
+                    int rx = int.Parse(p[1]), ry = int.Parse(p[2]);
+                    var to = dm.dungeonRooms.FirstOrDefault(r => r != null && r.x == rx && r.y == ry && !r.isSecret);
+                    if (to == null) return "no room";
+                    dm.SpecialChangeRoomTo(to); hero.heroMerchantController.TeleportTo(to.transform.position);
+                    return "ok";
+                }
                 case "nextfloor": hero.LoadNextLevelDungeonScene(DungeonManager.Instance.culture); return "ok";
                 case "hurt": hero.DealDamageToPlayer(F(p[1]), "QA"); return "ok";
                 case "info": return Info();
@@ -204,6 +212,10 @@ namespace MoonlighterCoop
             {
                 var r = dm.currentDungeonRoom;
                 sb.Append($" room={V(r.transform.position)}");
+                var heal = dm.healingDungeonRoom;
+                if (heal != null) sb.Append($" fountainRoom={heal.x},{heal.y}");
+                var area = UnityEngine.Object.FindObjectsOfType<HealingArea>().FirstOrDefault(h => h.transform.IsChildOf(r.transform));
+                if (area != null) sb.Append($" fountain={V(area.transform.position)}");
                 sb.Append(" enemies=[" + string.Join(";", r.roomEnemies.Where(e => e != null && e.enemyStats != null && e.enemyStats.isAlive)
                     .Select(e => $"{e.name.Replace("(Clone)", "")}@{V(e.transform.position)}#{EnemySync.IdOf(e)}")) + "]");
                 sb.Append(" doors=[" + string.Join(";", r.roomDoors.Where(d => d != null && d.destinationRoom != null)
@@ -229,6 +241,7 @@ namespace MoonlighterCoop
         }
     }
 }
+
 
 
 

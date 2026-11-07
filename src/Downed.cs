@@ -204,11 +204,21 @@ namespace MoonlighterCoop
             __state = HeroMerchant.Instance != null ? (float)HeroMerchant.Instance.heroMerchantStats.currentHealth.Value : 0f;
             return !Downed.Me;   // a ghost cannot use the fountain itself
         }
-        static void Postfix(float __state)
+        static void Postfix(HealingArea __instance, float __state)
         {
             var h = HeroMerchant.Instance;
-            if (h != null && (float)h.heroMerchantStats.currentHealth.Value > __state) Downed.LocalFountainHealed();
-            else if (h != null && Downed.Partner) Downed.LocalFountainHealed(); // standing in it at full health still revives
+            if (h == null || Downed.Me || !Downed.Partner) return;
+            // Only if the living player is really in the water (a teleport out can leave the area thinking it is).
+            var col = __instance.GetComponent<Collider2D>();
+            if (col != null && !col.OverlapPoint(h.transform.position)) return;
+            Downed.LocalFountainHealed();
         }
+    }
+
+    // A ghost splashing into a fountain must not lose its protection or start healing.
+    [HarmonyPatch(typeof(HealingArea), "OnTriggerEnter2D")]
+    static class GhostsIgnoreFountains
+    {
+        static bool Prefix() => !Downed.Me;
     }
 }
