@@ -181,6 +181,9 @@ namespace MoonlighterCoop
                 case "inv": if (p[1] == "on") { hero.SetNormalMode(); hero.heroMerchantStats.SetInvencible(); } else hero.heroMerchantStats.SetVencible(); return "ok";
                 case "dungeon": hero.LoadDungeonScene((ItemMaster.Culture)Enum.Parse(typeof(ItemMaster.Culture), p[1])); return "ok";
                 case "town": hero.LoadTownScene(); return "ok";
+                case "village": UnityEngine.Object.FindObjectOfType<ShopEntranceDoor>().GoToVillage(); return "ok";
+                case "shop": UnityEngine.Object.FindObjectOfType<ShopEntranceDoor>().GoToShop(false); return "ok";
+                case "nextfloor": hero.LoadNextLevelDungeonScene(DungeonManager.Instance.culture); return "ok";
                 case "hurt": hero.DealDamageToPlayer(F(p[1]), "QA"); return "ok";
                 case "info": return Info();
                 default: return "unknown " + p[0];
@@ -226,6 +229,7 @@ namespace MoonlighterCoop
         }
     }
 }
+
 
 
 

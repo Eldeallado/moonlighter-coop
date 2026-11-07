@@ -23,7 +23,7 @@ while (((Get-Date) - $t0).TotalSeconds -lt $Timeout) {
     if ($g.downed_me -eq "True") { $sawDowned = $true }
     if ($h.downed_partner -eq "True") { $sawHostSeesDowned = $true }
     if ($h.zone -like "dungeon*") { $wasInDungeon = $true }
-    if ($wasInDungeon -and [int]$g.revives -ge 1 -and $h.zone -eq "town" -and $g.zone -eq "town") { $bothHome = $true; $hk = Read-Status $hostDir "host"; $gk = Read-Status $guestDir "join"; break }
+    if ($wasInDungeon -and [int]$g.revives -ge 1 -and $h.zone -like "town*" -and $g.zone -like "town*") { $bothHome = $true; $hk = Read-Status $hostDir "host"; $gk = Read-Status $guestDir "join"; break }
     Start-Sleep -Milliseconds 700
 }
 $h = Read-Status $hostDir "host"; $g = Read-Status $guestDir "join"
@@ -41,6 +41,7 @@ Check "both down: both go home" $bothHome "host=$($h.zone) guest=$($g.zone)"
 $results | Format-Table -AutoSize | Out-String -Width 200
 "SUITE: $(($results | Where-Object Result -eq 'PASS').Count)/$($results.Count) passed"
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
+
 
 
 

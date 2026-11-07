@@ -32,7 +32,7 @@ namespace MoonlighterCoop
             var gm = GameManager.Instance;
             if (gm == null || HeroMerchant.Instance == null) return "";
             if (gm.IsDungeonSceneLoaded()) return Dungeon.RoomZone();
-            if (gm.IsTownSceneLoaded()) return "town";
+            if (gm.IsTownSceneLoaded()) return "town:" + TownSync.Area();
             return "";
         }
 
@@ -143,6 +143,7 @@ namespace MoonlighterCoop
                 case Msg.EndRun: Downed.OnEndRun(); break;
                 case Msg.FountainHeal: Downed.OnFountainHeal(); break;
                 case Msg.BreakDetailAt: BreakableSync.OnBreakDetailAt(data); break;
+                case Msg.TownArea: TownSync.OnTownArea(data); break;
                 case Msg.RoomDoors: if (IsGuest) DoorSync.OnRoomDoors(data); break;
                 case Msg.BreakAt:
                     BreakableSync.OnBreakAt(data);
@@ -280,6 +281,7 @@ namespace MoonlighterCoop
         }
     }
 }
+
 
 
 

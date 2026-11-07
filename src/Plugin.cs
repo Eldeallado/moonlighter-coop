@@ -162,7 +162,7 @@ namespace MoonlighterCoop
             if (hero == null || gm == null || !Net.Connected) return;
             float now = Time.unscaledTime;
             bool settled = gm.NotLoadingScene && !(GUIManager.Instance.dungeonLoadingPanel?.IsActive() ?? false);
-            if (_scenarioAt < 0f) { if (Session.LocalZone() == "town" && Puppet.Instance != null && Puppet.Instance.Visible) _scenarioAt = now + 8f; return; }
+            if (_scenarioAt < 0f) { if (Session.LocalZone().StartsWith("town") && Puppet.Instance != null && Puppet.Instance.Visible) _scenarioAt = now + 8f; return; }
             if (now < _scenarioAt || !settled) return;
             switch (ScenarioStep)
             {
@@ -224,7 +224,7 @@ namespace MoonlighterCoop
             {
                 if (!gm.IsDungeonSceneLoaded())
                 {
-                    if (ScenarioStep == 0 && Session.LocalZone() == "town" && Puppet.Instance != null && Puppet.Instance.Visible)
+                    if (ScenarioStep == 0 && Session.LocalZone().StartsWith("town") && Puppet.Instance != null && Puppet.Instance.Visible)
                     {
                         if (_scenarioAt < 0f) { _scenarioAt = now + 8f; return; }
                         if (now < _scenarioAt) return;
@@ -361,7 +361,7 @@ namespace MoonlighterCoop
             if (Scenario == "dungeon" && Session.IsGuest) { BotGuestDungeonTick(); return; }
             if (Scenario == "dungeon") { BotDungeonTick(); return; }
             var hero = HeroMerchant.Instance;
-            if (hero == null || Session.LocalZone() != "town" || !Net.Connected) return;
+            if (hero == null || !Session.LocalZone().StartsWith("town") || !Net.Connected) return;
             if (_botOrigin == Vector3.zero) { _botOrigin = hero.transform.position; _botNextStep = Time.unscaledTime + 5f; }
             if (Time.unscaledTime < _botNextStep) return;
             _botNextStep = Time.unscaledTime + 3f;
@@ -412,6 +412,7 @@ namespace MoonlighterCoop
         }
     }
 }
+
 
 
 

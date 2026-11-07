@@ -36,7 +36,7 @@ Check "guest connected" ($gs.connected -eq "True") "connected=$($gs.connected)"
 Check "host sent save" ($hs.save_sent -eq "True") "save_sent=$($hs.save_sent)"
 Check "guest loaded host save" ($gs.guest_loaded -eq "True") "guest_loaded=$($gs.guest_loaded)"
 Check "same game slot" (($gs.slot -eq $hs.slot) -and ($hs.slot -ne "0")) "host=$($hs.slot) guest=$($gs.slot)"
-Check "guest in town" ($gs.zone -eq "town") "zone=$($gs.zone)"
+Check "guest in town" ($gs.zone -like "town*") "zone=$($gs.zone)"
 Check "guest sees host" ($gs.puppet_visible -eq "True") "visible=$($gs.puppet_visible) parts=$($gs.puppet_parts)"
 Check "host sees guest" ($hs.puppet_visible -eq "True") "visible=$($hs.puppet_visible) parts=$($hs.puppet_parts)"
 Check "puppet has sprites" ([int]$gs.puppet_parts -ge 1) "parts=$($gs.puppet_parts) misses=$($gs.sprite_misses)"
@@ -56,6 +56,7 @@ $results | Format-Table -AutoSize | Out-String -Width 160
 $pass = ($results | Where-Object Result -eq "PASS").Count
 "SUITE: $pass/$($results.Count) passed"
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
+
 
 
 

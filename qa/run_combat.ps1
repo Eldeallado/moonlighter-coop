@@ -41,3 +41,4 @@ $results | Format-Table -AutoSize | Out-String -Width 200
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
 
 
+

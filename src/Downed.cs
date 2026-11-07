@@ -146,28 +146,13 @@ namespace MoonlighterCoop
                 if (dmg != null && GameManager.Instance.NotLoadingScene && $"{dmg.culture}:{dmg.level}" != _ghostFloor) ReviveMe(0.5f);
                 return;
             }
-            // Stand by your downed partner to bring them back.
-            var p = Puppet.Instance;
-            if (Partner && p != null && p.Visible && !(bool)hero.heroMerchantStats.isDead
-                && ((Vector2)(p.transform.position - hero.transform.position)).magnitude < ReviveRange)
-            {
-                _reviveProgress += Time.deltaTime;
-                if (_reviveProgress >= ReviveTime)
-                {
-                    _reviveProgress = 0f;
-                    Partner = false;
-                    var ms = new MemoryStream(); new BinaryWriter(ms).Write(0.5f);
-                    Net.Send(Msg.Revive, ms.ToArray());
-                    Plugin.Log.LogInfo("[downed] revived my partner");
-                }
-            }
-            else _reviveProgress = Mathf.Max(0f, _reviveProgress - Time.deltaTime);
+            // No revive by touch: the living player must reach a fountain, or beat the floor.
         }
 
         public static string Hint()
         {
-            if (Me) return "Eres un fantasma: tu compañero te revive quedándose a tu lado, en una fuente, o al bajar de piso";
-            if (Partner) return _reviveProgress > 0f ? $"Reviviendo… {Mathf.RoundToInt(100f * _reviveProgress / ReviveTime)}%" : "Tu compañero ha caído: ponte a su lado para revivirlo";
+            if (Me) return "Eres un fantasma: revives si tu compañero entra en una fuente o pasáis al siguiente piso";
+            if (Partner) return "Tu compañero ha caído: llega a una fuente o pasa al siguiente piso para revivirlo";
             return null;
         }
 
@@ -183,13 +168,8 @@ namespace MoonlighterCoop
         {
             var hero = HeroMerchant.Instance;
             if (hero == null) return;
-            if (Me) { ReviveMe(0.5f); return; }
-            var st = hero.heroMerchantStats;
-            if ((bool)st.isDead) return;
-            bool v = st.currentHealth.variableStat;
-            st.currentHealth.variableStat = true;
-            st.currentHealth.Value = Mathf.Min(st.currentHealth.maxValue, st.currentHealth.Value + st.currentHealth.maxValue * 0.1f);
-            st.currentHealth.variableStat = v;
+            // The partner used a fountain: a ghost comes back. (The one in the fountain heals as usual.)
+            if (Me) ReviveMe(0.5f);
         }
     }
 
@@ -219,8 +199,11 @@ namespace MoonlighterCoop
     [HarmonyPatch(typeof(HealingArea), "ApplyHealingEffect")]
     static class FountainHealsBoth
     {
-        static void Prefix(out float __state) =>
+        static bool Prefix(out float __state)
+        {
             __state = HeroMerchant.Instance != null ? (float)HeroMerchant.Instance.heroMerchantStats.currentHealth.Value : 0f;
+            return !Downed.Me;   // a ghost cannot use the fountain itself
+        }
         static void Postfix(float __state)
         {
             var h = HeroMerchant.Instance;

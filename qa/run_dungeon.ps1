@@ -29,7 +29,7 @@ while (((Get-Date) - $t0).TotalSeconds -lt $Timeout) {
     if ($h.zone -like "dungeon:*" -and $h.zone -eq $g.zone) { $roomsFollowed[$h.zone] = $true; if ($h.zone -ne $lastShared) { $sharedChanges++; $lastShared = $h.zone } }
     if ($h.dungeon_sig -and $h.dungeon_sig -eq $g.dungeon_sig) { $sigMatch = $true }
     if ($h.content_sig -and $g.content_sig) { if ($h.content_sig -eq $g.content_sig) { $contentMatch = $true } else { $contentDiff = "$($h.content_sig) vs $($g.content_sig)" } }
-    if ($step -ge 4 -and $h.zone -eq "town" -and $g.zone -eq "town" -and $g.loading_panel -eq "False") { $doneTown = $true; break }
+    if ($step -ge 4 -and $h.zone -like "town*" -and $g.zone -like "town*" -and $g.loading_panel -eq "False") { $doneTown = $true; break }
     Start-Sleep -Milliseconds 800
 }
 
@@ -47,6 +47,7 @@ Check "no loading screen left on guest" ($g.loading_panel -eq "False") "loading_
 $results | Format-Table -AutoSize | Out-String -Width 200
 "SUITE: $(($results | Where-Object Result -eq 'PASS').Count)/$($results.Count) passed"
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
+
 
 
 
