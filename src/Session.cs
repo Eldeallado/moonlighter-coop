@@ -28,6 +28,40 @@ namespace MoonlighterCoop
             Shared.Init();
         }
 
+        /// Leaving a game: forget everyone, so a new game (or a new host) starts clean.
+        public static void Reset()
+        {
+            GuestLoaded = false; SaveSent = false; Welcomed = false; MyId = 0; _knownPlayers = 0;
+            _pendingSave = null; _menuSeenAt = -1f; LastPing = -1f;
+            _helloSentTo.Clear(); _helloFrom.Clear(); _saveSentTo.Clear(); _liveIds.Clear();
+            foreach (var p in Puppet.All.Values) if (p != null) UnityEngine.Object.Destroy(p.gameObject);
+            Puppet.All.Clear();
+            Looks.Of.Clear();
+            Downed.Ghosts.Clear();
+            ShopSync.ClearCopies();
+        }
+
+        /// Someone left: their Will disappears for everyone, and they no longer count as a ghost or a vote.
+        public static void RemovePlayer(int id)
+        {
+            if (Puppet.All.TryGetValue(id, out var p) && p != null) UnityEngine.Object.Destroy(p.gameObject);
+            Puppet.All.Remove(id);
+            Looks.Of.Remove(id);
+            Downed.Ghosts.Remove(id);
+            Plugin.Log.LogInfo($"[session] player {id} is gone");
+        }
+
+        private static readonly System.Collections.Generic.HashSet<int> _liveIds = new System.Collections.Generic.HashSet<int>();
+        private static void HostWatchLeavers()
+        {
+            if (!IsHost) return;
+            var now = new System.Collections.Generic.HashSet<int>();
+            foreach (var p in Net.Live) now.Add(p.Id);
+            foreach (var id in _liveIds)
+                if (!now.Contains(id)) { RemovePlayer(id); Net.Send(Msg.PlayerLeft, new[] { (byte)id }); SteamCoop.Status = "Un jugador ha salido"; }
+            _liveIds.Clear(); foreach (var id in now) _liveIds.Add(id);
+        }
+
         public static string LocalZone()
         {
             var gm = GameManager.Instance;
@@ -83,6 +117,7 @@ namespace MoonlighterCoop
                     if (now - _menuSeenAt > 6f) { var d = _pendingSave; _pendingSave = null; LoadHostSave(d); }
                 }
             }
+            HostWatchLeavers();
             LoadingWatchdog(now);
             Shared.Tick();
             ShopSync.Tick();
@@ -147,7 +182,7 @@ namespace MoonlighterCoop
         /// My player number: 0 = host, 1.. = guests (the host tells each guest its number).
         public static int MyId;
         public static bool Welcomed;
-        public static int Players => IsHost ? 1 + Net.ConnectedCount : Math.Max(2, _knownPlayers);
+        public static int Players => IsHost ? 1 + Net.ConnectedCount : !Net.Connected ? 1 : Math.Max(2, _knownPlayers);
         private static int _knownPlayers;
         private static float _nextCount;
 
@@ -161,7 +196,7 @@ namespace MoonlighterCoop
             switch (type)
             {
                 case Msg.Welcome:
-                    if (IsGuest) { MyId = data[0]; Welcomed = true; Plugin.Log.LogInfo($"[session] I am player {MyId}"); }
+                    if (IsGuest) { MyId = data[0]; Welcomed = true; SteamCoop.Status = "Conectado: eres el jugador " + (MyId + 1); Plugin.Log.LogInfo($"[session] I am player {MyId}"); }
                     break;
                 case Msg.PlayerCount:
                     _knownPlayers = data[0];
@@ -170,6 +205,7 @@ namespace MoonlighterCoop
                     var v = Encoding.UTF8.GetString(data);
                     _helloReceived = true;
                     _helloFrom.Add(from);
+                    if (IsHost) SteamCoop.Status = "Se ha unido " + SteamCoop.PeerName(from);
                     Plugin.Log.LogInfo($"[session] hello from peer, version {v}");
                     if (v != Plugin.Version) Plugin.Log.LogWarning($"[session] version mismatch: mine {Plugin.Version}, theirs {v}");
                     break;
@@ -212,6 +248,11 @@ namespace MoonlighterCoop
                 case Msg.DayTime: DaySync.OnDayTime(data); break;
                 case Msg.CatchThief: if (IsHost) ShopSync.OnCatchThief(data); break;
                 case Msg.ShopResults: if (IsGuest) ShopResults.OnResults(data); break;
+                case Msg.Bye:
+                    if (IsHost) { Plugin.Log.LogInfo($"[session] player {from.Id} left"); from.Close(); }
+                    else { SteamCoop.Status = "El anfitrión ha cerrado la partida"; CoopMenu.HostClosed(); }
+                    break;
+                case Msg.PlayerLeft: if (IsGuest) RemovePlayer(data[0]); break;
                 case Msg.Bag: Shared.OnBag(data); break;
                 case Msg.Vote: Vote.OnVote(from.Id, data); break;
                 case Msg.VoteResult: if (IsGuest) Vote.OnResult(data); break;

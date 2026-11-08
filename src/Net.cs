@@ -45,6 +45,8 @@ namespace MoonlighterCoop
         DayTime = 32,
         CatchThief = 33,
         ShopResults = 34,
+        Bye = 35,
+        PlayerLeft = 36,
     }
 
     public interface IPeer
@@ -154,13 +156,15 @@ namespace MoonlighterCoop
             {
                 Peers.RemoveAll(x => x.Closed);
                 if (Peers.Contains(p)) return;
-                if (Session.IsHost) p.Id = _nextId++;
+                // Lowest free number, so someone who leaves and comes back is not player 7.
+                if (Session.IsHost) { int id = 1; while (Peers.Any(x => !x.Closed && x.Id == id)) id++; p.Id = id; }
                 Peers.Add(p);
             }
         }
 
         public static void StartHost(int port)
         {
+            if (_listener != null) return;
             _listener = new TcpListener(IPAddress.Any, port);
             _listener.Start();
             Plugin.Log.LogInfo($"[net] hosting on TCP {port}");
@@ -199,6 +203,9 @@ namespace MoonlighterCoop
                 _connecting = false;
             }, null);
         }
+
+        /// Leave the game: drop every connection (the TCP listener stays for a new game).
+        public static void CloseAll() { lock (_lock) { foreach (var p in Peers) p.Close(); Peers.Clear(); _nextId = 1; } }
 
         /// Host: to every guest. Guest: to the host.
         public static void Send(Msg type, byte[] data) { foreach (var p in Live) p.Send(type, data); }

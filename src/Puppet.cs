@@ -17,6 +17,10 @@ namespace MoonlighterCoop
             var w = new BinaryWriter(ms);
             w.Write((byte)playerId);
             w.Write(Looks.Mine);
+            w.Write(SteamCoop.Available ? SteamCoop.MyName : "Jugador " + (playerId + 1));
+            var stt = hero != null ? hero.heroMerchantStats : null;
+            w.Write(stt != null ? (float)stt.currentHealth.Value : 0f);
+            w.Write(stt != null ? (float)stt.currentHealth.maxValue : 0f);
             w.Write(zone);
             if (hero == null) { w.Write(false); return ms.ToArray(); }
             w.Write(true);
@@ -94,6 +98,8 @@ namespace MoonlighterCoop
         }
         public int PlayerId;
         public int Look;
+        public string Name = "";
+        public float Hp, MaxHp;
         private readonly Dictionary<string, SpriteRenderer> _parts = new Dictionary<string, SpriteRenderer>();
         private readonly HashSet<string> _seen = new HashSet<string>();
         private Vector3 _target;
@@ -118,6 +124,7 @@ namespace MoonlighterCoop
             r.ReadByte();   // player number (already used to pick this puppet)
             Look = r.ReadInt32();
             Looks.Of[PlayerId] = Look;
+            Name = r.ReadString(); Hp = r.ReadSingle(); MaxHp = r.ReadSingle();
             Zone = r.ReadString();
             bool hasHero = r.ReadBoolean();
             Visible = hasHero && Zone == localZone && Zone != "";

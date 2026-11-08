@@ -42,21 +42,25 @@ namespace MoonlighterCoop
         public void MarkClosed() => Closed = true;
     }
 
-    /// Steam lobbies: F2 hosts a friends-only lobby and opens the invite dialog; accepting an invite (or
-    /// starting the game from one, +connect_lobby) joins it as the guest.
+    /// Steam lobbies, opened from the F2 menu. Creating one gives a short code (stored in the lobby) that a
+    /// friend types to join; friends can also be invited through Steam. Up to 4 guests.
     public static class SteamCoop
     {
         public static bool Available;
         public static CSteamID Lobby = CSteamID.Nil;
         public static string Status = "";
+        public static string Code = "";
         private static Callback<LobbyCreated_t> _created;
         private static Callback<GameLobbyJoinRequested_t> _joinRequested;
         private static Callback<LobbyEnter_t> _entered;
         private static Callback<P2PSessionRequest_t> _sessionRequest;
         private static Callback<P2PSessionConnectFail_t> _connectFail;
+        private static CallResult<LobbyMatchList_t> _search;
+        private static Callback<LobbyChatUpdate_t> _members;
         private static ulong _pendingLobbyArg;
         private static byte[] _buf = new byte[1 << 20];
         private static bool _inited;
+        private const string CodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
         public static void TryInit()
         {
@@ -73,10 +77,17 @@ namespace MoonlighterCoop
             _joinRequested = Callback<GameLobbyJoinRequested_t>.Create(r => Join(r.m_steamIDLobby));
             _entered = Callback<LobbyEnter_t>.Create(OnLobbyEnter);
             _sessionRequest = Callback<P2PSessionRequest_t>.Create(OnSessionRequest);
+            _search = CallResult<LobbyMatchList_t>.Create(OnSearch);
+            // Someone left the lobby (closed the game, lost connection): drop them.
+            _members = Callback<LobbyChatUpdate_t>.Create(u =>
+            {
+                if ((u.m_rgfChatMemberStateChange & (uint)EChatMemberStateChange.k_EChatMemberStateChangeEntered) != 0) return;
+                PeerOf(new CSteamID(u.m_ulSteamIDUserChanged))?.Close();
+            });
             _connectFail = Callback<P2PSessionConnectFail_t>.Create(r =>
             {
                 Plugin.Log.LogWarning($"[steam] P2P with {r.m_steamIDRemote} failed: {r.m_eP2PSessionError}");
-                if (Net.Peer is SteamPeer sp && sp.SteamId == r.m_steamIDRemote) sp.MarkClosed();
+                PeerOf(r.m_steamIDRemote)?.MarkClosed();
             });
             // Started from an invite while the game was closed.
             var a = Environment.GetCommandLineArgs();
@@ -85,43 +96,85 @@ namespace MoonlighterCoop
             Plugin.Log.LogInfo($"[steam] ready as {SteamFriends.GetPersonaName()}");
         }
 
+        public static string MyName => Available ? SteamFriends.GetPersonaName() : "";
+
+        private static SteamPeer PeerOf(CSteamID id)
+        {
+            foreach (var p in Net.Live) if (p is SteamPeer sp && sp.SteamId == id) return sp;
+            return null;
+        }
+
         public static void Host()
         {
             if (!Available) { Status = "Steam no está disponible"; return; }
-            if (Lobby != CSteamID.Nil) { SteamFriends.ActivateGameOverlayInviteDialog(Lobby); return; }
+            if (Lobby != CSteamID.Nil) return;
             Plugin.Role = "host";
-            Status = "Creando sala de Steam…";
-            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeFriendsOnly, 5);
+            var rnd = new System.Random();
+            Code = "";
+            for (int i = 0; i < 6; i++) Code += CodeChars[rnd.Next(CodeChars.Length)];
+            Status = "Creando la partida…";
+            // Public so the code search finds it, but it only shows up for whoever types the exact code.
+            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, 5);
         }
+
+        public static void Invite() { if (Available && Lobby != CSteamID.Nil) SteamFriends.ActivateGameOverlayInviteDialog(Lobby); }
 
         private static void OnLobbyCreated(LobbyCreated_t r)
         {
-            if (r.m_eResult != EResult.k_EResultOK) { Status = "No se pudo crear la sala: " + r.m_eResult; Plugin.Log.LogWarning("[steam] " + Status); return; }
+            if (r.m_eResult != EResult.k_EResultOK) { Status = "No se pudo crear la partida: " + r.m_eResult; Plugin.Log.LogWarning("[steam] " + Status); Plugin.Role = ""; return; }
             Lobby = new CSteamID(r.m_ulSteamIDLobby);
             SteamMatchmaking.SetLobbyData(Lobby, "moonlighter_coop", Plugin.Version);
-            Status = "Sala creada: invita a un amigo (se ha abierto la ventana de Steam)";
-            Plugin.Log.LogInfo($"[steam] lobby {Lobby} created");
-            SteamFriends.ActivateGameOverlayInviteDialog(Lobby);
+            SteamMatchmaking.SetLobbyData(Lobby, "coop_code", Code);
+            Status = "Partida creada. Código: " + Code;
+            Plugin.Log.LogInfo($"[steam] lobby {Lobby} created, code {Code}");
+        }
+
+        public static void JoinByCode(string code)
+        {
+            if (!Available) { Status = "Steam no está disponible"; return; }
+            code = (code ?? "").Trim().ToUpperInvariant();
+            if (code.Length < 4) { Status = "Escribe el código que te ha dado tu amigo"; return; }
+            Status = "Buscando la partida " + code + "…";
+            SteamMatchmaking.AddRequestLobbyListStringFilter("coop_code", code, ELobbyComparison.k_ELobbyComparisonEqual);
+            SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
+            _search.Set(SteamMatchmaking.RequestLobbyList());
+        }
+
+        private static void OnSearch(LobbyMatchList_t r, bool failed)
+        {
+            if (failed || r.m_nLobbiesMatching == 0) { Status = "No hay ninguna partida con ese código (¿está bien escrito?)"; return; }
+            Join(SteamMatchmaking.GetLobbyByIndex(0));
         }
 
         public static void Join(CSteamID lobby)
         {
             if (Session.IsHost && Net.Connected) return;
             Plugin.Role = "join";
-            Status = "Uniéndose a la partida de tu amigo…";
+            Status = "Uniéndose a la partida…";
             Plugin.Log.LogInfo($"[steam] joining lobby {lobby}");
             SteamMatchmaking.JoinLobby(lobby);
+        }
+
+        public static void Leave()
+        {
+            if (Lobby != CSteamID.Nil && Available) SteamMatchmaking.LeaveLobby(Lobby);
+            Lobby = CSteamID.Nil; Code = ""; Status = "";
         }
 
         private static void OnLobbyEnter(LobbyEnter_t r)
         {
             Lobby = new CSteamID(r.m_ulSteamIDLobby);
             if (!Session.IsGuest) return;   // the host enters its own lobby too
+            if (r.m_EChatRoomEnterResponse != (uint)EChatRoomEnterResponse.k_EChatRoomEnterResponseSuccess)
+            {
+                Status = "No se pudo entrar (¿está llena?)"; Plugin.Role = ""; Lobby = CSteamID.Nil; return;
+            }
             var owner = SteamMatchmaking.GetLobbyOwner(Lobby);
+            Code = SteamMatchmaking.GetLobbyData(Lobby, "coop_code");
             var theirs = SteamMatchmaking.GetLobbyData(Lobby, "moonlighter_coop");
             if (!string.IsNullOrEmpty(theirs) && theirs != Plugin.Version)
                 Plugin.Log.LogWarning($"[steam] host has mod {theirs}, I have {Plugin.Version}");
-            Net.Peer = new SteamPeer(owner);
+            Net.Add(new SteamPeer(owner));
             Status = "Conectado con " + SteamFriends.GetFriendPersonaName(owner);
             Plugin.Log.LogInfo($"[steam] in lobby, host {owner}");
             // The guest plays on the host's save: be at the main menu to receive it.
@@ -129,20 +182,22 @@ namespace MoonlighterCoop
             Net.Send(Msg.Hello, System.Text.Encoding.UTF8.GetBytes(Plugin.Version));
         }
 
-        private static void OnSessionRequest(P2PSessionRequest_t r)
+        private static void AcceptGuest(CSteamID id)
         {
-            // Only the host accepts, and only one partner for now.
-            if (!Session.IsHost || (Net.Connected && !(Net.Peer is SteamPeer sp && sp.SteamId == r.m_steamIDRemote))) return;
-            SteamNetworking.AcceptP2PSessionWithUser(r.m_steamIDRemote);
-            if (!(Net.Peer is SteamPeer p2 && p2.SteamId == r.m_steamIDRemote && !p2.Closed))
-            {
-                Net.Peer = new SteamPeer(r.m_steamIDRemote);
-                Status = "Conectado con " + SteamFriends.GetFriendPersonaName(r.m_steamIDRemote);
-                Plugin.Log.LogInfo($"[steam] guest {r.m_steamIDRemote} connected");
-            }
+            if (!Session.IsHost || PeerOf(id) != null) return;
+            if (Net.ConnectedCount >= 4) { Plugin.Log.LogWarning("[steam] already 5 players"); return; }
+            SteamNetworking.AcceptP2PSessionWithUser(id);
+            var p = new SteamPeer(id);
+            Net.Add(p);
+            Status = "Se ha unido " + SteamFriends.GetFriendPersonaName(id);
+            Plugin.Log.LogInfo($"[steam] guest {p.Id} {id} connected");
         }
 
-        /// Every frame: deliver P2P packets to the peer's inbox; join a lobby from the command line once ready.
+        private static void OnSessionRequest(P2PSessionRequest_t r) => AcceptGuest(r.m_steamIDRemote);
+
+        public static string PeerName(IPeer p) => p is SteamPeer sp && Available ? SteamFriends.GetFriendPersonaName(sp.SteamId) : p.Remote;
+
+        /// Every frame: deliver P2P packets to each peer's inbox; join a lobby from the command line once ready.
         public static void Tick()
         {
             if (!_inited) { TryInit(); return; }
@@ -154,18 +209,12 @@ namespace MoonlighterCoop
             {
                 if (size > _buf.Length) _buf = new byte[size];
                 if (!SteamNetworking.ReadP2PPacket(_buf, size, out uint got, out CSteamID from, 0) || got < 1) continue;
-                if (Session.IsHost && !(Net.Peer is SteamPeer))
-                {
-                    // First packet from a guest that joined our lobby.
-                    SteamNetworking.AcceptP2PSessionWithUser(from);
-                    Net.Peer = new SteamPeer(from);
-                }
-                if (Net.Peer is SteamPeer sp && sp.SteamId == from)
-                {
-                    var data = new byte[got - 1];
-                    Buffer.BlockCopy(_buf, 1, data, 0, (int)got - 1);
-                    sp.Inbox.Enqueue(((Msg)_buf[0], data));
-                }
+                var sp = PeerOf(from);
+                if (sp == null && Session.IsHost) { AcceptGuest(from); sp = PeerOf(from); }   // first packet from a new guest
+                if (sp == null) continue;
+                var data = new byte[got - 1];
+                Buffer.BlockCopy(_buf, 1, data, 0, (int)got - 1);
+                sp.Inbox.Enqueue(((Msg)_buf[0], data));
             }
         }
     }

@@ -267,6 +267,8 @@ namespace MoonlighterCoop
                     }
                     return sb.ToString();
                 }
+                case "coop": CoopMenu.Do(p[1], p.Length > 2 ? p[2] : ""); return $"role={Plugin.Role} code={SteamCoop.Code} status={SteamCoop.Status} connected={Net.Connected} players={Session.Players}";
+                case "f2": if (CoopMenu.Instance != null) CoopMenu.Instance.SetOpen(p[1] == "on"); return "open=" + CoopMenu.Open;
                 case "rollstate":
                 {
                     var inv = hero.heroMerchantInventory;

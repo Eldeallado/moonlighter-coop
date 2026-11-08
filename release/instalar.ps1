@@ -43,7 +43,7 @@ New-Item -ItemType File -Force $marker | Out-Null
 Write-Host ""
 Write-Host "Instalado. Cómo jugar:" -ForegroundColor Green
 Write-Host "  1. Abre Moonlighter desde Steam (los dos con el mod)."
-Write-Host "  2. El anfitrión carga su partida y pulsa F2: se abre la ventana de invitar de Steam."
-Write-Host "  3. El amigo acepta la invitación en Steam y entra solo en la partida del anfitrión (hasta 5 jugadores)."
+Write-Host "  2. El anfitrión carga su partida, pulsa F2 y elige Crear partida: le sale un código."
+Write-Host "  3. El amigo pulsa F2, Unirse con un código, y escribe ese código (hasta 5 jugadores)."
 Write-Host "  4. F3 abre el menú para elegir el color del cuerpo y del pelo de tu Will."
 Read-Host "Pulsa Enter para salir"
