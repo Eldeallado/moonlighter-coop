@@ -71,13 +71,16 @@ namespace MoonlighterCoop
             else if (what == "code") { m._code = arg; m.JoinCode(); }
             else if (what == "ip") { m._ip = arg; m.JoinIp(); }
             else if (what == "leave") m.LeaveGame();
+            else if (what == "listen") Net.StartHost(Plugin.Port);
+            else if (what == "kick") { var p = Net.Live.FirstOrDefault(x => x.Id.ToString() == arg); if (p != null) m.Kick(p); }
         }
 
         private void CreateGame()
         {
             Plugin.Role = "host";
-            Net.StartHost(Plugin.Port);           // same network / VPN by IP
+            // Steam only by default: opening a port for joining by IP is the host's choice (menu button).
             if (SteamCoop.Available) SteamCoop.Host();
+            else Net.StartHost(Plugin.Port);
             Plugin.Log.LogInfo("[menu] create game");
         }
 
@@ -105,6 +108,17 @@ namespace MoonlighterCoop
             _page = Page.Main;
         }
 
+        /// Host: send a player away, and do not let them back in this session.
+        private void Kick(IPeer p)
+        {
+            SteamCoop.Banned.Add(SteamCoop.BanKey(p));
+            p.Send(Msg.Bye, new byte[] { 1 });
+            StartCoroutine(CloseLater(p));
+            SteamCoop.Status = "Has expulsado a " + SteamCoop.PeerName(p);
+            Plugin.Log.LogInfo("[menu] kicked player " + p.Id);
+        }
+        private System.Collections.IEnumerator CloseLater(IPeer p) { yield return new WaitForSecondsRealtime(0.4f); p.Close(); }
+
         /// The host closed the game: a guest goes back to its own menu.
         public static void HostClosed() { if (Instance != null) Instance.StartCoroutine(Instance.FinishLeaving(true, 0f)); }
 
@@ -113,11 +127,12 @@ namespace MoonlighterCoop
             if (wait > 0f) yield return new WaitForSecondsRealtime(wait);
             string status = SteamCoop.Status;
             Net.CloseAll();
+            Net.StopHost();
             SteamCoop.Leave();
             Session.Reset();
             Plugin.Role = "";
             Plugin.TcpMode = false;
-            if (status == "El anfitrión ha cerrado la partida") SteamCoop.Status = status;
+            if (status.StartsWith("El anfitrión")) SteamCoop.Status = status;   // keep why we left on screen
             Plugin.Log.LogInfo("[menu] left the game");
             // A guest was playing on the host's save: back to the main menu to load its own.
             if (wasGuest && HeroMerchant.Instance != null && GameManager.Instance != null) GameManager.Instance.ReturnToMainMenu();
@@ -239,13 +254,24 @@ namespace MoonlighterCoop
                 if (Btn(new Rect(cr.xMax + 12 * k, cr.y + 36 * k, r.width - cr.width - 12 * k, 28 * k), "Invitar amigos de Steam")) SteamCoop.Invite();
                 y += 92 * k;
             }
-            if (host) { GUI.Label(new Rect(r.x, y, r.width, 22 * k), $"Por IP en la misma red: {LocalIp()}", _label); y += 28 * k; }
+            if (host)
+            {
+                // Joining by IP opens a port on this PC: only while the host wants it.
+                if (Btn(new Rect(r.x, y, 250 * k, 26 * k), Net.Listening ? "Unirse por IP: abierto" : "Permitir unirse por IP")) { if (Net.Listening) Net.StopHost(); else Net.StartHost(Plugin.Port); }
+                if (Net.Listening) GUI.Label(new Rect(r.x + 262 * k, y + 2 * k, r.width - 262 * k, 22 * k), $"Tu IP en la red: {LocalIp()}", _label);
+                y += 34 * k;
+            }
             GUI.Label(new Rect(r.x, y, r.width, 22 * k), $"Jugadores ({Session.Players}/5):", _head);
             y += 28 * k;
             string me = (SteamCoop.Available ? SteamCoop.MyName : "Tú") + (host ? " (anfitrión, tú)" : " (tú)");
             GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), "• " + me, _label); y += 24 * k;
             if (host)
-                foreach (var peer in Net.Live) { GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), $"• {SteamCoop.PeerName(peer)} (jugador {peer.Id})", _label); y += 24 * k; }
+                foreach (var peer in Net.Live)
+                {
+                    GUI.Label(new Rect(r.x + 14 * k, y, r.width - 140 * k, 22 * k), $"• {SteamCoop.PeerName(peer)} (jugador {peer.Id + 1})", _label);
+                    if (Btn(new Rect(r.xMax - 120 * k, y, 120 * k, 22 * k), "Expulsar")) Kick(peer);
+                    y += 26 * k;
+                }
             else if (Net.Connected)
             { GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), $"• {SteamCoop.PeerName(Net.Peer)} (anfitrión)", _label); y += 24 * k; }
             if (host && Net.ConnectedCount == 0) { GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), "Esperando a que se una alguien…", _small); }

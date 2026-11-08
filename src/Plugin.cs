@@ -14,8 +14,8 @@ namespace MoonlighterCoop
     [BepInPlugin(Guid, "Moonlighter Coop", Version)]
     public class Plugin : BaseUnityPlugin
     {
-        public const string Guid = "charly.moonlighter.coop";
-        public const string Version = "0.2.0";
+        public const string Guid = "elde_al_lado.moonlighter.coop";
+        public const string Version = "0.3.0";
 
         public static Plugin Instance;
         public static ManualLogSource Log;

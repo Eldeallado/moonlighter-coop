@@ -88,7 +88,7 @@ namespace MoonlighterCoop
                 while (!Closed)
                 {
                     int len = r.ReadInt32();
-                    if (len < 1 || len > 64 * 1024 * 1024) throw new IOException("bad frame length " + len);
+                    if (len < 1 || len > 8 * 1024 * 1024) throw new IOException("bad frame length " + len);
                     var type = (Msg)r.ReadByte();
                     var data = r.ReadBytes(len - 1);
                     if (data.Length != len - 1) throw new EndOfStreamException();
@@ -162,6 +162,9 @@ namespace MoonlighterCoop
             }
         }
 
+        public static bool Listening => _listener != null;
+        public static void StopHost() { try { _listener?.Stop(); } catch { } _listener = null; Plugin.Log.LogInfo("[net] stopped listening on TCP"); }
+
         public static void StartHost(int port)
         {
             if (_listener != null) return;
@@ -177,11 +180,12 @@ namespace MoonlighterCoop
             {
                 var c = _listener.EndAcceptTcpClient(ar);
                 var peer = new Peer(c);
-                Add(peer);
+                if (SteamCoop.Banned.Contains(SteamCoop.BanKey(peer))) { peer.Close(); Plugin.Log.LogInfo("[net] kicked player tried to come back: refused"); }
+                else Add(peer);
                 Plugin.Log.LogInfo($"[net] guest {peer.Id} connected from {peer.Remote}");
             }
             catch (Exception e) { Plugin.Log.LogWarning("[net] accept: " + e.Message); }
-            try { _listener.BeginAcceptTcpClient(OnAccept, null); } catch { }
+            try { _listener?.BeginAcceptTcpClient(OnAccept, null); } catch { }
         }
 
         /// Called every frame on the guest until connected.

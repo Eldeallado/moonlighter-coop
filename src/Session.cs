@@ -51,6 +51,19 @@ namespace MoonlighterCoop
             Plugin.Log.LogInfo($"[session] player {id} is gone");
         }
 
+        // A guest the host never welcomes (kicked before, full, or not answering) gives up after 20 s.
+        private static float _connectedAt = -1f;
+        private static void GuestWaitWelcome(float now)
+        {
+            if (!IsGuest || !Net.Connected || Welcomed) { _connectedAt = -1f; return; }
+            if (_connectedAt < 0f) { _connectedAt = now; return; }
+            if (now - _connectedAt < 20f) return;
+            _connectedAt = -1f;
+            Plugin.Log.LogWarning("[session] the host never answered: leaving");
+            SteamCoop.Status = "El anfitrión no te deja entrar o no responde";
+            CoopMenu.HostClosed();
+        }
+
         private static readonly System.Collections.Generic.HashSet<int> _liveIds = new System.Collections.Generic.HashSet<int>();
         private static void HostWatchLeavers()
         {
@@ -118,6 +131,7 @@ namespace MoonlighterCoop
                 }
             }
             HostWatchLeavers();
+            GuestWaitWelcome(now);
             LoadingWatchdog(now);
             Shared.Tick();
             ShopSync.Tick();
@@ -250,7 +264,7 @@ namespace MoonlighterCoop
                 case Msg.ShopResults: if (IsGuest) ShopResults.OnResults(data); break;
                 case Msg.Bye:
                     if (IsHost) { Plugin.Log.LogInfo($"[session] player {from.Id} left"); from.Close(); }
-                    else { SteamCoop.Status = "El anfitrión ha cerrado la partida"; CoopMenu.HostClosed(); }
+                    else { SteamCoop.Status = data.Length > 0 && data[0] == 1 ? "El anfitrión te ha expulsado de la partida" : "El anfitrión ha cerrado la partida"; CoopMenu.HostClosed(); }
                     break;
                 case Msg.PlayerLeft: if (IsGuest) RemovePlayer(data[0]); break;
                 case Msg.Bag: Shared.OnBag(data); break;
@@ -293,7 +307,10 @@ namespace MoonlighterCoop
             if (GuestLoaded) return;
             var r = new BinaryReader(new MemoryStream(payload));
             int seed = r.ReadInt32();
-            var json = r.ReadBytes(r.ReadInt32());
+            int len = r.ReadInt32();
+            if (len < 0 || len > SaveGuard.MaxSaveBytes) { Plugin.Log.LogWarning("[session] host save refused: size " + len); SteamCoop.Status = "La partida recibida no es válida: no se carga"; return; }
+            var json = r.ReadBytes(len);
+            if (!SaveGuard.IsSafe(json, out var why)) { Plugin.Log.LogWarning("[session] host save refused: " + why); SteamCoop.Status = "La partida recibida no es válida: no se carga"; return; }
             var gm = GameManager.Instance;
             if (gm == null || UnityEngine.Object.FindObjectOfType<MainMenuPanel>() == null)
             {

@@ -55,7 +55,6 @@ namespace MoonlighterCoop
         private static Callback<LobbyEnter_t> _entered;
         private static Callback<P2PSessionRequest_t> _sessionRequest;
         private static Callback<P2PSessionConnectFail_t> _connectFail;
-        private static CallResult<LobbyMatchList_t> _search;
         private static Callback<LobbyChatUpdate_t> _members;
         private static ulong _pendingLobbyArg;
         private static byte[] _buf = new byte[1 << 20];
@@ -77,7 +76,6 @@ namespace MoonlighterCoop
             _joinRequested = Callback<GameLobbyJoinRequested_t>.Create(r => Join(r.m_steamIDLobby));
             _entered = Callback<LobbyEnter_t>.Create(OnLobbyEnter);
             _sessionRequest = Callback<P2PSessionRequest_t>.Create(OnSessionRequest);
-            _search = CallResult<LobbyMatchList_t>.Create(OnSearch);
             // Someone left the lobby (closed the game, lost connection): drop them.
             _members = Callback<LobbyChatUpdate_t>.Create(u =>
             {
@@ -96,6 +94,10 @@ namespace MoonlighterCoop
             Plugin.Log.LogInfo($"[steam] ready as {SteamFriends.GetPersonaName()}");
         }
 
+        /// Players the host kicked out this session.
+        public static readonly System.Collections.Generic.HashSet<string> Banned = new System.Collections.Generic.HashSet<string>();
+        public static string BanKey(IPeer p) => p is SteamPeer sp ? "steam:" + sp.SteamId.m_SteamID : "ip:" + (p.Remote ?? "").Split(':')[0];
+
         public static string MyName => Available ? SteamFriends.GetPersonaName() : "";
 
         private static SteamPeer PeerOf(CSteamID id)
@@ -109,12 +111,11 @@ namespace MoonlighterCoop
             if (!Available) { Status = "Steam no está disponible"; return; }
             if (Lobby != CSteamID.Nil) return;
             Plugin.Role = "host";
-            var rnd = new System.Random();
             Code = "";
-            for (int i = 0; i < 6; i++) Code += CodeChars[rnd.Next(CodeChars.Length)];
             Status = "Creando la partida…";
-            // Public so the code search finds it, but it only shows up for whoever types the exact code.
-            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePublic, 5);
+            // Invisible: it never shows up in any lobby list. The code IS the lobby's id, so only whoever has it
+            // can find it (Steam limits how fast anyone can try ids).
+            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeInvisible, 5);
         }
 
         public static void Invite() { if (Available && Lobby != CSteamID.Nil) SteamFriends.ActivateGameOverlayInviteDialog(Lobby); }
@@ -124,28 +125,43 @@ namespace MoonlighterCoop
             if (r.m_eResult != EResult.k_EResultOK) { Status = "No se pudo crear la partida: " + r.m_eResult; Plugin.Log.LogWarning("[steam] " + Status); Plugin.Role = ""; return; }
             Lobby = new CSteamID(r.m_ulSteamIDLobby);
             SteamMatchmaking.SetLobbyData(Lobby, "moonlighter_coop", Plugin.Version);
-            SteamMatchmaking.SetLobbyData(Lobby, "coop_code", Code);
+            Code = Encode(Lobby.GetAccountID().m_AccountID);
+            if (Lobby != FromCode(Code)) Plugin.Log.LogWarning($"[steam] lobby id {Lobby.m_SteamID:X} does not round-trip through its code (instance {Lobby.GetUnAccountInstance():X})");
             Status = "Partida creada. Código: " + Code;
             Plugin.Log.LogInfo($"[steam] lobby {Lobby} created, code {Code}");
         }
 
+        // 7 letters from a 32-letter alphabet without look-alikes (no I, O, 0, 1) = the lobby's 32-bit account id.
+        public static string Encode(uint acc)
+        {
+            var c = new char[7];
+            for (int i = 6; i >= 0; i--) { c[i] = CodeChars[(int)(acc % 32)]; acc /= 32; }
+            return new string(c);
+        }
+
+        public static bool TryDecode(string code, out uint acc)
+        {
+            acc = 0; ulong v = 0;
+            if (code.Length != 7) return false;
+            foreach (char ch in code) { int i = CodeChars.IndexOf(ch); if (i < 0) return false; v = v * 32 + (ulong)i; }
+            if (v > uint.MaxValue) return false;
+            acc = (uint)v; return true;
+        }
+
+        private static CSteamID FromCode(string code) =>
+            TryDecode(code, out var acc)
+                ? new CSteamID(new AccountID_t(acc), (uint)(EChatSteamIDInstanceFlags.k_EChatInstanceFlagLobby | EChatSteamIDInstanceFlags.k_EChatInstanceFlagMMSLobby), EUniverse.k_EUniversePublic, EAccountType.k_EAccountTypeChat)
+                : CSteamID.Nil;
+
         public static void JoinByCode(string code)
         {
             if (!Available) { Status = "Steam no está disponible"; return; }
-            code = (code ?? "").Trim().ToUpperInvariant();
-            if (code.Length < 4) { Status = "Escribe el código que te ha dado tu amigo"; return; }
+            code = (code ?? "").Trim().ToUpperInvariant().Replace("-", "").Replace(" ", "");
+            var id = FromCode(code);
+            if (id == CSteamID.Nil) { Status = "Ese código no es válido (son 7 letras y números)"; return; }
             Status = "Buscando la partida " + code + "…";
-            SteamMatchmaking.AddRequestLobbyListStringFilter("coop_code", code, ELobbyComparison.k_ELobbyComparisonEqual);
-            SteamMatchmaking.AddRequestLobbyListDistanceFilter(ELobbyDistanceFilter.k_ELobbyDistanceFilterWorldwide);
-            _search.Set(SteamMatchmaking.RequestLobbyList());
+            Join(id);
         }
-
-        private static void OnSearch(LobbyMatchList_t r, bool failed)
-        {
-            if (failed || r.m_nLobbiesMatching == 0) { Status = "No hay ninguna partida con ese código (¿está bien escrito?)"; return; }
-            Join(SteamMatchmaking.GetLobbyByIndex(0));
-        }
-
         public static void Join(CSteamID lobby)
         {
             if (Session.IsHost && Net.Connected) return;
@@ -167,11 +183,15 @@ namespace MoonlighterCoop
             if (!Session.IsGuest) return;   // the host enters its own lobby too
             if (r.m_EChatRoomEnterResponse != (uint)EChatRoomEnterResponse.k_EChatRoomEnterResponseSuccess)
             {
-                Status = "No se pudo entrar (¿está llena?)"; Plugin.Role = ""; Lobby = CSteamID.Nil; return;
+                Status = "No hay ninguna partida con ese código (o está llena)"; Plugin.Role = ""; Lobby = CSteamID.Nil; return;
             }
             var owner = SteamMatchmaking.GetLobbyOwner(Lobby);
-            Code = SteamMatchmaking.GetLobbyData(Lobby, "coop_code");
             var theirs = SteamMatchmaking.GetLobbyData(Lobby, "moonlighter_coop");
+            if (string.IsNullOrEmpty(theirs))
+            {
+                Status = "Ese código no es de una partida de Moonlighter Coop"; SteamMatchmaking.LeaveLobby(Lobby); Lobby = CSteamID.Nil; Plugin.Role = ""; return;
+            }
+            Code = Encode(Lobby.GetAccountID().m_AccountID);
             if (!string.IsNullOrEmpty(theirs) && theirs != Plugin.Version)
                 Plugin.Log.LogWarning($"[steam] host has mod {theirs}, I have {Plugin.Version}");
             Net.Add(new SteamPeer(owner));
@@ -185,6 +205,7 @@ namespace MoonlighterCoop
         private static void AcceptGuest(CSteamID id)
         {
             if (!Session.IsHost || PeerOf(id) != null) return;
+            if (Banned.Contains("steam:" + id.m_SteamID)) { Plugin.Log.LogInfo("[steam] kicked player tried to come back: refused"); return; }
             if (Net.ConnectedCount >= 4) { Plugin.Log.LogWarning("[steam] already 5 players"); return; }
             SteamNetworking.AcceptP2PSessionWithUser(id);
             var p = new SteamPeer(id);
