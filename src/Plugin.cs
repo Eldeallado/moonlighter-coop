@@ -15,7 +15,7 @@ namespace MoonlighterCoop
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "charly.moonlighter.coop";
-        public const string Version = "0.1.0";
+        public const string Version = "0.2.0";
 
         public static Plugin Instance;
         public static ManualLogSource Log;
@@ -35,6 +35,10 @@ namespace MoonlighterCoop
         private bool _botLoaded;
         private bool _dumped;
 
+        private static BepInEx.Configuration.ConfigEntry<int> _lookCfg;
+        public static void SaveLook(int look) { if (_lookCfg != null) _lookCfg.Value = look; }
+        public static int WinW = 800, WinH = 450;
+
         private void Awake()
         {
             Instance = this;
@@ -47,6 +51,9 @@ namespace MoonlighterCoop
             if (Drive) Driver.Start(DrivePort > 0 ? DrivePort : Role == "join" ? 7801 : 7800);
             Session.Start();
             gameObject.AddComponent<RecolorLocalWill>();
+            gameObject.AddComponent<ColorMenu>();
+            _lookCfg = Config.Bind("Aspecto", "Color", -1, "Cuerpo*16 + pelo (lo elige el menú F3). -1 = según el número de jugador");
+            if (_lookCfg.Value >= 0) Looks.LoadSaved(_lookCfg.Value);
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
             // The game turns its own log off; keep errors and the loading/room flow for debugging.
             Debug.unityLogger.logEnabled = true;
@@ -80,6 +87,9 @@ namespace MoonlighterCoop
                     case "-coopdrive":
                         Drive = true;
                         break;
+                    case "-coopwin":
+                        if (i + 1 < a.Length) { var wh = a[++i].Split('x'); int.TryParse(wh[0], out WinW); int.TryParse(wh[1], out WinH); }
+                        break;
                     case "-coopwindowed":
                         Windowed = true;
                         break;
@@ -102,7 +112,7 @@ namespace MoonlighterCoop
             if ((Bot || Windowed) && !_windowed && Time.frameCount > 30)
             {
                 _windowed = true;
-                Screen.SetResolution(800, 450, FullScreenMode.Windowed);
+                Screen.SetResolution(WinW, WinH, FullScreenMode.Windowed);
             }
             if (Input.GetKeyDown(KeyCode.F8)) Dump();
             if (Input.GetKeyDown(KeyCode.F2) && !TcpMode) SteamCoop.Host();
@@ -114,13 +124,13 @@ namespace MoonlighterCoop
         {
             if (Plugin.Role == "")
             {
-                GUI.Label(new Rect(8, 8, 700, 22), SteamCoop.Available ? "Coop online: pulsa F2 para crear partida e invitar a un amigo de Steam" : "");
+                GUI.Label(new Rect(8, 8, 700, 22), SteamCoop.Available ? "Coop online: pulsa F2 para crear partida e invitar a un amigo de Steam · F3: color de tu Will" : "");
                 return;
             }
             var p = Puppet.Instance;
             GUI.Label(new Rect(8, 8, 600, 22),
                 $"Coop {Version} [{Role}] {(Net.Connected ? $"conectado ({Session.LastPing:F0} ms)" : "esperando conexión…")}" +
-                (p != null ? $"  compañero: {(p.Visible ? "aquí" : p.Zone)}" : ""));
+                (p != null ? $"  compañero: {(p.Visible ? "aquí" : p.Zone)}" : "") + $"  jugadores: {Session.Players}  · F3: color");
             if (!string.IsNullOrEmpty(SteamCoop.Status) && !Net.Connected) GUI.Label(new Rect(8, 28, 800, 22), SteamCoop.Status);
             var hint = Vote.Hint() ?? Downed.Hint();
             if (hint != null)

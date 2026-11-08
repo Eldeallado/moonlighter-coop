@@ -16,6 +16,7 @@ namespace MoonlighterCoop
             var ms = new MemoryStream();
             var w = new BinaryWriter(ms);
             w.Write((byte)playerId);
+            w.Write((byte)Looks.Mine);
             w.Write(zone);
             if (hero == null) { w.Write(false); return ms.ToArray(); }
             w.Write(true);
@@ -92,6 +93,7 @@ namespace MoonlighterCoop
             }
         }
         public int PlayerId;
+        public int Look;
         private readonly Dictionary<string, SpriteRenderer> _parts = new Dictionary<string, SpriteRenderer>();
         private readonly HashSet<string> _seen = new HashSet<string>();
         private Vector3 _target;
@@ -114,6 +116,8 @@ namespace MoonlighterCoop
         {
             var r = new BinaryReader(new MemoryStream(data));
             r.ReadByte();   // player number (already used to pick this puppet)
+            Look = r.ReadByte();
+            Looks.Of[PlayerId] = Look;
             Zone = r.ReadString();
             bool hasHero = r.ReadBoolean();
             Visible = hasHero && Zone == localZone && Zone != "";
@@ -150,7 +154,7 @@ namespace MoonlighterCoop
                 sr.sprite = SpriteCache.Get(sprite);
                 // On the host, the guest's Will is the red one.
                 // Each guest has its colour (1 red, 2 yellow...); the host's Will stays as it is.
-                if (PlayerId > 0 && path.StartsWith("HeroMerchantArt") && !path.Contains("Light")) sr.sprite = Recolor.Tint(sr.sprite, PlayerId);
+                if (path.StartsWith("HeroMerchantArt") && !path.Contains("Light")) sr.sprite = Recolor.Tint(sr.sprite, Look);
                 var m = MaterialFor(path, mat);
                 if (m != null && sr.sharedMaterial != m) sr.sharedMaterial = m;
                 if (m != null && m.name.StartsWith("CoopPuppet") && m.HasProperty("_FlashAmount")) m.SetFloat("_FlashAmount", flash);

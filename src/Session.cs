@@ -62,7 +62,7 @@ namespace MoonlighterCoop
             }
             if (Net.Connected)
             {
-                if (now >= _nextPose)
+                if (now >= _nextPose && (IsHost || Welcomed))
                 {
                     _nextPose = now + 0.05f;
                     Net.Send(Msg.Pose, PoseCapture.Capture(LocalZone(), MyId));
@@ -85,6 +85,7 @@ namespace MoonlighterCoop
             }
             LoadingWatchdog(now);
             Shared.Tick();
+            ShopSync.Tick();
             Regroup();
             EnemySync.HostTick();
             DoorSync.HostTick();
@@ -145,13 +146,14 @@ namespace MoonlighterCoop
 
         /// My player number: 0 = host, 1.. = guests (the host tells each guest its number).
         public static int MyId;
+        public static bool Welcomed;
         public static int Players => IsHost ? 1 + Net.ConnectedCount : Math.Max(2, _knownPlayers);
         private static int _knownPlayers;
         private static float _nextCount;
 
         // Things one player does that every other player must see: the host passes them on.
         private static readonly System.Collections.Generic.HashSet<Msg> Relayed = new System.Collections.Generic.HashSet<Msg>
-        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun };
+        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime };
 
         private static void Handle(IPeer from, Msg type, byte[] data)
         {
@@ -159,7 +161,7 @@ namespace MoonlighterCoop
             switch (type)
             {
                 case Msg.Welcome:
-                    if (IsGuest) { MyId = data[0]; Plugin.Log.LogInfo($"[session] I am player {MyId}"); }
+                    if (IsGuest) { MyId = data[0]; Welcomed = true; Plugin.Log.LogInfo($"[session] I am player {MyId}"); }
                     break;
                 case Msg.PlayerCount:
                     _knownPlayers = data[0];
@@ -175,6 +177,8 @@ namespace MoonlighterCoop
                     if (IsGuest) _pendingSave = data;
                     break;
                 case Msg.Pose:
+                    // A guest with no number yet says it is 0 (the host's number): ignore it until welcomed.
+                    if (data[0] == MyId) break;
                     PosesReceived++;
                     Puppet.Ensure(data[0]).Apply(data, LocalZone());
                     break;
@@ -201,6 +205,11 @@ namespace MoonlighterCoop
                 case Msg.FountainHeal: Downed.OnFountainHeal(); break;
                 case Msg.BreakDetailAt: BreakableSync.OnBreakDetailAt(data); break;
                 case Msg.Gold: Shared.OnGold(data); break;
+                case Msg.ShopState: ShopSync.OnShopState(data); break;
+                case Msg.Shelves: ShopSync.OnShelves(data); break;
+                case Msg.Customers: if (IsGuest) ShopSync.OnCustomers(data); break;
+                case Msg.ShopSell: if (IsHost) ShopSync.OnShopSell(); break;
+                case Msg.DayTime: DaySync.OnDayTime(data); break;
                 case Msg.Bag: Shared.OnBag(data); break;
                 case Msg.Vote: Vote.OnVote(from.Id, data); break;
                 case Msg.VoteResult: if (IsGuest) Vote.OnResult(data); break;
@@ -323,6 +332,7 @@ namespace MoonlighterCoop
             sb.AppendLine($"combat_cleared={Plugin.CombatRoomCleared}");
             sb.AppendLine($"door_requests_sent={Dungeon.DoorRequestsSent}");
             sb.AppendLine($"door_requests_done={Dungeon.DoorRequestsDone}");
+            sb.AppendLine($"shop shelf_sent={ShopSync.ShelfSent} shelf_applied={ShopSync.ShelfApplied} customers_sent={ShopSync.CustomersSent} customers_applied={ShopSync.CustomersApplied} sales_asked={ShopSync.SalesAsked} sales_done={ShopSync.SalesDone}");
             sb.AppendLine($"guest_loaded={GuestLoaded}");
             sb.AppendLine($"save_sent={SaveSent}");
             sb.AppendLine($"slot={(GameManager.Instance != null && GameManager.Instance.currentGameSlot != null ? GameManager.Instance.currentGameSlot.seed : 0)}");

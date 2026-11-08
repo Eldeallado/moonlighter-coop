@@ -196,6 +196,81 @@ namespace MoonlighterCoop
                 case "steamstatus": return $"available={SteamCoop.Available} lobby={SteamCoop.Lobby} status={SteamCoop.Status} role={Plugin.Role}";
                 case "gold": hero.addGold(int.Parse(p[1])); return "ok";
                 case "hurt": hero.DealDamageToPlayer(F(p[1]), "QA"); return "ok";
+                case "look": ColorMenu.Set(int.Parse(p[1]), int.Parse(p[2])); return "look=" + Looks.Mine;
+                case "menu": if (ColorMenu.Instance != null) ColorMenu.Instance.SetOpen(p[1] == "on"); return "open=" + ColorMenu.Open;
+                case "looks": return $"mine={Looks.Mine} " + string.Join(" ", Looks.Of.Select(kv => $"p{kv.Key}={kv.Value}"));
+                case "dumpatlas":
+                {
+                    var will = hero.transform.Find("HeroMerchantArt/Will")?.GetComponent<SpriteRenderer>();
+                    var spr = Recolor.Original(will.sprite);
+                    var copy = Recolor.ReadableCopy(spr.texture);
+                    var file = Plugin.StatusFile("atlas.png");
+                    File.WriteAllBytes(file, ImageConversion.EncodeToPNG(copy));
+                    var rect = spr.textureRect;
+                    return $"{file} {spr.texture.width}x{spr.texture.height} sprite={spr.name} uv0={spr.uv[0].x * spr.texture.width:F0},{spr.uv[0].y * spr.texture.height:F0}";
+                }
+                case "shelves":
+                {
+                    var cases = UnityEngine.Object.FindObjectsOfType<Showcase>().OrderBy(s => Mathf.RoundToInt(s.transform.position.x)).ThenBy(s => Mathf.RoundToInt(s.transform.position.y)).ToList();
+                    var sb = new StringBuilder(); int k = 0;
+                    foreach (var c in cases) for (int i = 0; i < c.itemPositions.Count; i++, k++)
+                    {
+                        var st = c.itemPositions[i].itemStack;
+                        sb.Append($"{k}:{(st != null && st.master != null ? st.master.name + "x" + st.Quantity + "$" + st.unitSellingPrice : "-")}@{V(c.transform.position)} ");
+                    }
+                    return sb.ToString();
+                }
+                case "shelfput": // slot bagIndex price
+                {
+                    var cases = UnityEngine.Object.FindObjectsOfType<Showcase>().OrderBy(s => Mathf.RoundToInt(s.transform.position.x)).ThenBy(s => Mathf.RoundToInt(s.transform.position.y)).ToList();
+                    var all = cases.SelectMany(c => Enumerable.Range(0, c.itemPositions.Count).Select(i => (c, i))).ToList();
+                    var (sc, si) = all[int.Parse(p[1])];
+                    var inv = hero.heroMerchantInventory;
+                    var item = inv.slots[int.Parse(p[2])].item;
+                    if (item == null) return "empty bag slot";
+                    inv.SetItem(null, int.Parse(p[2]));
+                    item.unitSellingPrice = int.Parse(p[3]);
+                    sc.SetItemInPosition(item, si);
+                    return $"put {item.master.name}x{item.Quantity}";
+                }
+                case "morning": TimeManagerV2.Instance.ChangeToMorning(); return "ok";
+                case "openshop": UnityEngine.Object.FindObjectOfType<ShopEntranceDoor>().OpenShop(); return "ok";
+                case "closeshop": UnityEngine.Object.FindObjectOfType<ShopEntranceDoor>().CloseShop(); return "ok";
+                case "charge": { var cash = ShopManager.Instance.references.shopCash; bool blocked = cash.IsInstantActionBlocked(); if (!blocked) cash.TryToSellItem(); return $"blocked={blocked}"; }
+                case "shopinfo":
+                {
+                    var cash = ShopManager.Instance.references.shopCash;
+                    var gen = ShopManager.Instance.visitorGenerator;
+                    var copies = GameObject.Find("CoopCustomers");
+                    return $"open={!ShopManager.Instance.IsShopClosed} visitors={gen.generatedVisitors.Count} atCash={(cash.visitorBuying != null)} guestAtCash={ShopSync.VisitorAtCash} cashItem={ShopSync.CashItem} copies={(copies != null ? copies.transform.childCount : 0)} gold={hero.GetCurrentGold()} cashPos={V(cash.transform.position)}";
+                }
+                case "visitorparts":
+                {
+                    var sb = new StringBuilder();
+                    foreach (var v in ShopManager.Instance.visitorGenerator.generatedVisitors.Where(x => x != null).Take(3))
+                    {
+                        sb.Append($"[{v.name}] ");
+                        foreach (var sr in v.GetComponentsInChildren<SpriteRenderer>(false).Where(s => s.enabled && s.sprite != null))
+                            sb.Append($"{sr.name}:{sr.sprite.name}|{(sr.sharedMaterial ? sr.sharedMaterial.name + "/" + sr.sharedMaterial.shader.name : "-")}|{sr.sortingLayerName}/{sr.sortingOrder}|a{sr.color.a:F1} ");
+                    }
+                    return sb.ToString();
+                }
+                case "matprops":
+                {
+                    var sb = new StringBuilder();
+                    var mats = new List<(string, Material)>();
+                    var v0 = ShopManager.Instance.visitorGenerator.generatedVisitors.FirstOrDefault(x => x != null);
+                    if (v0 != null) foreach (var sr in v0.GetComponentsInChildren<SpriteRenderer>()) if (sr.sharedMaterial) mats.Add(("visitor " + sr.name, sr.sharedMaterial));
+                    var byName = SpriteCache.GetMaterial("Sprites/Diffuse Flash"); if (byName) mats.Add(("byname", byName));
+                    foreach (var (label, m) in mats)
+                    {
+                        sb.Append($"[{label}: {m.name} shader={m.shader.name} kw={string.Join(",", m.shaderKeywords)}");
+                        foreach (var prop in new[] { "_FlashAmount", "_FlashColor", "_Color", "_SelfIllum", "_Flash", "_FlashColour", "_Amount", "_OutlineColor", "_Outline", "_Silhouette", "_TintColor", "_RendererColor" })
+                            if (m.HasProperty(prop)) { try { sb.Append($" {prop}={m.GetColor(prop)}"); } catch { } try { sb.Append($"/{m.GetFloat(prop)}"); } catch { } }
+                        sb.Append("] ");
+                    }
+                    return sb.ToString();
+                }
                 case "info": return Info();
                 default: return "unknown " + p[0];
             }

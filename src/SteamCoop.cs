@@ -91,7 +91,7 @@ namespace MoonlighterCoop
             if (Lobby != CSteamID.Nil) { SteamFriends.ActivateGameOverlayInviteDialog(Lobby); return; }
             Plugin.Role = "host";
             Status = "Creando sala de Steam…";
-            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeFriendsOnly, 4);
+            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeFriendsOnly, 5);
         }
 
         private static void OnLobbyCreated(LobbyCreated_t r)

@@ -38,6 +38,11 @@ namespace MoonlighterCoop
         Bag = 25,
         Welcome = 26,
         PlayerCount = 27,
+        ShopState = 28,
+        Shelves = 29,
+        Customers = 30,
+        ShopSell = 31,
+        DayTime = 32,
     }
 
     public interface IPeer
