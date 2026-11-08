@@ -17,7 +17,8 @@ namespace MoonlighterCoop
 
         public static bool ApplyingRemote;      // a travel the host asked for is running on the guest
         public static bool InHeroTravel;        // inside HeroMerchant's own travel (it already told the guest)
-        public static bool Following;           // the guest is walking through a door to follow the host
+        public static bool Following;
+        public static bool Leading;             // the host walks through a door because a guest asked (even as a ghost)           // the guest is walking through a door to follow the host
         public static DungeonSaveInfo PendingInfo;
         public static int FloorSeed;            // host picks one per floor; both generate with it
         public static int InfosSent, InfosReceived;
@@ -216,9 +217,12 @@ namespace MoonlighterCoop
                 && (boss ? d.destinationRoom is DungeonBossRoom : d.destinationRoom.x == x && d.destinationRoom.y == y && d.destinationRoom.isSecret == secret));
             if (door == null) { Plugin.Log.LogWarning($"[dungeon] guest door request to {x},{y}: no such door from here"); return; }
             if (!door.isOpened) { Plugin.Log.LogInfo("[dungeon] guest door request: door is closed (fight first)"); return; }
+            // Never drag the host to another room while it has a chest, the bag or any menu open (black screen).
+            if (GUIManager.Instance != null && GUIManager.Instance.currentInventory != null) { Plugin.Log.LogInfo("[dungeon] guest door request ignored: host has a panel open"); return; }
             Plugin.Log.LogInfo($"[dungeon] host goes through {door.name} because the guest did");
             DoorRequestsDone++;
-            door.OnPlayerEnter(hero.gameObject);
+            Leading = true;
+            try { door.OnPlayerEnter(hero.gameObject); } finally { Leading = false; }
         }
 
         /// Every frame on the guest: if the host is in another room of this floor, walk through the door to it.
@@ -324,6 +328,8 @@ namespace MoonlighterCoop
     {
         static bool Prefix(DungeonDoor __instance)
         {
+            // A ghost cannot change rooms (it would drag everyone else along).
+            if (Downed.Me && Net.Connected && !Dungeon.Following && !Dungeon.Leading) return false;
             if (!Session.IsGuest || !Net.Connected || Dungeon.Following) return true;
             Dungeon.RequestDoor(__instance);
             return false;

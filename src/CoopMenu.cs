@@ -339,6 +339,7 @@ namespace MoonlighterCoop
             { GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), $"• {SteamCoop.PeerName(Net.Peer)} (anfitrión)", _label); y += 24 * k; }
             if (host && Net.ConnectedCount == 0) { GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), "Esperando a que se una alguien…", _small); }
             if (Btn(new Rect(r.x, r.yMax - 46 * k, 200 * k, 40 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
+            if (Btn(new Rect(r.x + 210 * k, r.yMax - 46 * k, 170 * k, 40 * k), "Desatascarme")) { SetOpen(false); Arreglos.Desatascar(); }
             if (Btn(new Rect(r.xMax - 200 * k, r.yMax - 46 * k, 200 * k, 40 * k), host ? "Cerrar la partida" : "Salir de la partida")) LeaveGame();
         }
     }
