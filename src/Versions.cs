@@ -11,7 +11,7 @@ namespace MoonlighterCoop
     public static class Versions
     {
         /// Bump whenever messages change in a way older versions would misread.
-        public const int Protocol = 5;
+        public const int Protocol = 6;
         public const string Repo = "Eldeallado/moonlighter-coop";
         public const string ReleasesUrl = "https://github.com/" + Repo + "/releases/latest";
 

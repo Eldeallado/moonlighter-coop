@@ -197,10 +197,20 @@ namespace MoonlighterCoop
                 case "steamstatus": return $"available={SteamCoop.Available} lobby={SteamCoop.Lobby} status={SteamCoop.Status} role={Plugin.Role}";
                 case "gold": hero.addGold(int.Parse(p[1])); return "ok";
                 case "hurt": hero.DealDamageToPlayer(F(p[1]), "QA"); return "ok";
-                case "look": // look own|tone,int,bright own|tone,int,bright
+                case "look": // look <part code>x8 (comma list, as in the config) | look style <n>
                 {
-                    int Part(string s) { if (s == "own") return 0; var q = s.Split(','); return Looks.Code(new Looks.Part { Tone = int.Parse(q[0]), Intensity = int.Parse(q[1]), Bright = int.Parse(q[2]) }); }
-                    ColorMenu.Set(Part(p[1]), Part(p[2])); return "look=" + Looks.Mine;
+                    int l = p[1] == "style" ? Looks.Pack(Looks.Styles[int.Parse(p[2])].Parts) : Looks.FromText(p[1]);
+                    if (l < 0) return "bad look";
+                    ColorMenu.Set(l); return "look=" + Looks.Mine + " parts=" + Looks.ToText(Looks.Mine);
+                }
+                case "partof": // which part each colour of the current Will sheet is (QA of the colour rules)
+                {
+                    var will = hero.transform.Find("HeroMerchantArt/Will")?.GetComponent<SpriteRenderer>();
+                    var tex = Recolor.ReadableCopy(Recolor.Original(will.sprite).texture);
+                    var count = new Dictionary<int, int>();
+                    foreach (var c in tex.GetPixels32()) { if (c.a < 200) continue; Color.RGBToHSV(c, out float hh, out float ss, out float vv); int pt = Recolor.PartOf(c, hh, ss, vv); count.TryGetValue(pt, out var nn); count[pt] = nn + 1; }
+                    UnityEngine.Object.Destroy(tex);
+                    return string.Join(" ", count.OrderBy(kv => kv.Key).Select(kv => (kv.Key < 0 ? "nada" : Looks.Names[kv.Key]) + "=" + kv.Value).ToArray());
                 }
                 case "menu": if (ColorMenu.Instance != null) ColorMenu.Instance.SetOpen(p[1] == "on"); return "open=" + ColorMenu.Open;
                 case "looks": return $"mine={Looks.Mine} " + string.Join(" ", Looks.Of.Select(kv => $"p{kv.Key}={kv.Value}"));

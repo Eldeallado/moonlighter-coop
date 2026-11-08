@@ -38,7 +38,13 @@ namespace MoonlighterCoop
         private bool _dumped;
 
         private static BepInEx.Configuration.ConfigEntry<int> _lookCfg;
-        public static void SaveLook(int look) { if (_lookCfg != null) _lookCfg.Value = look; }
+        private static BepInEx.Configuration.ConfigEntry<string> _partsCfg;
+        public static void SaveLook(int look)
+        {
+            // Old-style looks fit the int; looks with every part go as text (the int is just an id).
+            if (_lookCfg != null) _lookCfg.Value = Looks.IsNew(look) ? -1 : look;
+            if (_partsCfg != null) _partsCfg.Value = Looks.IsNew(look) ? Looks.ToText(look) : "";
+        }
         private static BepInEx.Configuration.ConfigEntry<int> _diffCfg;
         public static void SaveDifficulty(int m) { if (_diffCfg != null) _diffCfg.Value = m; }
         public static int WinW = 800, WinH = 450;
@@ -62,6 +68,8 @@ namespace MoonlighterCoop
             Versions.StartCheck(this);
             _lookCfg = Config.Bind("Aspecto", "Colores", -1, "Cuerpo y pelo (lo elige el menú F3). -1 = según el número de jugador");
             if (_lookCfg.Value >= 0) Looks.LoadSaved(_lookCfg.Value);
+            _partsCfg = Config.Bind("Aspecto", "Partes", "", "Color de cada parte (chaleco, camiseta, pantalón, mochila, zapatos, gema, pelo, piel); lo elige el menú F3");
+            if (!string.IsNullOrEmpty(_partsCfg.Value)) { int l = Looks.FromText(_partsCfg.Value); if (l >= 0) Looks.LoadSaved(l); }
             _diffCfg = Config.Bind("Cooperativo", "Dificultad", 1, "0 = como un jugador, 1 = ajustada a los jugadores, 2 = difícil (lo elige el anfitrión en F2)");
             Difficulty.Load(_diffCfg.Value);
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");

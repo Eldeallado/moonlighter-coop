@@ -35,7 +35,7 @@ namespace MoonlighterCoop
                 Fill(new Rect(x - 4 * k, y - 2 * k, w + 8 * k, rowH), new Color(0f, 0f, 0f, 0.45f));
                 // Their colour: the body swatch of their look.
                 Fill(new Rect(x, y + 2 * k, sw, sw), Color.black);
-                Fill(new Rect(x + 1 * k, y + 3 * k, sw - 2 * k, sw - 2 * k), Looks.Swatch(Looks.Decode(Looks.BodyCode(p.Look)), false));
+                Fill(new Rect(x + 1 * k, y + 3 * k, sw - 2 * k, sw - 2 * k), Looks.Swatch(Looks.Unpack(p.Look)[Looks.Chaleco], Looks.Chaleco));
                 _name.normal.textColor = ghost ? new Color(0.7f, 0.8f, 1f) : Color.white;
                 GUI.Label(new Rect(x + sw + 4 * k, y - 3 * k, w - sw - 50 * k, 16 * k), $"J{p.PlayerId + 1} " + (string.IsNullOrEmpty(p.Name) ? "" : p.Name), _name);
                 _num.normal.textColor = new Color(0.9f, 0.9f, 0.9f);

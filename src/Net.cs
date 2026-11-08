@@ -49,7 +49,7 @@ namespace MoonlighterCoop
         PlayerLeft = 36,
         Projectiles = 37,
         GoldSet = 38,
-        DeadEnemies = 39, Tutorial = 40,
+        DeadEnemies = 39, Tutorial = 40, LookData = 41, Mods = 42,
     }
 
     public interface IPeer

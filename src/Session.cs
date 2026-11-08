@@ -124,6 +124,9 @@ namespace MoonlighterCoop
                 {
                     _nextPing = now + 2f;
                     if (IsGuest) Net.Send(Msg.Tutorial, new[] { (byte)(MiTutorial ? 1 : 0) });
+                    // My look's colours (new players may have missed them) and, now and then, my mod list.
+                    if (Looks.IsNew(Looks.Mine)) Net.Send(Msg.LookData, Looks.DataBytes(Looks.Mine));
+                    if (now >= _nextMods) { _nextMods = now + 30f; Net.Send(Msg.Mods, Mods.ListBytes()); }
                     Net.Send(Msg.Ping, BitConverter.GetBytes(now));
                 }
             }
@@ -216,11 +219,11 @@ namespace MoonlighterCoop
         public static bool Welcomed;
         public static int Players => IsHost ? 1 + Net.ConnectedCount : !Net.Connected ? 1 : Math.Max(2, _knownPlayers);
         private static int _knownPlayers;
-        private static float _nextCount;
+        private static float _nextCount, _nextMods;
 
         // Things one player does that every other player must see: the host passes them on.
         private static readonly System.Collections.Generic.HashSet<Msg> Relayed = new System.Collections.Generic.HashSet<Msg>
-        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles };
+        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods };
 
         private static void Handle(IPeer from, Msg type, byte[] data)
         {
@@ -234,6 +237,12 @@ namespace MoonlighterCoop
                     _knownPlayers = data[0];
                     if (data.Length > 1) Difficulty.Mode = data[1];
                     _hostEnTutorial = data.Length > 2 && data[2] == 1;
+                    break;
+                case Msg.LookData:
+                    Looks.Learn(data);
+                    break;
+                case Msg.Mods:
+                    Mods.OnList(from, data);
                     break;
                 case Msg.Tutorial:
                     if (IsHost) { if (data.Length > 0 && data[0] == 1) _peerEnTutorial.Add(from.Id); else _peerEnTutorial.Remove(from.Id); }

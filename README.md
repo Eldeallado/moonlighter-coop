@@ -24,7 +24,7 @@ Todos los jugadores necesitan el mod instalado (la misma versión).
 | Tecla | Qué hace |
 |---|---|
 | **F2** | Menú cooperativo: crear partida, unirse con un código o por IP, ver quién está, expulsar, salir |
-| **F3** | Elegir el color del cuerpo y del pelo de tu Will (barras de tono, intensidad y brillo, con vista previa) |
+| **F3** | Aspecto de tu Will: color de chaleco, camiseta, pantalón, mochila, zapatos, gema, pelo y piel (barras de tono, intensidad y brillo, con vista previa), o un estilo entero (Zenón, Herrero, Bruja, Pete, Gólem, Bosque, Desierto, Tecnología, Fantasma) |
 | **L3 + R3** (mando) | Abre el menú cooperativo con el mando: cruceta para moverse, A aceptar, B volver |
 
 1. **Quien hace de anfitrión** carga su partida, pulsa **F2 → Crear partida** y le sale un **código de 7 letras** (también puede invitar a amigos de Steam desde ahí).
@@ -81,6 +81,7 @@ Se juega con la partida del anfitrión; la de cada invitado no se modifica.
 - Moonlighter de **Steam para Windows**, versión **1.15.8** (el instalador avisa si tu versión es otra).
 - Probado con el juego base. El DLC *Between Dimensions* no se ha probado en cooperativo.
 - Usa [BepInEx 5](https://github.com/BepInEx/BepInEx) (incluido en el zip).
+- **Otros mods:** al conectaros, cada jugador manda la lista de mods que tiene. Si no coinciden, sale un aviso y el menú F2 dice quién tiene qué. Los mods de montones o de mochila (StackIt, Stack 999, Bigger Item Stacks, More Inventory) tienen que ser **los mismos para todos**, porque la mochila es compartida: con tamaños distintos se pueden perder objetos. Los mods que solo cambian cosas tuyas (por ejemplo el Configuration Manager) no molestan.
 
 ## Limitaciones conocidas
 

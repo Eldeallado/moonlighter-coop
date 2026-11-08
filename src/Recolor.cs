@@ -3,10 +3,11 @@ using UnityEngine;
 
 namespace MoonlighterCoop
 {
-    /// A player's look: a colour for the body (Will's greens and teals) and one for the hair, each picked with
-    /// three bars (tone, intensity, brightness) or left as Will's own. Packed in one int:
-    /// part code = 0 (Will's own) or 1 + (tone*16 + intensity)*16 + brightness, tone 0..71 (5 degrees), others 0..15;
-    /// look = body code | hair code << 15.
+    /// A player's look: a colour for each part of Will (vest, shirt, trousers, backpack, shoes, the gem on his
+    /// neck, hair and skin), each picked with three bars (tone, intensity, brightness) or left as Will's own.
+    /// part code = 0 (Will's own) or 1 + (tone*16 + intensity)*16 + brightness, tone 0..71 (5 degrees), others 0..15.
+    /// A look travels as one int: old looks (0.4 and before) are "vest | hair << 15"; new ones are an id
+    /// (bit 30 set) whose eight codes every player learns from Msg.LookData.
     public static class Looks
     {
         public struct Paint
@@ -19,6 +20,18 @@ namespace MoonlighterCoop
 
         public const int Tones = 72, Steps = 16;
 
+        // The parts, in menu order. "Pale" parts (hair, shirt) are painted keeping their light shading.
+        public const int Chaleco = 0, Camiseta = 1, Pantalon = 2, Mochila = 3, Zapatos = 4, Gema = 5, Pelo = 6, Piel = 7, N = 8;
+        public static readonly string[] Names = { "Chaleco", "Camiseta", "Pantalón", "Mochila", "Zapatos", "Gema", "Pelo", "Piel" };
+        public static bool Pale(int part) => part == Pelo || part == Camiseta;
+        /// Each part's own colour in Will's art (swatch for "as Will", and the centre its shades turn around).
+        public static readonly Color[] OwnColor = {
+            new Color32(0x0E, 0x56, 0x5D, 255), new Color32(0xBB, 0xB5, 0x9D, 255), new Color32(0xAD, 0x58, 0x17, 255), new Color32(0x84, 0x59, 0x2A, 255),
+            new Color32(0x57, 0x25, 0x21, 255), new Color32(0x30, 0xFB, 0x9B, 255), new Color32(0xDA, 0xD6, 0xB6, 255), new Color32(0xEE, 0xBD, 0x87, 255) };
+        public static readonly float[] CenterHue = { 150f, 47f, 23f, 29f, 3f, 152f, 54f, 32f };
+        /// A starting point when a part stops being "as Will" (close to Will's own colour).
+        public static readonly int[,] Start = { { 34, 13, 6 }, { 9, 3, 11 }, { 5, 14, 9 }, { 6, 11, 6 }, { 1, 10, 5 }, { 30, 13, 12 }, { 11, 3, 14 }, { 6, 7, 13 } };
+
         public static int Code(Part p) => p.Own ? 0 : 1 + (Mathf.Clamp(p.Tone, 0, Tones - 1) * Steps + Mathf.Clamp(p.Intensity, 0, Steps - 1)) * Steps + Mathf.Clamp(p.Bright, 0, Steps - 1);
         public static Part Decode(int code)
         {
@@ -26,41 +39,112 @@ namespace MoonlighterCoop
             code -= 1;
             return new Part { Tone = code / (Steps * Steps), Intensity = code / Steps % Steps, Bright = code % Steps };
         }
-        public static int Pack(Part body, Part hair) => Code(body) | Code(hair) << 15;
-        public static int BodyCode(int look) => look & 0x7FFF;
-        public static int HairCode(int look) => look >> 15 & 0x7FFF;
+        public static Part P(int tone, int intensity, int bright) => new Part { Tone = tone, Intensity = intensity, Bright = bright };
 
-        /// The colour a part's bars describe (also used to paint the bars and the preview swatch).
-        public static Color Swatch(Part p, bool hair)
+        // ---------- looks as ints ----------
+
+        private const int NewFlag = 1 << 30;
+        private static readonly Dictionary<int, int[]> _data = new Dictionary<int, int[]>();
+
+        public static bool IsNew(int look) => (look & NewFlag) != 0;
+        /// The look is ready to paint: an old-style one, or a new one whose codes have arrived.
+        public static bool Known(int look) => look <= 0 || !IsNew(look) || _data.ContainsKey(look);
+
+        /// The eight part codes of a look (old looks: vest and gem share the body colour, as they always did).
+        public static int[] Codes(int look)
         {
-            if (p.Own) return hair ? new Color32(0xDA, 0xD6, 0xB6, 0xFF) : new Color(0.12f, 0.5f, 0.48f);
+            var c = new int[N];
+            if (look <= 0) return c;
+            if (IsNew(look)) { if (_data.TryGetValue(look, out var d)) d.CopyTo(c, 0); return c; }
+            c[Chaleco] = c[Gema] = look & 0x7FFF;
+            c[Pelo] = look >> 15 & 0x7FFF;
+            return c;
+        }
+
+        /// The int that stands for these codes (all "as Will" = 0).
+        public static int Register(int[] codes)
+        {
+            bool any = false; foreach (var x in codes) if (x != 0) any = true;
+            if (!any) return 0;
+            unchecked
+            {
+                int h = 17; foreach (var x in codes) h = h * 31 + x;
+                int id = (h & 0x3FFFFFFF) | NewFlag;
+                _data[id] = (int[])codes.Clone();
+                return id;
+            }
+        }
+        public static int Pack(Part[] parts) { var c = new int[N]; for (int i = 0; i < N; i++) c[i] = Code(parts[i]); return Register(c); }
+        public static Part[] Unpack(int look) { var c = Codes(look); var p = new Part[N]; for (int i = 0; i < N; i++) p[i] = Decode(c[i]); return p; }
+
+        public static string ToText(int look) => string.Join(",", System.Array.ConvertAll(Codes(look), x => x.ToString()));
+        public static int FromText(string s)
+        {
+            var parts = (s ?? "").Split(',');
+            if (parts.Length != N) return -1;
+            var c = new int[N];
+            for (int i = 0; i < N; i++) if (!int.TryParse(parts[i], out c[i]) || c[i] < 0 || c[i] > Tones * Steps * Steps) return -1;
+            return Register(c);
+        }
+
+        /// Msg.LookData: a look id and its eight codes, so the others can paint it.
+        public static byte[] DataBytes(int look)
+        {
+            var ms = new System.IO.MemoryStream(); var w = new System.IO.BinaryWriter(ms);
+            w.Write(look); foreach (var x in Codes(look)) w.Write((short)x);
+            return ms.ToArray();
+        }
+        public static void Learn(byte[] data)
+        {
+            if (data == null || data.Length != 4 + 2 * N) return;
+            var r = new System.IO.BinaryReader(new System.IO.MemoryStream(data));
+            int id = r.ReadInt32(); var c = new int[N];
+            for (int i = 0; i < N; i++) { c[i] = r.ReadInt16(); if (c[i] < 0 || c[i] > Tones * Steps * Steps) return; }
+            if (IsNew(id) && Register(c) == id) return;   // only ids that really match their codes
+        }
+
+        // ---------- colours ----------
+
+        /// The colour a part's bars describe (also used to paint the bars and the swatches).
+        public static Color Swatch(Part p, int part)
+        {
+            if (p.Own) return OwnColor[part];
             return Color.HSVToRGB(p.Tone * 5f / 360f, p.Intensity / 15f, 0.12f + 0.88f * p.Bright / 15f);
         }
 
-        // Body: Will's teal (dark, saturated) becomes this tone; intensity and brightness scale its shades.
-        public static Paint BodyPaint(int code)
+        public static Paint PaintOf(int code, int part)
         {
             if (code <= 0) return new Paint(-1f, 1f, 1f);
             var p = Decode(code);
+            if (Pale(part)) return new Paint(p.Tone * 5f, p.Intensity / 15f, 0.28f + 0.72f * p.Bright / 15f);
             float s = p.Intensity / 15f, v = p.Bright / 15f;
             return new Paint(p.Tone * 5f, s * 1.45f, 0.4f + 1.6f * v, Mathf.Max(0f, v - 0.6f) * 0.5f);
         }
 
-        // Hair: Will's cream hair; Light is the brightness of its lightest shade.
-        public static Paint HairPaint(int code)
-        {
-            if (code <= 0) return new Paint(-1f, 1f, 1f);
-            var p = Decode(code);
-            return new Paint(p.Tone * 5f, p.Intensity / 15f, 0.28f + 0.72f * p.Bright / 15f);
-        }
+        // ---------- styles: whole looks inspired by people of Rynoka and the dungeons ----------
 
-        // Starting colours by player number: host Will's own, then red, yellow, blue, purple, orange, pink...
+        public struct Style { public string Name; public Part[] Parts; }
+        private static Part O => new Part { Own = true };
+        public static readonly Style[] Styles = {
+            new Style { Name = "Will", Parts = new[] { O, O, O, O, O, O, O, O } },
+            new Style { Name = "Zenón", Parts = new[] { P(24, 11, 6), P(10, 2, 13), P(6, 11, 4), P(6, 10, 5), P(5, 9, 3), P(24, 12, 12), P(0, 0, 15), O } },
+            new Style { Name = "Herrero", Parts = new[] { P(5, 3, 3), P(6, 3, 8), P(5, 12, 4), P(4, 9, 3), P(0, 3, 2), P(2, 15, 12), P(4, 6, 2), P(5, 8, 10) } },
+            new Style { Name = "Bruja", Parts = new[] { P(55, 12, 5), P(58, 4, 12), P(52, 10, 3), P(60, 8, 4), P(52, 8, 2), P(62, 14, 13), P(56, 7, 6), O } },
+            new Style { Name = "Pete", Parts = new[] { P(1, 14, 6), P(10, 7, 14), P(42, 9, 4), P(6, 12, 6), P(4, 10, 3), P(10, 15, 14), P(6, 14, 10), O } },
+            new Style { Name = "Gólem", Parts = new[] { P(36, 2, 6), P(36, 1, 10), P(36, 2, 4), P(8, 4, 5), P(36, 2, 2), P(36, 14, 14), P(0, 0, 12), P(36, 2, 12) } },
+            new Style { Name = "Bosque", Parts = new[] { P(22, 13, 5), P(16, 6, 12), P(8, 11, 4), P(18, 12, 4), P(7, 10, 2), P(26, 15, 13), P(12, 9, 7), O } },
+            new Style { Name = "Desierto", Parts = new[] { P(8, 9, 9), P(9, 4, 14), P(6, 9, 7), P(7, 9, 8), P(5, 8, 4), P(36, 14, 14), P(7, 4, 15), P(6, 9, 9) } },
+            new Style { Name = "Tecnología", Parts = new[] { P(38, 14, 6), P(40, 2, 13), P(40, 6, 3), P(40, 4, 6), P(40, 5, 2), P(36, 15, 15), P(38, 8, 13), O } },
+            new Style { Name = "Fantasma", Parts = new[] { P(48, 3, 13), P(48, 1, 15), P(48, 3, 11), P(48, 3, 12), P(48, 3, 10), P(46, 10, 15), P(48, 1, 15), P(48, 1, 15) } },
+        };
+
+        // Starting colours by player number: host Will's own, then red, yellow, blue, purple, orange, pink... (vest only)
         private static readonly int[,] Preset = { { 0, 14, 8 }, { 10, 15, 13 }, { 44, 14, 8 }, { 56, 13, 8 }, { 5, 15, 10 }, { 65, 10, 12 }, { 5, 11, 4 }, { 42, 1, 15 }, { 46, 3, 1 } };
         public static int Default(int playerId)
         {
             if (playerId <= 0) return 0;
             int i = (playerId - 1) % Preset.GetLength(0);
-            return Pack(new Part { Tone = Preset[i, 0], Intensity = Preset[i, 1], Bright = Preset[i, 2] }, new Part { Own = true });
+            return Code(P(Preset[i, 0], Preset[i, 1], Preset[i, 2]));   // old style: vest (and gem) only
         }
 
         private static int _chosen = -1;
@@ -70,12 +154,14 @@ namespace MoonlighterCoop
         {
             _chosen = look;
             Plugin.SaveLook(look);
+            if (Net.Connected && IsNew(look)) Net.Send(Msg.LookData, DataBytes(look));
         }
         public static void LoadSaved(int look) { _chosen = look; }
 
         /// Other players' looks, from their poses.
         public static readonly Dictionary<int, int> Of = new Dictionary<int, int>();
     }
+
     /// Recoloured copies of Will's art: the same sprites, with body and hair shades swapped for the chosen colours.
     public static class Recolor
     {
@@ -92,7 +178,7 @@ namespace MoonlighterCoop
         {
             if (s == null || s.texture == null) return s;
             s = Original(s);
-            if (look <= 0) return s;
+            if (look <= 0 || !Looks.Known(look)) return s;   // a new look whose colours have not arrived yet
             if (_tinted.TryGetValue((s, look), out var r) && r != null) return r;
             var tex = TintTexture(s.texture, look);
             if (tex == null) return s;
@@ -156,10 +242,19 @@ namespace MoonlighterCoop
             {
                 var copy = ReadableCopy(src);
                 var px = copy.GetPixels32();
-                var body = Looks.BodyPaint(Looks.BodyCode(look));
-                // Only Will's own sheets have his hair; weapons and armour keep their whites.
-                var hair = src.name.IndexOf("will", System.StringComparison.OrdinalIgnoreCase) >= 0 ? Looks.HairPaint(Looks.HairCode(look)) : Looks.HairPaint(0);
-                for (int i = 0; i < px.Length; i++) px[i] = Shift(px[i], body, hair);
+                var codes = Looks.Codes(look);
+                var paints = new Looks.Paint[Looks.N];
+                // Only Will's own sheets have his hair, shirt, skin...; weapons and armour only get the vest colour.
+                bool will = src.name.IndexOf("will", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                for (int i = 0; i < Looks.N; i++) paints[i] = Looks.PaintOf(will || i == Looks.Chaleco ? codes[i] : 0, i);
+                var memo = new Dictionary<int, Color32>();   // pixel art: few colours, many pixels
+                for (int i = 0; i < px.Length; i++)
+                {
+                    var c = px[i]; if (c.a == 0) continue;
+                    int key = c.r << 24 | c.g << 16 | c.b << 8 | c.a;
+                    if (!memo.TryGetValue(key, out var o)) memo[key] = o = Shift(c, paints);
+                    px[i] = o;
+                }
                 copy.SetPixels32(px);
                 copy.filterMode = src.filterMode;
                 copy.wrapMode = src.wrapMode;
@@ -183,30 +278,51 @@ namespace MoonlighterCoop
         // The jacket sleeves are close (BBB59D, 9C957A... hue 45-48), so the hue window is tight.
         public static System.Func<float, float, float, bool> HairRule = (h, s, v) => (h >= 51f && h <= 60f && s >= 0.03f && s <= 0.21f && v >= 0.5f) || (s < 0.03f && v > 0.97f);
 
-        private static Color32 Shift(Color32 c, Looks.Paint body, Looks.Paint hair)
+        // Will's shoes: dark reds that only his shoes use (the darkest red is shared with outlines and stays).
+        private static readonly HashSet<int> ShoeColors = new HashSet<int> { 0x200909, 0x572521, 0x3A1010, 0x5C201B, 0x542420 };
+
+        /// Which part of Will a colour of his art belongs to (-1: none, keep it). Measured on his sheets:
+        /// vest teals 002F36/0E565D/02424C, gem 30FB9B/42A475, shirt BBB59D/9C957A/7B7560, trousers AD5817/7B310F,
+        /// backpack 84592A/714924/634124, skin EEBD87/FAD08F/DE9D55/B56C2C, hair DAD6B6/AAA78E/F0ECCC.
+        public static int PartOf(Color32 c, float h, float s, float v)
         {
-            if (c.a == 0) return c;
+            h *= 360f;
+            if (ShoeColors.Contains(c.r << 16 | c.g << 8 | c.b)) return Looks.Zapatos;
+            if (h >= 140f && h <= 166f && s >= 0.5f && v >= 0.55f) return Looks.Gema;
+            if (s >= 0.15f && h >= 75f && h <= 210f) return Looks.Chaleco;
+            if (HairRule(h, s, v)) return Looks.Pelo;
+            if (h >= 44f && h <= 50.5f && s >= 0.14f && s <= 0.24f && v >= 0.28f && v <= 0.76f) return Looks.Camiseta;
+            if (h >= 16f && h <= 27f && s >= 0.84f && v >= 0.44f && v <= 0.72f) return Looks.Pantalon;
+            if (h >= 24f && h <= 33f && s >= 0.55f && s <= 0.74f && v >= 0.25f && v <= 0.53f) return Looks.Mochila;
+            if (h >= 26f && h <= 37f && s >= 0.4f && s <= 0.78f && v >= 0.69f) return Looks.Piel;
+            return -1;
+        }
+
+        private static Color32 Shift(Color32 c, Looks.Paint[] paints)
+        {
             Color.RGBToHSV(c, out float h, out float s, out float v);
+            int part = PartOf(c, h, s, v);
+            if (part < 0) return c;
+            var p = paints[part];
+            if (p.Hue < 0f) return c;
             Color32 o;
-            // Will's greens and teals (about 75..210 degrees) become the same shades of the player's colour.
-            if (body.Hue >= 0f && s >= 0.15f && h >= 75f / 360f && h <= 210f / 360f)
+            if (Looks.Pale(part))
             {
-                float nh = body.Hue / 360f + (h - 150f / 360f) * 0.25f;
+                // Pale parts: give them the colour's saturation, keep the shading from the original brightness.
+                float nh = p.Hue / 360f + (s < 0.03f ? 0f : (h - Looks.CenterHue[part] / 360f) * 0.25f);
                 nh -= Mathf.Floor(nh);
-                o = (Color32)Color.HSVToRGB(nh, Mathf.Clamp01(s * body.Sat + (body.Sat > 0.5f ? 0.1f : 0f)), Mathf.Clamp01(v * body.Light + body.Add));
+                o = (Color32)Color.HSVToRGB(nh, Mathf.Clamp01(p.Sat * (0.55f + s * 2.5f)), Mathf.Clamp01(p.Light * (0.25f + 0.75f * v)));
             }
-            else if (hair.Hue >= 0f && IsHair(h, s, v))
+            else
             {
-                // Hair is pale: give it the colour's saturation, keep the shading from the original brightness.
-                float nh = hair.Hue / 360f + (s < 0.03f ? 0f : (h - HairCenter / 360f) * 0.25f);
+                // The same shades of the player's colour (hue spread kept small so the shading reads the same).
+                float nh = p.Hue / 360f + (h - Looks.CenterHue[part] / 360f) * 0.25f;
                 nh -= Mathf.Floor(nh);
-                o = (Color32)Color.HSVToRGB(nh, Mathf.Clamp01(hair.Sat * (0.55f + s * 2.5f)), Mathf.Clamp01(hair.Light * (0.25f + 0.75f * v)));
+                o = (Color32)Color.HSVToRGB(nh, Mathf.Clamp01(s * p.Sat + (p.Sat > 0.5f ? 0.1f : 0f)), Mathf.Clamp01(v * p.Light + p.Add));
             }
-            else return c;
             o.a = c.a;
             return o;
-        }
-        public static float HairCenter = 54f;
+        }        public static float HairCenter = 54f;
         public static Color HairSwatch = new Color32(0xDA, 0xD6, 0xB6, 0xFF);
     }
 
