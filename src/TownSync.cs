@@ -21,7 +21,7 @@ namespace MoonlighterCoop
 
         public static void Moved(bool toShop)
         {
-            if (Applying || !Net.Connected || Session.TutorialActivo) return;
+            if (Applying || !Net.Juego || Session.TutorialActivo) return;
             Net.Send(Msg.TownArea, new[] { (byte)(toShop ? 1 : 0) });
             Sent++;
             Plugin.Log.LogInfo($"[town] I went {(toShop ? "into the shop" : "out to the village")}: taking my partner");

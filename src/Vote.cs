@@ -72,7 +72,7 @@ namespace MoonlighterCoop
 
         public static string Hint()
         {
-            if (!Net.Connected || !(GUIManager.Instance != null && GUIManager.Instance.currentInventory is DungeonResultsPanel)) return null;
+            if (!Net.Juego || !(GUIManager.Instance != null && GUIManager.Instance.currentInventory is DungeonResultsPanel)) return null;
             string Name(Choice c) => c == Choice.Replay ? "jugar de nuevo" : c == Choice.Village ? "ir a la villa" : "…";
             int votes = (Mine != Choice.None ? 1 : 0) + Others.Count;
             return $"Votación — tú: {Name(Mine)}   ({votes}/{Players} han votado; gana la mayoría, empate: anfitrión)";
@@ -84,7 +84,7 @@ namespace MoonlighterCoop
     {
         static bool Prefix(ref bool __result)
         {
-            if (!Net.Connected || Vote.Deciding) return true;
+            if (!Net.Juego || Vote.Deciding) return true;
             Vote.Cast(Vote.Choice.Replay);
             __result = true;
             return false;
@@ -96,7 +96,7 @@ namespace MoonlighterCoop
     {
         static bool Prefix(ref bool __result)
         {
-            if (!Net.Connected || Vote.Deciding) return true;
+            if (!Net.Juego || Vote.Deciding) return true;
             Vote.Cast(Vote.Choice.Village);
             __result = true;
             return false;
@@ -117,7 +117,7 @@ namespace MoonlighterCoop
         static bool Prefix(ItemMaster.Culture culture, int level, bool replay)
         {
             if (Vote.SuppressTravel && Session.IsGuest) return false;
-            if (Session.IsHost && Net.Connected && !Dungeon.InHeroTravel && level == 0)
+            if (Session.IsHost && Net.Juego && !Dungeon.InHeroTravel && level == 0)
             {
                 Dungeon.FloorSeed = new System.Random().Next(1, int.MaxValue);
                 Dungeon.SendTravel(Dungeon.Travel.NextLevel, culture, 0);

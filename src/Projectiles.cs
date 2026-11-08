@@ -56,7 +56,7 @@ namespace MoonlighterCoop
 
         public static void Tick()
         {
-            if (!Net.Connected || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded()) { if (_copies.Count > 0) Clear(); return; }
+            if (!Net.Juego || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded()) { if (_copies.Count > 0) Clear(); return; }
             float now = Time.unscaledTime;
             if (now >= _nextScan)
             {

@@ -25,7 +25,7 @@ namespace MoonlighterCoop
 
         public static void GoldChanged(int amount)
         {
-            if (ApplyingGold || !Net.Connected || amount == 0) return;
+            if (ApplyingGold || !Net.Juego || amount == 0) return;
             var ms = new MemoryStream(); new BinaryWriter(ms).Write(amount);
             Net.Send(Msg.Gold, ms.ToArray());
             GoldSent++;
@@ -45,7 +45,7 @@ namespace MoonlighterCoop
 
         private static void BagChanged()
         {
-            if (ApplyingBag || !Net.Connected) return;
+            if (ApplyingBag || !Net.Juego) return;
             _bagDirty = true;
             _bagDirtyAt = Time.unscaledTime;
         }
@@ -53,7 +53,7 @@ namespace MoonlighterCoop
         public static void Tick()
         {
             // Wait a moment so a move (take from one slot, drop in another) goes as one snapshot.
-            if (!_bagDirty || Time.unscaledTime - _bagDirtyAt < 0.25f || !Net.Connected) return;
+            if (!_bagDirty || Time.unscaledTime - _bagDirtyAt < 0.25f || !Net.Juego) return;
             _bagDirty = false;
             var bag = BagBytes();
             if (bag == null) return;

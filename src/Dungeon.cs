@@ -61,7 +61,7 @@ namespace MoonlighterCoop
 
         public static void SendTravel(Travel kind, ItemMaster.Culture culture, int level)
         {
-            if (!Session.IsHost || !Net.Connected || Session.TutorialActivo) return;
+            if (!Session.IsHost || !Net.Juego || Session.TutorialActivo) return;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
             w.Write((byte)kind); w.Write((int)culture); w.Write(level); w.Write(FloorSeed);
             Net.Send(Msg.Travel, ms.ToArray());
@@ -89,7 +89,7 @@ namespace MoonlighterCoop
 
         private static void OnGenerated()
         {
-            if (!Session.IsHost || !Net.Connected || Session.TutorialActivo) return;
+            if (!Session.IsHost || !Net.Juego || Session.TutorialActivo) return;
             Plugin.Instance.StartCoroutine(SendInfoWhenReady());
         }
 
@@ -274,13 +274,13 @@ namespace MoonlighterCoop
     {
         static bool Prefix()
         {
-            if (Session.IsGuest && Net.Connected && !Dungeon.ApplyingRemote)
+            if (Session.IsGuest && Net.Juego && !Dungeon.ApplyingRemote)
             {
                 Plugin.Log.LogInfo("[dungeon] guest tried to change floor on its own: blocked (the host leads)");
                 return false;
             }
             // A new floor: the host picks the dice both sides will generate it with.
-            if (Session.IsHost) Dungeon.FloorSeed = Net.Connected ? new System.Random().Next(1, int.MaxValue) : 0;
+            if (Session.IsHost) Dungeon.FloorSeed = Net.Juego ? new System.Random().Next(1, int.MaxValue) : 0;
             Dungeon.InHeroTravel = true;
             return true;
         }
@@ -297,7 +297,7 @@ namespace MoonlighterCoop
     {
         static bool Prefix()
         {
-            if (Session.IsGuest && Net.Connected && !Dungeon.ApplyingRemote)
+            if (Session.IsGuest && Net.Juego && !Dungeon.ApplyingRemote)
             {
                 Plugin.Log.LogInfo("[dungeon] guest tried to go home on its own: blocked (the host leads)");
                 return false;
@@ -314,7 +314,7 @@ namespace MoonlighterCoop
     {
         static bool Prefix(ItemMaster.Culture culture, int level, bool test, ref IEnumerator __result)
         {
-            if (!Session.IsGuest || !Net.Connected || Dungeon._bypass || test) return true;
+            if (!Session.IsGuest || !Net.Juego || Dungeon._bypass || test) return true;
             if (Dungeon.FloorSeed != 0) return true;   // same seed as the host: generate normally
             __result = Dungeon.GuestGenerate(culture, level);
             return false;
@@ -329,8 +329,8 @@ namespace MoonlighterCoop
         static bool Prefix(DungeonDoor __instance)
         {
             // A ghost cannot change rooms (it would drag everyone else along).
-            if (Downed.Me && Net.Connected && !Dungeon.Following && !Dungeon.Leading) return false;
-            if (!Session.IsGuest || !Net.Connected || Dungeon.Following) return true;
+            if (Downed.Me && Net.Juego && !Dungeon.Following && !Dungeon.Leading) return false;
+            if (!Session.IsGuest || !Net.Juego || Dungeon.Following) return true;
             Dungeon.RequestDoor(__instance);
             return false;
         }

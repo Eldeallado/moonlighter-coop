@@ -18,7 +18,7 @@ namespace MoonlighterCoop
         public static bool VisitorAtCash;      // guest: the host has a customer waiting at the counter
         public static string CashItem = "";    // guest: what that customer is buying
 
-        private static bool InTown => Net.Connected && GameManager.Instance != null && GameManager.Instance.IsTownSceneLoaded() && ShopManager.Instance != null;
+        private static bool InTown => Net.Juego && GameManager.Instance != null && GameManager.Instance.IsTownSceneLoaded() && ShopManager.Instance != null;
 
         // ---------- open / close ----------
 
@@ -465,7 +465,7 @@ namespace MoonlighterCoop
     {
         static void Postfix(VisitorGenerator __instance)
         {
-            if (Session.IsGuest && Net.Connected) { __instance.DisableSpawn(); Plugin.Log.LogInfo("[shop] guest: customers come from the host"); }
+            if (Session.IsGuest && Net.Juego) { __instance.DisableSpawn(); Plugin.Log.LogInfo("[shop] guest: customers come from the host"); }
         }
     }
 
@@ -475,7 +475,7 @@ namespace MoonlighterCoop
     {
         static void Postfix(ref bool __result)
         {
-            if (Session.IsGuest && Net.Connected) __result = !ShopSync.VisitorAtCash;
+            if (Session.IsGuest && Net.Juego) __result = !ShopSync.VisitorAtCash;
         }
     }
 
@@ -484,7 +484,7 @@ namespace MoonlighterCoop
     {
         static bool Prefix()
         {
-            if (!Session.IsGuest || !Net.Connected) return true;
+            if (!Session.IsGuest || !Net.Juego) return true;
             if (ShopSync.VisitorAtCash) ShopSync.GuestCharge();
             return false;
         }
@@ -502,7 +502,7 @@ namespace MoonlighterCoop
         public static bool Applying;
         public static void Changed(DayTime t)
         {
-            if (Applying || !Net.Connected || GameManager.Instance == null || GameManager.Instance.currentGameSlot == null) return;
+            if (Applying || !Net.Juego || GameManager.Instance == null || GameManager.Instance.currentGameSlot == null) return;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
             w.Write((byte)t); w.Write(GameManager.Instance.currentGameSlot.daysPassed);
             Net.Send(Msg.DayTime, ms.ToArray());
@@ -535,7 +535,7 @@ namespace MoonlighterCoop
         public static void HostSend()
         {
             var hs = HeroStatistics.Instance;
-            if (hs == null || !Net.Connected) return;
+            if (hs == null || !Net.Juego) return;
             var tr = Traverse.Create(hs);
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
             foreach (var n in Ints) w.Write(tr.Field(n).GetValue<int>());
@@ -580,7 +580,7 @@ namespace MoonlighterCoop
     {
         static bool Prefix()
         {
-            if (Session.IsGuest && Net.Connected && !ShopResults.Allow)
+            if (Session.IsGuest && Net.Juego && !ShopResults.Allow)
             {
                 Plugin.Log.LogInfo("[shop] day over here: waiting for the host's summary");
                 return false;

@@ -20,6 +20,7 @@ namespace MoonlighterCoop
     {
         public static Driver Instance;
         public static int Injected;
+        static int _doTest, _doTestPrev;
         public static readonly Dictionary<OneAxisInputControl, float> Pad = new Dictionary<OneAxisInputControl, float>();
         private static readonly ConcurrentQueue<(string cmd, Action<string> reply)> _queue = new ConcurrentQueue<(string, Action<string>)>();
         private Vector2 _stick;
@@ -333,6 +334,26 @@ namespace MoonlighterCoop
                     en.DealDamageToEnemy(99999f);
                     return "killed " + kid;
                 }
+                case "deathinfo":
+                {
+                    var an = hero.heroMerchantController.characterAnimator;
+                    var si = an.GetCurrentAnimatorStateInfo(0);
+                    return $"hp={hero.heroMerchantStats.currentHealth} mode={an.updateMode} death={si.IsName("Death")} t={si.normalizedTime:0.00} speed={an.speed} enabled={an.enabled} active={an.gameObject.activeInHierarchy} ts={Time.timeScale}";
+                }
+                case "dotest":
+                    _doTest = 0;
+                    DG.Tweening.DOVirtual.DelayedCall(0.3f, () => _doTest = 1);
+                    DG.Tweening.DOVirtual.DelayedCall(0.3f, () => _doTest += 10, false);
+                    return $"dotween timeScale={DG.Tweening.DOTween.timeScale} playing={DG.Tweening.DOTween.TotalPlayingTweens()} previous result={_doTestPrev}";
+                case "doresult": _doTestPrev = _doTest; return "result=" + _doTest + " (1 = unscaled ran, 11 = both ran)";
+                case "ondie":
+                {
+                    var d = Traverse.Create(typeof(HeroMerchant)).Field("OnDie").GetValue<System.Delegate>();
+                    return "OnDie=" + (d == null ? "null" : string.Join(",", d.GetInvocationList().Select(x => x.Method.DeclaringType.Name + "." + x.Method.Name).ToArray())) + " deathEnded=" + DownedInsteadOfDeath.Calls;
+                }
+                case "shot": // the game's own screenshot (works on the hidden desktop too)
+                    ScreenCapture.CaptureScreenshot(p[1]);
+                    return "shot " + p[1];
                 case "newgame": // a brand new game in the last slot, in memory only (test copies never save)
                 {
                     var g = GameManager.Instance;

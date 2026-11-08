@@ -27,6 +27,8 @@ namespace MoonlighterCoop
         public static bool Bot;
         public static bool Windowed;
         public static bool Drive;
+        /// Test copies only (-coopspeed N): the game runs N times faster.
+        public static float Speed = 1f;
         public static int DrivePort;
         public static bool TcpMode;   // -coop host|join on the command line (same PC / LAN / VPN); otherwise Steam
         public static string Tag = "solo";
@@ -98,6 +100,9 @@ namespace MoonlighterCoop
                     case "-coopwin":
                         if (i + 1 < a.Length) { var wh = a[++i].Split('x'); int.TryParse(wh[0], out WinW); int.TryParse(wh[1], out WinH); }
                         break;
+                    case "-coopspeed":
+                        if (i + 1 < a.Length) float.TryParse(a[++i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out Speed);
+                        break;
                     case "-coopwindowed":
                         Windowed = true;
                         break;
@@ -119,6 +124,8 @@ namespace MoonlighterCoop
             // QA copies: a small window, whatever the game's own display option says.
             // Test copies are always silent (they run while the player is doing something else).
             if ((Bot || Drive) && AudioListener.volume != 0f) AudioListener.volume = 0f;
+            // Faster test copies: normal speed (1) becomes Speed; pauses (0) and the game's own slow motions are left alone.
+            if ((Bot || Drive) && Speed > 1f && Mathf.Approximately(Time.timeScale, 1f)) Time.timeScale = Speed;
             // (The intro of a new game puts the game back in full screen: check every second.)
             if ((Bot || Windowed) && Time.frameCount > 30 && (!_windowed || Time.frameCount % 60 == 0 && (Screen.fullScreen || Screen.width != WinW)))
             {

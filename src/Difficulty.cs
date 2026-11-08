@@ -41,7 +41,7 @@ namespace MoonlighterCoop
     {
         static void Postfix(EnemyStats __instance)
         {
-            if (!Net.Connected || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded()) return;
+            if (!Net.Juego || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded()) return;
             int n = Session.Players;
             float life = Difficulty.Life(n), strength = Difficulty.Strength(n);
             if (life == 1f && strength == 1f) return;

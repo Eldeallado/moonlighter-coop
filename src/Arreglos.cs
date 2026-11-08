@@ -40,7 +40,7 @@ namespace MoonlighterCoop
     {
         static bool Prefix()
         {
-            if (!Session.IsGuest || !Net.Connected) return true;
+            if (!Session.IsGuest || !Net.Juego) return true;
             Plugin.Log.LogInfo("[fix] guest: the tutorial runs on the host only");
             return false;
         }
@@ -52,7 +52,7 @@ namespace MoonlighterCoop
     {
         static void Postfix(VisitorGenerator __instance, Agent __result)
         {
-            if (!Session.IsGuest || !Net.Connected || __result == null) return;
+            if (!Session.IsGuest || !Net.Juego || __result == null) return;
             __instance.generatedVisitors.Remove(__result);
             __instance.generatedGameObjects.Remove(__result.gameObject);
             Object.Destroy(__result.gameObject);

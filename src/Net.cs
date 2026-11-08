@@ -49,7 +49,7 @@ namespace MoonlighterCoop
         PlayerLeft = 36,
         Projectiles = 37,
         GoldSet = 38,
-        DeadEnemies = 39,
+        DeadEnemies = 39, Tutorial = 40,
     }
 
     public interface IPeer
@@ -141,6 +141,9 @@ namespace MoonlighterCoop
         private static TcpListener _listener;
         private static float _nextConnectTry;
         private static bool _connecting;
+
+        /// Connected AND playing the shared game (not each in its own tutorial): what gameplay sync checks.
+        public static bool Juego => Connected && !Session.SoloTutorial;
 
         public static bool Connected { get { lock (_lock) return Peers.Any(p => !p.Closed); } }
         public static int ConnectedCount { get { lock (_lock) return Peers.Count(p => !p.Closed); } }

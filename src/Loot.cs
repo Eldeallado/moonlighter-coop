@@ -16,7 +16,7 @@ namespace MoonlighterCoop
         private static readonly Dictionary<ItemStack, int> _ids = new Dictionary<ItemStack, int>();
         public static int DropsSent, DropsShown, Taken, Removed;
 
-        public static bool InDungeon => Net.Connected && GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded();
+        public static bool InDungeon => Net.Juego && GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded();
 
         private static void Track(int id, ItemStack s) { _items[id] = s; _ids[s] = id; }
         public static int IdOf(ItemStack s) => s != null && _ids.TryGetValue(s, out var id) ? id : 0;
@@ -61,7 +61,7 @@ namespace MoonlighterCoop
         // Either side picked something up: it leaves the floor on both, and BOTH players get it (shared bag).
         public static void PickedUp(int id, ItemMaster master, int qty)
         {
-            if (!Net.Connected || master == null || qty <= 0) return;
+            if (!Net.Juego || master == null || qty <= 0) return;
             if (id != 0) _items.Remove(id);
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
             w.Write(id); w.Write(master.name); w.Write(qty);

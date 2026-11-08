@@ -34,7 +34,7 @@ namespace MoonlighterCoop
         static void Prefix(EnemyBehaviour __instance, out Vector3? __state)
         {
             __state = null;
-            if (!Session.IsHost || !Net.Connected) return;
+            if (!Session.IsHost || !Net.Juego) return;
             var hero = HeroMerchant.Instance;
             if (hero == null) return;
             var me = hero.transform.position;
@@ -73,7 +73,7 @@ namespace MoonlighterCoop
 
         public static void HostTick()
         {
-            if (!Session.IsHost || !Net.Connected || Time.unscaledTime < _next) return;
+            if (!Session.IsHost || !Net.Juego || Time.unscaledTime < _next) return;
             _next = Time.unscaledTime + 0.3f;
             var dm = DungeonManager.Instance;
             if (dm == null || dm.currentDungeonRoom == null || !GameManager.Instance.IsDungeonSceneLoaded()) return;

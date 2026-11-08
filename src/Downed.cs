@@ -23,7 +23,7 @@ namespace MoonlighterCoop
         public const float ReviveRange = 32f;
         public const float ReviveTime = 2.5f;
 
-        public static bool InDungeon => Net.Connected && GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded();
+        public static bool InDungeon => Net.Juego && GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded();
 
         /// The local Will's death animation ended. True = let the game end the run.
         public static bool OnLocalDeathEnded()
@@ -161,7 +161,7 @@ namespace MoonlighterCoop
             var hero = HeroMerchant.Instance;
             if (!InDungeon || hero == null)
             {
-                if (!Net.Connected || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded())
+                if (!Net.Juego || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded())
                 {
                     // Out of the dungeon (run over, or gone home): nobody stays a ghost.
                     if (Me && hero != null && GameManager.Instance != null && GameManager.Instance.NotLoadingScene) ClearGhost(hero);
@@ -226,8 +226,10 @@ namespace MoonlighterCoop
     [HarmonyPatch(typeof(HeroMerchant), nameof(HeroMerchant.OnWillDeathAnimationEnded))]
     static class DownedInsteadOfDeath
     {
+        public static int Calls;
         static bool Prefix()
         {
+            Calls++;
             if (MoonlighterEffectRegistry.GetEffect<AngelAmuletEffect>() != null) return true; // the amulet revives as usual
             return Downed.OnLocalDeathEnded();
         }

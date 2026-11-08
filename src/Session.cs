@@ -31,7 +31,7 @@ namespace MoonlighterCoop
         /// Leaving a game: forget everyone, so a new game (or a new host) starts clean.
         public static void Reset()
         {
-            GuestLoaded = false; SaveSent = false; Welcomed = false; MyId = 0; _knownPlayers = 0; _helloReceived = false;
+            GuestLoaded = false; SaveSent = false; Welcomed = false; MyId = 0; _knownPlayers = 0; _helloReceived = false; _peerEnTutorial.Clear(); _hostEnTutorial = false;
             _pendingSave = null; _menuSeenAt = -1f; LastPing = -1f;
             _helloSentTo.Clear(); _helloFrom.Clear(); _saveSentTo.Clear(); _liveIds.Clear();
             foreach (var p in Puppet.All.Values) if (p != null) UnityEngine.Object.Destroy(p.gameObject);
@@ -123,6 +123,7 @@ namespace MoonlighterCoop
                 if (now >= _nextPing)
                 {
                     _nextPing = now + 2f;
+                    if (IsGuest) Net.Send(Msg.Tutorial, new[] { (byte)(MiTutorial ? 1 : 0) });
                     Net.Send(Msg.Ping, BitConverter.GetBytes(now));
                 }
             }
@@ -149,7 +150,7 @@ namespace MoonlighterCoop
             EnemySync.HostTick();
             DoorSync.HostTick();
             Downed.Tick();
-            if (Net.Connected && IsGuest && Puppet.Instance != null) Dungeon.GuestFollowTick(Puppet.Instance.Zone);
+            if (Net.Juego && IsGuest && Puppet.Instance != null) Dungeon.GuestFollowTick(Puppet.Instance.Zone);
             if (now >= _nextStatus) { _nextStatus = now + 0.5f; WriteStatus(); }
         }
 
@@ -181,7 +182,7 @@ namespace MoonlighterCoop
         public static int Regroups;
         private static void Regroup()
         {
-            if (!IsGuest || !Net.Connected) return;
+            if (!IsGuest || !Net.Juego) return;
             var hero = HeroMerchant.Instance; var p = Puppet.Instance; var gm = GameManager.Instance;
             string zone = LocalZone();
             if (zone != _lastZone) { _lastZone = zone; _zoneSince = Time.unscaledTime; _regroupedIn = ""; }
@@ -205,9 +206,13 @@ namespace MoonlighterCoop
 
         /// My player number: 0 = host, 1.. = guests (the host tells each guest its number).
         public static int MyId;
-        /// The host is still in the tutorial (scripted for one player): nobody drags anybody until it ends.
-        public static bool TutorialActivo => IsHost ? GameManager.Instance != null && GameManager.Instance.currentGameSlot != null && HeroMerchant.Instance != null && GameManager.Instance.currentGameSlot.playedTutorial != 4 : _hostEnTutorial;
+        /// Somebody is still in the tutorial (scripted for one player): each plays its own tutorial, seeing the others;
+        /// shared shop, enemies, loot, doors and travel wait until everybody has finished it.
+        public static bool SoloTutorial => TutorialActivo;
+        public static bool TutorialActivo => MiTutorial || (IsHost ? _peerEnTutorial.Count > 0 : _hostEnTutorial);
+        public static bool MiTutorial => GameManager.Instance != null && GameManager.Instance.currentGameSlot != null && HeroMerchant.Instance != null && GameManager.Instance.currentGameSlot.playedTutorial != 4;
         static bool _hostEnTutorial;
+        static readonly System.Collections.Generic.HashSet<int> _peerEnTutorial = new System.Collections.Generic.HashSet<int>();
         public static bool Welcomed;
         public static int Players => IsHost ? 1 + Net.ConnectedCount : !Net.Connected ? 1 : Math.Max(2, _knownPlayers);
         private static int _knownPlayers;
@@ -229,6 +234,9 @@ namespace MoonlighterCoop
                     _knownPlayers = data[0];
                     if (data.Length > 1) Difficulty.Mode = data[1];
                     _hostEnTutorial = data.Length > 2 && data[2] == 1;
+                    break;
+                case Msg.Tutorial:
+                    if (IsHost) { if (data.Length > 0 && data[0] == 1) _peerEnTutorial.Add(from.Id); else _peerEnTutorial.Remove(from.Id); }
                     break;
                 case Msg.Hello:
                 {
@@ -359,14 +367,8 @@ namespace MoonlighterCoop
             foreach (var s in gm.gameSaveData.gameSlots)
                 if (s != null && s.seed == seed) slot = s;
             if (slot == null) slot = gm.currentGameSlot;
-            // The tutorial is scripted for one player and builds the world as it goes: the guest skips it and starts
-            // in the shop as after the tutorial (only in memory: a guest never saves). It meets the host when it ends.
-            if (slot != null && slot.playedTutorial != 4)
-            {
-                slot.playedTutorial = 4;
-                SteamCoop.Status = "Tu compañero está haciendo el tutorial: le esperas en la tienda";
-                Plugin.Log.LogInfo("[session] host is in the tutorial: the guest starts after it");
-            }
+            // Host still in the tutorial: the guest plays its own tutorial from the same point, seeing the host.
+            if (slot != null && slot.playedTutorial != 4) Plugin.Log.LogInfo($"[session] host is in the tutorial (part {slot.playedTutorial}): the guest plays it too");
             Plugin.Log.LogInfo($"[session] loading host save, slot {seed} found={slot != null && slot.seed == seed}");
             Plugin.LoadSlotFromMenu(slot);
         }

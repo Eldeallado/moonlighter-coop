@@ -41,7 +41,7 @@ namespace MoonlighterCoop
     {
         static void Postfix(ref IEnumerator __result)
         {
-            if (Net.Connected && Dungeon.FloorSeed != 0)
+            if (Net.Juego && Dungeon.FloorSeed != 0)
                 __result = SeededGeneration.Isolated(__result, Dungeon.FloorSeed, "floor");
         }
     }
@@ -51,7 +51,7 @@ namespace MoonlighterCoop
     {
         static void Postfix(ref IEnumerator __result)
         {
-            if (Net.Connected && Dungeon.FloorSeed != 0)
+            if (Net.Juego && Dungeon.FloorSeed != 0)
                 __result = SeededGeneration.Isolated(__result, Dungeon.FloorSeed, "prefab floor");
         }
     }
