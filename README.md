@@ -93,7 +93,7 @@ La DLL queda en `bin/Release/net472/MoonlighterCoop.dll`; cópiala a `BepInEx/pl
 
 ## Créditos
 
-- Mod: **elde_al_lado**, hecho con ayuda de IA (Claude Code) siguiendo el método *Co-op Anything*.
+- Mod: **elde_al_lado**, siguiendo el método [Co-op Anything](https://github.com/cranebeaker/coop-anything).
 - [BepInEx](https://github.com/BepInEx/BepInEx) (LGPL-2.1) y [HarmonyX](https://github.com/BepInEx/HarmonyX) (MIT) para cargar y parchear el juego.
 - Moonlighter © Digital Sun / 11 bit studios. Todas las marcas pertenecen a sus dueños.
 
