@@ -269,6 +269,36 @@ namespace MoonlighterCoop
                 }
                 case "coop": CoopMenu.Do(p[1], p.Length > 2 ? p[2] : ""); return $"role={Plugin.Role} code={SteamCoop.Code} status={SteamCoop.Status} connected={Net.Connected} players={Session.Players}";
                 case "f2": if (CoopMenu.Instance != null) CoopMenu.Instance.SetOpen(p[1] == "on"); return "open=" + CoopMenu.Open;
+                case "uiassets":
+                {
+                    var sb = new StringBuilder("fonts: ");
+                    foreach (var fnt in Resources.FindObjectsOfTypeAll<Font>()) sb.Append(fnt.name + "; ");
+                    sb.Append(" | hudtexts: ");
+                    foreach (var tx in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Text>().Take(30)) sb.Append($"{tx.name}:{(tx.font ? tx.font.name : "-")}; ");
+                    sb.Append(" | sprites: ");
+                    var key = p.Length > 1 ? p[1] : "scroll";
+                    foreach (var sp in Resources.FindObjectsOfTypeAll<Sprite>().Where(s => s.name.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0).Take(40)) sb.Append($"{sp.name}({sp.rect.width}x{sp.rect.height} b={sp.border}); ");
+                    return sb.ToString();
+                }
+                case "dumpsprites": // dumpsprites key  -> one PNG per matching sprite (first 30)
+                {
+                    int n = 0;
+                    var dir = Path.Combine(BepInEx.Paths.BepInExRootPath, "coop_sprites"); Directory.CreateDirectory(dir);
+                    foreach (var sp in Resources.FindObjectsOfTypeAll<Sprite>().Where(s => s.name.IndexOf(p[1], StringComparison.OrdinalIgnoreCase) >= 0).Take(30))
+                    {
+                        try
+                        {
+                            var full = Recolor.ReadableCopy(sp.texture);
+                            var tr = sp.textureRect;
+                            var cut = new Texture2D((int)tr.width, (int)tr.height, TextureFormat.RGBA32, false);
+                            cut.SetPixels(full.GetPixels((int)tr.x, (int)tr.y, (int)tr.width, (int)tr.height)); cut.Apply();
+                            File.WriteAllBytes(Path.Combine(dir, sp.name + ".png"), ImageConversion.EncodeToPNG(cut));
+                            n++;
+                        }
+                        catch (Exception e) { Plugin.Log.LogWarning("dump " + sp.name + ": " + e.Message); }
+                    }
+                    return $"{n} -> {dir}";
+                }
                 case "rollstate":
                 {
                     var inv = hero.heroMerchantInventory;

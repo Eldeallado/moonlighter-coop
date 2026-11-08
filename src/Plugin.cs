@@ -54,6 +54,7 @@ namespace MoonlighterCoop
             gameObject.AddComponent<ColorMenu>();
             gameObject.AddComponent<CoopMenu>();
             gameObject.AddComponent<PartyHud>();
+            gameObject.AddComponent<Banner>();
             _lookCfg = Config.Bind("Aspecto", "Colores", -1, "Cuerpo y pelo (lo elige el menú F3). -1 = según el número de jugador");
             if (_lookCfg.Value >= 0) Looks.LoadSaved(_lookCfg.Value);
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
@@ -123,25 +124,10 @@ namespace MoonlighterCoop
 
         private void OnGUI()
         {
-            if (Plugin.Role == "")
-            {
-                GUI.Label(new Rect(8, 8, 700, 22), SteamCoop.Available ? "F2: cooperativo (crear partida o unirse) · F3: color de tu Will" : "F2: cooperativo por IP · F3: color de tu Will");
-                return;
-            }
-            var p = Puppet.Instance;
-            GUI.Label(new Rect(8, 8, 600, 22),
-                $"Coop {Version} [{Role}] {(Net.Connected ? $"conectado ({Session.LastPing:F0} ms)" : "esperando conexión…")}" +
-                (p != null ? $"  compañero: {(p.Visible ? "aquí" : p.Zone)}" : "") + $"  jugadores: {Session.Players}  · F2: cooperativo · F3: color");
-            if (!string.IsNullOrEmpty(SteamCoop.Status) && !Net.Connected) GUI.Label(new Rect(8, 28, 800, 22), SteamCoop.Status);
-            var hint = Vote.Hint() ?? Downed.Hint();
-            if (hint != null)
-            {
-                var style = new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter, wordWrap = true };
-                style.normal.textColor = Color.yellow;
-                GUI.Label(new Rect(Screen.width * 0.2f, Screen.height * 0.74f, Screen.width * 0.6f, 60), hint, style);   // low, so it never covers the party's health
-            }
+            // Only for the QA copies: a one-line debug readout. Players see the styled scrolls (Banner).
+            if (!Bot || Plugin.Role == "") return;
+            GUI.Label(new Rect(8, Screen.height - 22, 600, 20), $"[{Role} {Session.MyId}] {(Net.Connected ? $"{Session.LastPing:F0} ms" : "sin conexión")}");
         }
-
         private void BotTick()
         {
             BotMoveTick();
