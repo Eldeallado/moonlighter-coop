@@ -15,7 +15,7 @@ namespace MoonlighterCoop
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "elde_al_lado.moonlighter.coop";
-        public const string Version = "0.4.1";
+        public const string Version = "0.4.2";
 
         public static Plugin Instance;
         public static ManualLogSource Log;
@@ -117,7 +117,10 @@ namespace MoonlighterCoop
         private void Update()
         {
             // QA copies: a small window, whatever the game's own display option says.
-            if ((Bot || Windowed) && !_windowed && Time.frameCount > 30)
+            // Test copies are always silent (they run while the player is doing something else).
+            if ((Bot || Drive) && AudioListener.volume != 0f) AudioListener.volume = 0f;
+            // (The intro of a new game puts the game back in full screen: check every second.)
+            if ((Bot || Windowed) && Time.frameCount > 30 && (!_windowed || Time.frameCount % 60 == 0 && (Screen.fullScreen || Screen.width != WinW)))
             {
                 _windowed = true;
                 Screen.SetResolution(WinW, WinH, FullScreenMode.Windowed);

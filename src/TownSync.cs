@@ -21,7 +21,7 @@ namespace MoonlighterCoop
 
         public static void Moved(bool toShop)
         {
-            if (Applying || !Net.Connected) return;
+            if (Applying || !Net.Connected || Session.TutorialActivo) return;
             Net.Send(Msg.TownArea, new[] { (byte)(toShop ? 1 : 0) });
             Sent++;
             Plugin.Log.LogInfo($"[town] I went {(toShop ? "into the shop" : "out to the village")}: taking my partner");
@@ -29,6 +29,7 @@ namespace MoonlighterCoop
 
         public static void OnTownArea(byte[] data)
         {
+            if (Session.TutorialActivo) return;   // during the host's tutorial each one stays where it is
             bool toShop = data.Length > 0 && data[0] == 1;
             var gm = GameManager.Instance;
             if (gm == null || !gm.IsTownSceneLoaded() || gm.IsDungeonSceneLoaded() || HeroMerchant.Instance == null) return;

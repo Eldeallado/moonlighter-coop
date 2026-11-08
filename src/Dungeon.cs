@@ -61,7 +61,7 @@ namespace MoonlighterCoop
 
         public static void SendTravel(Travel kind, ItemMaster.Culture culture, int level)
         {
-            if (!Session.IsHost || !Net.Connected) return;
+            if (!Session.IsHost || !Net.Connected || Session.TutorialActivo) return;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
             w.Write((byte)kind); w.Write((int)culture); w.Write(level); w.Write(FloorSeed);
             Net.Send(Msg.Travel, ms.ToArray());
@@ -89,7 +89,7 @@ namespace MoonlighterCoop
 
         private static void OnGenerated()
         {
-            if (!Session.IsHost || !Net.Connected) return;
+            if (!Session.IsHost || !Net.Connected || Session.TutorialActivo) return;
             Plugin.Instance.StartCoroutine(SendInfoWhenReady());
         }
 

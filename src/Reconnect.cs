@@ -84,7 +84,7 @@ namespace MoonlighterCoop
                 _seenInTown.Remove(p);
                 _pending.Remove(p);
                 Shared.SendStateTo(p);
-                if (GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded()) Dungeon.CatchUp(p);
+                if (GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded() && !Session.TutorialActivo) Dungeon.CatchUp(p);
             }
         }
 

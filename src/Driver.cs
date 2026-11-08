@@ -333,6 +333,20 @@ namespace MoonlighterCoop
                     en.DealDamageToEnemy(99999f);
                     return "killed " + kid;
                 }
+                case "newgame": // a brand new game in the last slot, in memory only (test copies never save)
+                {
+                    var g = GameManager.Instance;
+                    int idx = g.gameSaveData.gameSlots.Length - 1;
+                    g.ResetSlot(idx);
+                    Plugin.LoadSlotFromMenu(g.gameSaveData.gameSlots[idx]);
+                    return "new game in slot " + idx + ", tutorial " + g.gameSaveData.gameSlots[idx].playedTutorial;
+                }
+                case "tutorial":
+                {
+                    var tm = UnityEngine.Object.FindObjectOfType<TutorialManager>();
+                    var dlg = UnityEngine.Object.FindObjectsOfType<TutorialDialog>().Count(x => x.gameObject.activeInHierarchy);
+                    return $"slot={(gm.currentGameSlot != null ? gm.currentGameSlot.playedTutorial : -1)} manager={(tm != null)} scene={(tm != null ? Traverse.Create(tm).Field("_currentScene").GetValue<object>()?.GetType().Name : "-")} dialogs={dlg} panel={(GUIManager.Instance.currentInventory ? GUIManager.Instance.currentInventory.name : "none")} zone={Session.LocalZone()} paused={gm.isGamePaused}";
+                }
                 case "rollstate":
                 {
                     var inv = hero.heroMerchantInventory;
