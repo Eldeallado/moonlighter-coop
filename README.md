@@ -25,6 +25,7 @@ Todos los jugadores necesitan el mod instalado (la misma versión).
 |---|---|
 | **F2** | Menú cooperativo: crear partida, unirse con un código o por IP, ver quién está, expulsar, salir |
 | **F3** | Elegir el color del cuerpo y del pelo de tu Will (barras de tono, intensidad y brillo, con vista previa) |
+| **L3 + R3** (mando) | Abre el menú cooperativo con el mando: cruceta para moverse, A aceptar, B volver |
 
 1. **Quien hace de anfitrión** carga su partida, pulsa **F2 → Crear partida** y le sale un **código de 7 letras** (también puede invitar a amigos de Steam desde ahí).
 2. **Los demás** pulsan **F2 → Unirse con un código** y lo escriben. Entran solos en la partida del anfitrión.
@@ -39,6 +40,9 @@ Se juega con la partida del anfitrión; la de cada invitado no se modifica.
 - Hasta 5 jugadores. Cada uno tiene su color y su nombre.
 - Vida de los compañeros arriba a la izquierda, debajo de la tuya.
 - El anfitrión puede expulsar a un jugador (no puede volver a entrar en esa sesión).
+- Si a alguien se le corta la conexión, su juego vuelve a conectar solo y aparece en la misma sala que el anfitrión. También se puede entrar a mitad de una expedición.
+- Si dos jugadores tienen versiones distintas del mod, no se dejan conectar y se dice qué versión tiene cada uno.
+- El menú F2 avisa cuando hay una versión nueva del mod en GitHub.
 
 **Mazmorras**
 - Misma mazmorra para todos: mismas salas, decorado, cofres y enemigos (generadas con la misma semilla).
@@ -46,6 +50,9 @@ Se juega con la partida del anfitrión; la de cada invitado no se modifica.
 - Enemigos compartidos: los mata cualquiera, mueren en todas las pantallas y van a por el jugador vivo más cercano.
 - Botín compartido: sale en el mismo sitio para todos y lo que recoge uno llega a la mochila común.
 - Cajas, vasijas y hierbas se rompen para todos.
+- Disparos, flechas y ataques a distancia (también los de los jefes) se ven en todas las pantallas, y las balas enemigas hacen daño a todos.
+- Jefes compartidos: el mismo jefe para todos y los golpes de cualquiera cuentan.
+- Dificultad según los jugadores (la elige el anfitrión en F2): como un jugador, ajustada (por defecto: +45% de vida y +12% de fuerza de los enemigos por cada jugador extra) o difícil.
 
 **Morir y revivir**
 - Al morir te conviertes en **fantasma**: vuelas, no puedes atacar ni recoger y los enemigos te ignoran.
@@ -67,7 +74,7 @@ Se juega con la partida del anfitrión; la de cada invitado no se modifica.
 - **No se abre ningún puerto** en tu PC salvo que el anfitrión active "Permitir unirse por IP" (y se cierra al terminar).
 - Al unirte, la partida que manda el anfitrión **se revisa antes de cargarla**: se rechaza si es demasiado grande o pide crear tipos de datos que no son del juego.
 - Aun así, como en cualquier juego online con mods: **juega solo con gente de confianza** y pasa el código solo a quien quieras que entre.
-- El mod no se conecta a ningún servidor propio, no recoge datos ni toca tu cuenta: solo usa la red de Steam o la conexión directa entre jugadores.
+- El mod no se conecta a ningún servidor propio, no recoge datos ni toca tu cuenta: solo usa la red de Steam o la conexión directa entre jugadores, y consulta la página pública de GitHub del mod para saber si hay versión nueva.
 
 ## Compatibilidad
 
@@ -79,6 +86,7 @@ Se juega con la partida del anfitrión; la de cada invitado no se modifica.
 
 - Los ladrones y los clientes los "controla" el anfitrión; en los invitados son copias (se ven y se pueden atrapar y cobrar, pero si hay mucho retraso pueden ir un poco por detrás).
 - Algunos enemigos que nacen de otros (por ejemplo, slimes que se dividen) se sincronizan por posición y puede haber pequeñas diferencias.
+- Las peleas contra jefes están sincronizadas pero aún poco probadas: si algo va raro, cuéntalo en *Issues*.
 - Probado a fondo en un mismo PC y por Steam; con mucha distancia entre jugadores puede notarse el retraso.
 
 ## Compilar desde el código
