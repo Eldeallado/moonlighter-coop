@@ -123,8 +123,10 @@ namespace MoonlighterCoop
             if (Input.GetKeyDown(KeyCode.F3)) Toggle();
             if (!Open) return;
             if (HeroMerchant.Instance == null || (GUIManager.Instance != null && GUIManager.Instance.currentInventory != null)) { SetOpen(false); return; }
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W)) _row = (_row + 5) % 6;
-            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S)) _row = (_row + 1) % 6;
+            PadNav.Poll();
+            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) || PadNav.Up) _row = (_row + 5) % 6;
+            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S) || PadNav.Down) _row = (_row + 1) % 6;
+            if (PadNav.Left || PadNav.Right) SetBar(_row, Get(PartOf(_row), _row) + (PadNav.Right ? 1 : -1));
             int d = (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A) ? 1 : 0);
             if (d != 0 && Time.unscaledTime >= _nextRepeat)
             {
@@ -133,7 +135,7 @@ namespace MoonlighterCoop
             }
             if (d == 0) { _held = false; _nextRepeat = 0f; }
             if (_dirty && Time.unscaledTime - _dirtyAt > 0.15f) Commit();
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Escape)) SetOpen(false);
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Escape) || PadNav.A || PadNav.B || PadNav.Combo) SetOpen(false);
         }
         private float _nextRepeat; private bool _held;
 
@@ -210,7 +212,7 @@ namespace MoonlighterCoop
             if (GUI.Button(new Rect(bx + bwid + 12 * k, by, bwid, 34 * k), "Will original", _button)) { _body.Own = true; _hair.Own = true; Changed(); }
             if (GUI.Button(new Rect(panel.xMax - 30 * k - bwid, by, bwid, 34 * k), "Listo", _buttonOn)) SetOpen(false);
             GUI.Label(new Rect(panel.x + 20 * k, panel.yMax - 34 * k, w - 40 * k, 24 * k),
-                "Arrastra las barras con el ratón · ↑↓ elegir barra, ←→ mover · Enter o F3 para cerrar", _small);
+                PadNav.Active ? "Cruceta ↑↓ elegir barra, ←→ mover · A o B para cerrar" : "Arrastra las barras con el ratón · ↑↓ elegir barra, ←→ mover · Enter o F3 para cerrar", _small);
         }
 
         private void Swatch(Rect r, string name, Color c, float k)

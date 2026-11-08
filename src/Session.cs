@@ -93,7 +93,7 @@ namespace MoonlighterCoop
             {
                 while (peer.Inbox.TryDequeue(out var m)) Handle(peer, m.type, m.data);
                 if (peer.Closed) continue;
-                if (_helloSentTo.Add(peer)) peer.Send(Msg.Hello, Encoding.UTF8.GetBytes(Plugin.Version));
+                if (_helloSentTo.Add(peer)) peer.Send(Msg.Hello, Encoding.UTF8.GetBytes(Versions.Hello));
                 // Host: each new guest gets its player number and the host's save.
                 if (IsHost && _helloFrom.Contains(peer) && !_saveSentTo.Contains(peer) && HeroMerchant.Instance != null && GameManager.Instance.currentGameSlot != null)
                 {
@@ -216,14 +216,32 @@ namespace MoonlighterCoop
                     _knownPlayers = data[0];
                     break;
                 case Msg.Hello:
-                    var v = Encoding.UTF8.GetString(data);
+                {
+                    Versions.Parse(Encoding.UTF8.GetString(data), out var theirVersion, out var theirProtocol);
+                    Plugin.Log.LogInfo($"[session] hello from peer, version {theirVersion} (protocol {theirProtocol})");
+                    if (theirProtocol != Versions.Protocol)
+                    {
+                        // Different versions misread each other's messages: refuse with a clear reason.
+                        Plugin.Log.LogWarning($"[session] version mismatch: mine {Plugin.Version}, theirs {theirVersion}");
+                        if (IsHost)
+                        {
+                            var bye = new System.Collections.Generic.List<byte> { 2 }; bye.AddRange(Encoding.UTF8.GetBytes(Plugin.Version));
+                            from.Send(Msg.Bye, bye.ToArray());
+                            CoopMenu.CloseSoon(from);
+                            SteamCoop.Status = $"Alguien intentó entrar con la versión {theirVersion} (tú tienes la {Plugin.Version})";
+                        }
+                        else
+                        {
+                            SteamCoop.Status = $"El anfitrión tiene la versión {theirVersion} y tú la {Plugin.Version}: usad la misma (F2 → descargar)";
+                            CoopMenu.HostClosed();
+                        }
+                        break;
+                    }
                     _helloReceived = true;
                     _helloFrom.Add(from);
                     if (IsHost) SteamCoop.Status = "Se ha unido " + SteamCoop.PeerName(from);
-                    Plugin.Log.LogInfo($"[session] hello from peer, version {v}");
-                    if (v != Plugin.Version) Plugin.Log.LogWarning($"[session] version mismatch: mine {Plugin.Version}, theirs {v}");
                     break;
-                case Msg.Save:
+                }                case Msg.Save:
                     if (IsGuest) _pendingSave = data;
                     break;
                 case Msg.Pose:
@@ -264,7 +282,7 @@ namespace MoonlighterCoop
                 case Msg.ShopResults: if (IsGuest) ShopResults.OnResults(data); break;
                 case Msg.Bye:
                     if (IsHost) { Plugin.Log.LogInfo($"[session] player {from.Id} left"); from.Close(); }
-                    else { SteamCoop.Status = data.Length > 0 && data[0] == 1 ? "El anfitrión te ha expulsado de la partida" : "El anfitrión ha cerrado la partida"; CoopMenu.HostClosed(); }
+                    else { SteamCoop.Status = data.Length > 0 && data[0] == 1 ? "El anfitrión te ha expulsado de la partida" : data.Length > 0 && data[0] == 2 ? $"El anfitrión tiene la versión {Encoding.UTF8.GetString(data, 1, data.Length - 1)} y tú la {Plugin.Version}: usad la misma (F2 → descargar)" : "El anfitrión ha cerrado la partida"; CoopMenu.HostClosed(); }
                     break;
                 case Msg.PlayerLeft: if (IsGuest) RemovePlayer(data[0]); break;
                 case Msg.Bag: Shared.OnBag(data); break;

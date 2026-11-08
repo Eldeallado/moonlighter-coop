@@ -59,6 +59,7 @@ namespace MoonlighterCoop
         private static ulong _pendingLobbyArg;
         private static byte[] _buf = new byte[1 << 20];
         private static bool _inited;
+        public static string CodeAlphabet => CodeChars;
         private const string CodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
         public static void TryInit()
@@ -199,7 +200,7 @@ namespace MoonlighterCoop
             Plugin.Log.LogInfo($"[steam] in lobby, host {owner}");
             // The guest plays on the host's save: be at the main menu to receive it.
             if (HeroMerchant.Instance != null && GameManager.Instance != null) GameManager.Instance.ReturnToMainMenu();
-            Net.Send(Msg.Hello, System.Text.Encoding.UTF8.GetBytes(Plugin.Version));
+            Net.Send(Msg.Hello, System.Text.Encoding.UTF8.GetBytes(Versions.Hello));
         }
 
         private static void AcceptGuest(CSteamID id)

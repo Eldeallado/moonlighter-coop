@@ -15,7 +15,7 @@ namespace MoonlighterCoop
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "elde_al_lado.moonlighter.coop";
-        public const string Version = "0.3.0";
+        public const string Version = "0.4.0";
 
         public static Plugin Instance;
         public static ManualLogSource Log;
@@ -55,6 +55,7 @@ namespace MoonlighterCoop
             gameObject.AddComponent<CoopMenu>();
             gameObject.AddComponent<PartyHud>();
             gameObject.AddComponent<Banner>();
+            Versions.StartCheck(this);
             _lookCfg = Config.Bind("Aspecto", "Colores", -1, "Cuerpo y pelo (lo elige el menú F3). -1 = según el número de jugador");
             if (_lookCfg.Value >= 0) Looks.LoadSaved(_lookCfg.Value);
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");

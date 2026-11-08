@@ -96,13 +96,13 @@ namespace MoonlighterCoop
             var r = new Rect(Screen.width - w - 14 * k, Screen.height - h - 14 * k, w, h);
             Parchment(r, k * 0.75f, a);
             float x = r.x + 26 * k, cy = r.y + h / 2f;
-            x = KeyCap(x, cy, "F2", right, k, a) + 14 * k;
-            KeyCap(x, cy, "F3", "Color", k, a);
+            x = KeyCap(x, cy, PadNav.Active ? "L3+R3" : "F2", right, k, a) + 14 * k;
+            if (!PadNav.Active) KeyCap(x, cy, "F3", "Color", k, a);
         }
 
         private float KeyCap(float x, float cy, string key, string label, float k, float a)
         {
-            var cap = new Rect(x, cy - 9 * k, 24 * k, 18 * k);
+            var cap = new Rect(x, cy - 9 * k, (key.Length > 2 ? 48 : 24) * k, 18 * k);
             Box(cap, new Color(0.17f, 0.1f, 0.07f), a);
             Box(new Rect(cap.x + k, cap.y + k, cap.width - 2 * k, cap.height - 3 * k), new Color(0.45f, 0.3f, 0.18f), a);
             _keyStyle.normal.textColor = new Color(1f, 0.93f, 0.75f, a);

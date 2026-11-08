@@ -44,10 +44,35 @@ namespace MoonlighterCoop
             }
         }
 
+        // Gamepad: which button has the focus, how many buttons the last frame drew, A pressed this frame.
+        private int _focus, _btnCount, _lastCount = 1, _slot;
+        private bool _padA;
+
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F2)) SetOpen(!Open);
-            if (Open && Input.GetKeyDown(KeyCode.Escape)) { if (_page != Page.Main) _page = Page.Main; else SetOpen(false); }
+            PadNav.Poll();
+            _padA = false;
+            if (Input.GetKeyDown(KeyCode.F2) || PadNav.Combo && !ColorMenu.Open) { SetOpen(!Open); _focus = 0; return; }
+            if (!Open) return;
+            if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B) { if (_page != Page.Main) { _page = Page.Main; _focus = 0; } else SetOpen(false); return; }
+            if (_page == Page.Code && PadNav.Active)
+            {
+                // Pick the code with the D-pad: left/right choose the letter, up/down change it, A joins.
+                if (_code.Length != 7) _code = "AAAAAAA";
+                if (PadNav.Left) _slot = (_slot + 6) % 7;
+                if (PadNav.Right) _slot = (_slot + 1) % 7;
+                if (PadNav.Up || PadNav.Down)
+                {
+                    var cs = SteamCoop.CodeAlphabet; int i = Mathf.Max(0, cs.IndexOf(_code[_slot]));
+                    i = (i + (PadNav.Up ? 1 : cs.Length - 1)) % cs.Length;
+                    _code = _code.Substring(0, _slot) + cs[i] + _code.Substring(_slot + 1);
+                }
+                if (PadNav.A) JoinCode();
+                return;
+            }
+            if (PadNav.Up) _focus = (_focus + _lastCount - 1) % _lastCount;
+            if (PadNav.Down) _focus = (_focus + 1) % _lastCount;
+            if (PadNav.A) _padA = true;
         }
 
         private static string LocalIp()
@@ -71,6 +96,7 @@ namespace MoonlighterCoop
             else if (what == "code") { m._code = arg; m.JoinCode(); }
             else if (what == "ip") { m._ip = arg; m.JoinIp(); }
             else if (what == "leave") m.LeaveGame();
+            else if (what == "pad") PadNav.Simulate(arg);
             else if (what == "listen") Net.StartHost(Plugin.Port);
             else if (what == "kick") { var p = Net.Live.FirstOrDefault(x => x.Id.ToString() == arg); if (p != null) m.Kick(p); }
         }
@@ -117,6 +143,7 @@ namespace MoonlighterCoop
             SteamCoop.Status = "Has expulsado a " + SteamCoop.PeerName(p);
             Plugin.Log.LogInfo("[menu] kicked player " + p.Id);
         }
+        public static void CloseSoon(IPeer p) { if (Instance != null) Instance.StartCoroutine(Instance.CloseLater(p)); else p.Close(); }
         private System.Collections.IEnumerator CloseLater(IPeer p) { yield return new WaitForSecondsRealtime(0.4f); p.Close(); }
 
         /// The host closed the game: a guest goes back to its own menu.
@@ -168,6 +195,7 @@ namespace MoonlighterCoop
             float k = Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
             Styles(k);
             GUI.depth = -1001;
+            _btnCount = 0;
             float w = 640 * k, h = 470 * k;
             var p = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
             Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.4f));
@@ -175,6 +203,8 @@ namespace MoonlighterCoop
             Frame(p, new Color(0.62f, 0.45f, 0.22f), 3 * k);
             Frame(new Rect(p.x + 6 * k, p.y + 6 * k, p.width - 12 * k, p.height - 12 * k), new Color(0.3f, 0.22f, 0.12f), 1 * k);
             GUI.Label(new Rect(p.x + 24 * k, p.y + 14 * k, w, 36 * k), "Cooperativo", _title);
+            GUI.Label(new Rect(p.xMax - 190 * k, p.y + 22 * k, 160 * k, 22 * k), "versión " + Plugin.Version, _small);
+            if (Versions.UpdateAvailable && Btn(new Rect(p.x + 190 * k, p.y + 18 * k, 260 * k, 28 * k), "¡Versión " + Versions.Latest + " disponible! Descargar")) Application.OpenURL(Versions.ReleasesUrl);
             var inner = new Rect(p.x + 30 * k, p.y + 60 * k, w - 60 * k, h - 110 * k);
 
             bool inGame = Plugin.Role != "" && (Net.Connected || Session.IsHost || SteamCoop.Lobby != Steamworks.CSteamID.Nil);
@@ -185,10 +215,19 @@ namespace MoonlighterCoop
 
             if (!string.IsNullOrEmpty(SteamCoop.Status))
                 GUI.Label(new Rect(p.x + 20 * k, p.yMax - 64 * k, w - 40 * k, 26 * k), SteamCoop.Status, _small);
-            GUI.Label(new Rect(p.x + 20 * k, p.yMax - 36 * k, w - 40 * k, 24 * k), "F2 o Esc para cerrar este menú", _small);
+            GUI.Label(new Rect(p.x + 20 * k, p.yMax - 36 * k, w - 40 * k, 24 * k), PadNav.Active ? "Cruceta: moverse · A: aceptar · B: volver · L3+R3: cerrar" : "F2 o Esc para cerrar este menú", _small);
+            if (Event.current.type == EventType.Repaint) { _lastCount = Mathf.Max(1, _btnCount); if (_focus >= _lastCount) _focus = 0; }
         }
 
-        private bool Btn(Rect r, string text) => GUI.Button(r, text, _button);
+        private bool Btn(Rect r, string text)
+        {
+            int idx = _btnCount++;
+            bool focused = PadNav.Active && idx == _focus;
+            if (focused) Frame(new Rect(r.x - 3, r.y - 3, r.width + 6, r.height + 6), new Color(1f, 0.85f, 0.45f), 3);
+            bool pressed = GUI.Button(r, text, _button);
+            if (focused && _padA && Event.current.type == EventType.Repaint) { _padA = false; pressed = true; }
+            return pressed;
+        }
 
         private void DrawMain(Rect r, float k)
         {
@@ -203,6 +242,8 @@ namespace MoonlighterCoop
             GUI.enabled = true;
             y += bh + gap;
             if (Btn(new Rect(r.x, y, r.width, bh), "Unirse por IP (misma red)")) _page = Page.Ip;
+            y += bh + gap;
+            if (Btn(new Rect(r.x, y, r.width, 38 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
         }
 
         private void DrawJoinCode(Rect r, float k)
@@ -210,9 +251,24 @@ namespace MoonlighterCoop
             float y = r.y + 10 * k;
             GUI.Label(new Rect(r.x, y, r.width, 26 * k), "Escribe el código que te ha dado tu amigo:", _head);
             y += 44 * k;
-            GUI.SetNextControlName("code");
-            _code = GUI.TextField(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 56 * k), _code.ToUpperInvariant(), 8, _field);
-            GUI.FocusControl("code");
+            if (PadNav.Active)
+            {
+                float bw = 44 * k, gap = 8 * k, x0 = r.x + (r.width - (7 * bw + 6 * gap)) / 2f;
+                for (int i = 0; i < 7; i++)
+                {
+                    var br = new Rect(x0 + i * (bw + gap), y, bw, 56 * k);
+                    Fill(br, new Color(0.03f, 0.03f, 0.03f));
+                    Frame(br, i == _slot ? new Color(1f, 0.85f, 0.45f) : new Color(0.4f, 0.32f, 0.2f), (i == _slot ? 3 : 1) * k);
+                    GUI.Label(br, i < _code.Length ? _code[i].ToString() : "", _field);
+                }
+                GUI.Label(new Rect(r.x, y + 58 * k, r.width, 18 * k), "← → letra · ↑ ↓ cambiar · A unirse", _small);
+            }
+            else
+            {
+                GUI.SetNextControlName("code");
+                _code = GUI.TextField(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 56 * k), _code.ToUpperInvariant(), 8, _field);
+                GUI.FocusControl("code");
+            }
             y += 76 * k;
             bool enter = Event.current.type == EventType.KeyDown && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter);
             if (Btn(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 50 * k), "Unirse") || enter) JoinCode();
@@ -275,6 +331,7 @@ namespace MoonlighterCoop
             else if (Net.Connected)
             { GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), $"• {SteamCoop.PeerName(Net.Peer)} (anfitrión)", _label); y += 24 * k; }
             if (host && Net.ConnectedCount == 0) { GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), "Esperando a que se una alguien…", _small); }
+            if (Btn(new Rect(r.x, r.yMax - 46 * k, 200 * k, 40 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
             if (Btn(new Rect(r.xMax - 200 * k, r.yMax - 46 * k, 200 * k, 40 * k), host ? "Cerrar la partida" : "Salir de la partida")) LeaveGame();
         }
     }
