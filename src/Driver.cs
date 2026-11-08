@@ -299,6 +299,24 @@ namespace MoonlighterCoop
                     }
                     return $"{n} -> {dir}";
                 }
+                case "nearboss": // move to the room next to the boss room; returns the door name to walk through
+                {
+                    foreach (var rr in dm.dungeonRooms)
+                    {
+                        if (rr == null || rr is DungeonBossRoom) continue;
+                        var bd = rr.roomDoors.FirstOrDefault(x => x != null && x.destinationRoom is DungeonBossRoom);
+                        if (bd == null) continue;
+                        dm.SpecialChangeRoomTo(rr); hero.heroMerchantController.TeleportTo(rr.transform.position);
+                        return $"room={rr.x},{rr.y} door={bd.name}";
+                    }
+                    return "no boss door";
+                }
+                case "findenemy":
+                {
+                    var hits = dm.dungeonRooms.Where(rr => rr != null && rr.roomEnemies.Any(e => e != null && e.name.IndexOf(p[1], StringComparison.OrdinalIgnoreCase) >= 0))
+                        .Select(rr => $"{rr.x},{rr.y}:" + string.Join("/", rr.roomEnemies.Where(e => e != null).Select(e => e.name.Replace("(Clone)", "")).Distinct()));
+                    return string.Join(" ", hits);
+                }
                 case "rollstate":
                 {
                     var inv = hero.heroMerchantInventory;

@@ -97,6 +97,7 @@ namespace MoonlighterCoop
             else if (what == "ip") { m._ip = arg; m.JoinIp(); }
             else if (what == "leave") m.LeaveGame();
             else if (what == "pad") PadNav.Simulate(arg);
+            else if (what == "diff") Difficulty.Mode = int.Parse(arg);
             else if (what == "listen") Net.StartHost(Plugin.Port);
             else if (what == "kick") { var p = Net.Live.FirstOrDefault(x => x.Id.ToString() == arg); if (p != null) m.Kick(p); }
         }
@@ -317,6 +318,12 @@ namespace MoonlighterCoop
                 if (Net.Listening) GUI.Label(new Rect(r.x + 262 * k, y + 2 * k, r.width - 262 * k, 22 * k), $"Tu IP en la red: {LocalIp()}", _label);
                 y += 34 * k;
             }
+            if (host)
+            {
+                if (Btn(new Rect(r.x, y, r.width, 26 * k), "Dificultad: " + Difficulty.Describe(Session.Players))) { Difficulty.Mode = (Difficulty.Mode + 1) % 3; Plugin.SaveDifficulty(Difficulty.Mode); }
+            }
+            else GUI.Label(new Rect(r.x, y, r.width, 22 * k), "Dificultad: " + Difficulty.Describe(Session.Players), _label);
+            y += 32 * k;
             GUI.Label(new Rect(r.x, y, r.width, 22 * k), $"Jugadores ({Session.Players}/5):", _head);
             y += 28 * k;
             string me = (SteamCoop.Available ? SteamCoop.MyName : "Tú") + (host ? " (anfitrión, tú)" : " (tú)");

@@ -39,6 +39,7 @@ namespace MoonlighterCoop
             Looks.Of.Clear();
             Downed.Ghosts.Clear();
             ShopSync.ClearCopies();
+            Projectiles.Clear();
         }
 
         /// Someone left: their Will disappears for everyone, and they no longer count as a ghost or a vote.
@@ -105,7 +106,7 @@ namespace MoonlighterCoop
             if (IsHost && Net.Connected && now >= _nextCount)
             {
                 _nextCount = now + 1f;
-                Net.Send(Msg.PlayerCount, new[] { (byte)Players });
+                Net.Send(Msg.PlayerCount, new[] { (byte)Players, (byte)Difficulty.Mode });
             }
             if (Net.Connected)
             {
@@ -135,6 +136,7 @@ namespace MoonlighterCoop
             LoadingWatchdog(now);
             Shared.Tick();
             ShopSync.Tick();
+            Projectiles.Tick();
             Regroup();
             EnemySync.HostTick();
             DoorSync.HostTick();
@@ -202,7 +204,7 @@ namespace MoonlighterCoop
 
         // Things one player does that every other player must see: the host passes them on.
         private static readonly System.Collections.Generic.HashSet<Msg> Relayed = new System.Collections.Generic.HashSet<Msg>
-        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime };
+        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles };
 
         private static void Handle(IPeer from, Msg type, byte[] data)
         {
@@ -214,6 +216,7 @@ namespace MoonlighterCoop
                     break;
                 case Msg.PlayerCount:
                     _knownPlayers = data[0];
+                    if (data.Length > 1) Difficulty.Mode = data[1];
                     break;
                 case Msg.Hello:
                 {
@@ -285,6 +288,7 @@ namespace MoonlighterCoop
                     else { SteamCoop.Status = data.Length > 0 && data[0] == 1 ? "El anfitrión te ha expulsado de la partida" : data.Length > 0 && data[0] == 2 ? $"El anfitrión tiene la versión {Encoding.UTF8.GetString(data, 1, data.Length - 1)} y tú la {Plugin.Version}: usad la misma (F2 → descargar)" : "El anfitrión ha cerrado la partida"; CoopMenu.HostClosed(); }
                     break;
                 case Msg.PlayerLeft: if (IsGuest) RemovePlayer(data[0]); break;
+                case Msg.Projectiles: Projectiles.OnProjectiles(data); break;
                 case Msg.Bag: Shared.OnBag(data); break;
                 case Msg.Vote: Vote.OnVote(from.Id, data); break;
                 case Msg.VoteResult: if (IsGuest) Vote.OnResult(data); break;
@@ -411,6 +415,7 @@ namespace MoonlighterCoop
             sb.AppendLine($"door_requests_sent={Dungeon.DoorRequestsSent}");
             sb.AppendLine($"door_requests_done={Dungeon.DoorRequestsDone}");
             sb.AppendLine($"shop shelf_sent={ShopSync.ShelfSent} shelf_applied={ShopSync.ShelfApplied} customers_sent={ShopSync.CustomersSent} customers_applied={ShopSync.CustomersApplied} sales_asked={ShopSync.SalesAsked} sales_done={ShopSync.SalesDone}");
+            sb.AppendLine($"projectiles sent={Projectiles.Sent} received={Projectiles.Received} hits_taken={Projectiles.HitsTaken}");
             sb.AppendLine($"guest_loaded={GuestLoaded}");
             sb.AppendLine($"save_sent={SaveSent}");
             sb.AppendLine($"slot={(GameManager.Instance != null && GameManager.Instance.currentGameSlot != null ? GameManager.Instance.currentGameSlot.seed : 0)}");

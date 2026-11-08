@@ -304,7 +304,7 @@ namespace MoonlighterCoop
         // flash: they came out teal) or a 'FakeIdle' shader that needs its own data. Draw them all with our own
         // clean copy of Diffuse Flash, flash off.
         private static Material _clean;
-        private static Material CleanMaterial()
+        public static Material CleanMaterial()
         {
             if (_clean != null) return _clean;
             Material src = SpriteCache.GetMaterial("Sprites/Diffuse Flash");

@@ -37,6 +37,8 @@ namespace MoonlighterCoop
 
         private static BepInEx.Configuration.ConfigEntry<int> _lookCfg;
         public static void SaveLook(int look) { if (_lookCfg != null) _lookCfg.Value = look; }
+        private static BepInEx.Configuration.ConfigEntry<int> _diffCfg;
+        public static void SaveDifficulty(int m) { if (_diffCfg != null) _diffCfg.Value = m; }
         public static int WinW = 800, WinH = 450;
 
         private void Awake()
@@ -58,6 +60,8 @@ namespace MoonlighterCoop
             Versions.StartCheck(this);
             _lookCfg = Config.Bind("Aspecto", "Colores", -1, "Cuerpo y pelo (lo elige el menú F3). -1 = según el número de jugador");
             if (_lookCfg.Value >= 0) Looks.LoadSaved(_lookCfg.Value);
+            _diffCfg = Config.Bind("Cooperativo", "Dificultad", 1, "0 = como un jugador, 1 = ajustada a los jugadores, 2 = difícil (lo elige el anfitrión en F2)");
+            Difficulty.Load(_diffCfg.Value);
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
             // The game turns its own log off; keep errors and the loading/room flow for debugging.
             Debug.unityLogger.logEnabled = true;

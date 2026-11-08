@@ -47,6 +47,7 @@ namespace MoonlighterCoop
         ShopResults = 34,
         Bye = 35,
         PlayerLeft = 36,
+        Projectiles = 37,
     }
 
     public interface IPeer
