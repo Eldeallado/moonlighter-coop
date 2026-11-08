@@ -321,6 +321,7 @@ namespace MoonlighterCoop
         private static void CarriedLabel(Copy cp, string name, int plus, int qty, Vector3 rel)
         {
             string key = name == "" || qty <= 1 ? "" : name + "|" + plus + "|" + qty;
+            if (key != cp.labelKey) Plugin.Log.LogInfo($"[shop] carried '{name}' x{qty} (was '{cp.labelKey}')");
             if (key != cp.labelKey)
             {
                 cp.labelKey = key;
@@ -333,10 +334,12 @@ namespace MoonlighterCoop
                     if (st.pickOnWalk != null) st.pickOnWalk.CanPick = false;
                     st.transform.SetParent(cp.go.transform, false);
                     st.Show();
-                    if (st.itemArt != null) st.itemArt.SetActive(false);
+                    // The label hangs under the item's art: hide only the sprites (the customer's copy already draws them).
+                    foreach (var sr in st.GetComponentsInChildren<SpriteRenderer>(true)) sr.enabled = false;
                     if (st.itemShadow != null) st.itemShadow.enabled = false;
                     st.itemQuantityLabel.enabled = true;
                     cp.label = st;
+                    Plugin.Log.LogInfo($"[shop] label {name} x{qty}: active={st.gameObject.activeInHierarchy} text='{st.itemQuantityLabel.text}' enabled={st.itemQuantityLabel.enabled}");
                 }
             }
             if (cp.label != null) cp.label.transform.localPosition = rel;

@@ -249,7 +249,24 @@ namespace MoonlighterCoop
                     return $"open={!ShopManager.Instance.IsShopClosed} visitors={gen.generatedVisitors.Count} atCash={(cash.visitorBuying != null)} guestAtCash={ShopSync.VisitorAtCash} cashItem={ShopSync.CashItem} copies={(copies != null ? copies.transform.childCount : 0)} gold={hero.GetCurrentGold()} cashPos={V(cash.transform.position)}";
                 }
                 case "closepanel": GUIManager.Instance.AllowPanelChange(); GUIManager.Instance.DisableCurrentPanel(); return "ok";
-                case "labels": { var root = GameObject.Find("CoopCustomers"); return "labels=" + (root != null ? root.GetComponentsInChildren<ItemStack>(false).Length : 0); }
+                case "labels":
+                {
+                    // Every visible quantity label of items carried by customers (copies on a guest, real ones on the host), with screen position.
+                    var sb = new StringBuilder("labels=");
+                    var cam = Camera.main;
+                    IEnumerable<ItemStack> stacks = Session.IsHost
+                        ? ShopManager.Instance.visitorGenerator.generatedVisitors.Where(v => v != null).SelectMany(v => v.GetComponentsInChildren<ItemStack>(false))
+                        : (GameObject.Find("CoopCustomers")?.GetComponentsInChildren<ItemStack>(true) ?? new ItemStack[0]);
+                    foreach (var st in stacks)
+                    {
+                        var lab = st.itemQuantityLabel;
+                        if (lab == null) continue;
+                        if (!lab.enabled || !lab.gameObject.activeInHierarchy) { sb.Append($"[hidden {lab.text} en={lab.enabled} act={lab.gameObject.activeInHierarchy} st={st.gameObject.activeInHierarchy}] "); continue; }
+                        var sp = cam != null ? cam.WorldToScreenPoint(lab.transform.position) : Vector3.zero;
+                        sb.Append($"'{lab.text}'@{sp.x:F0},{Screen.height - sp.y:F0} ");
+                    }
+                    return sb.ToString();
+                }
                 case "rollstate":
                 {
                     var inv = hero.heroMerchantInventory;
