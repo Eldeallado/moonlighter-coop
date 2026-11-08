@@ -210,6 +210,8 @@ namespace MoonlighterCoop
                 case Msg.Customers: if (IsGuest) ShopSync.OnCustomers(data); break;
                 case Msg.ShopSell: if (IsHost) ShopSync.OnShopSell(); break;
                 case Msg.DayTime: DaySync.OnDayTime(data); break;
+                case Msg.CatchThief: if (IsHost) ShopSync.OnCatchThief(data); break;
+                case Msg.ShopResults: if (IsGuest) ShopResults.OnResults(data); break;
                 case Msg.Bag: Shared.OnBag(data); break;
                 case Msg.Vote: Vote.OnVote(from.Id, data); break;
                 case Msg.VoteResult: if (IsGuest) Vote.OnResult(data); break;

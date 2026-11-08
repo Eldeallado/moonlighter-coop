@@ -3,52 +3,65 @@ using UnityEngine;
 
 namespace MoonlighterCoop
 {
-    /// A player's look: body colour (Will's greens and teals) and hair colour, each an index into the lists below
-    /// (0 = Will's own colour). Packed as one int: body * 16 + hair.
+    /// A player's look: a colour for the body (Will's greens and teals) and one for the hair, each picked with
+    /// three bars (tone, intensity, brightness) or left as Will's own. Packed in one int:
+    /// part code = 0 (Will's own) or 1 + (tone*16 + intensity)*16 + brightness, tone 0..71 (5 degrees), others 0..15;
+    /// look = body code | hair code << 15.
     public static class Looks
     {
         public struct Paint
         {
-            public string Name; public float Hue; public float Sat; public float Light; public float Add;
-            public Paint(string name, float hue, float sat, float light, float add = 0f) { Name = name; Hue = hue; Sat = sat; Light = light; Add = add; }
+            public float Hue; public float Sat; public float Light; public float Add;
+            public Paint(float hue, float sat, float light, float add = 0f) { Hue = hue; Sat = sat; Light = light; Add = add; }
         }
 
-        // Body: Will's teal becomes this. Sat/Light multiply the original shade, Add lifts dark shades.
-        public static readonly Paint[] Body =
-        {
-            new Paint("Original (verde)", -1f, 1f, 1f),
-            new Paint("Rojo", 0f, 1.35f, 1.25f, 0.03f),
-            new Paint("Amarillo", 50f, 1.4f, 1.75f, 0.08f),
-            new Paint("Azul", 222f, 1.35f, 1.3f, 0.04f),
-            new Paint("Morado", 280f, 1.3f, 1.3f, 0.04f),
-            new Paint("Naranja", 26f, 1.45f, 1.5f, 0.06f),
-            new Paint("Rosa", 325f, 1.0f, 1.6f, 0.1f),
-            new Paint("Blanco", 210f, 0.12f, 1.7f, 0.28f),
-            new Paint("Negro", 230f, 0.25f, 0.5f, 0f),
-            new Paint("Marrón", 24f, 1.1f, 1.0f, 0.02f),
-        };
+        public struct Part { public bool Own; public int Tone, Intensity, Bright; }
 
-        // Hair: Will's cream hair (and its white highlights) becomes this. Light = brightness of the lightest shade.
-        public static readonly Paint[] Hair =
-        {
-            new Paint("Original", -1f, 1f, 1f),
-            new Paint("Rubio", 45f, 0.75f, 0.97f),
-            new Paint("Castaño", 24f, 0.75f, 0.58f),
-            new Paint("Negro", 230f, 0.28f, 0.34f),
-            new Paint("Pelirrojo", 14f, 0.95f, 0.88f),
-            new Paint("Blanco", 210f, 0.04f, 1.0f),
-            new Paint("Gris", 220f, 0.06f, 0.7f),
-            new Paint("Azul", 212f, 0.85f, 0.88f),
-            new Paint("Rosa", 322f, 0.6f, 0.98f),
-            new Paint("Verde", 125f, 0.8f, 0.8f),
-            new Paint("Morado", 275f, 0.75f, 0.8f),
-        };
-        public static int Pack(int body, int hair) => Mathf.Clamp(body, 0, Body.Length - 1) * 16 + Mathf.Clamp(hair, 0, Hair.Length - 1);
-        public static int BodyOf(int look) => look / 16;
-        public static int HairOf(int look) => look % 16;
+        public const int Tones = 72, Steps = 16;
 
-        /// Colour each player number gets until they pick one: host Will's own, then red, yellow, blue, purple...
-        public static int Default(int playerId) => playerId <= 0 ? 0 : Pack(new[] { 0, 1, 2, 3, 4, 5, 6, 9, 7, 8 }[Mathf.Min(playerId, 9)], 0);
+        public static int Code(Part p) => p.Own ? 0 : 1 + (Mathf.Clamp(p.Tone, 0, Tones - 1) * Steps + Mathf.Clamp(p.Intensity, 0, Steps - 1)) * Steps + Mathf.Clamp(p.Bright, 0, Steps - 1);
+        public static Part Decode(int code)
+        {
+            if (code <= 0) return new Part { Own = true, Tone = 0, Intensity = 12, Bright = 8 };
+            code -= 1;
+            return new Part { Tone = code / (Steps * Steps), Intensity = code / Steps % Steps, Bright = code % Steps };
+        }
+        public static int Pack(Part body, Part hair) => Code(body) | Code(hair) << 15;
+        public static int BodyCode(int look) => look & 0x7FFF;
+        public static int HairCode(int look) => look >> 15 & 0x7FFF;
+
+        /// The colour a part's bars describe (also used to paint the bars and the preview swatch).
+        public static Color Swatch(Part p, bool hair)
+        {
+            if (p.Own) return hair ? new Color32(0xDA, 0xD6, 0xB6, 0xFF) : new Color(0.12f, 0.5f, 0.48f);
+            return Color.HSVToRGB(p.Tone * 5f / 360f, p.Intensity / 15f, 0.12f + 0.88f * p.Bright / 15f);
+        }
+
+        // Body: Will's teal (dark, saturated) becomes this tone; intensity and brightness scale its shades.
+        public static Paint BodyPaint(int code)
+        {
+            if (code <= 0) return new Paint(-1f, 1f, 1f);
+            var p = Decode(code);
+            float s = p.Intensity / 15f, v = p.Bright / 15f;
+            return new Paint(p.Tone * 5f, s * 1.45f, 0.4f + 1.6f * v, Mathf.Max(0f, v - 0.6f) * 0.5f);
+        }
+
+        // Hair: Will's cream hair; Light is the brightness of its lightest shade.
+        public static Paint HairPaint(int code)
+        {
+            if (code <= 0) return new Paint(-1f, 1f, 1f);
+            var p = Decode(code);
+            return new Paint(p.Tone * 5f, p.Intensity / 15f, 0.28f + 0.72f * p.Bright / 15f);
+        }
+
+        // Starting colours by player number: host Will's own, then red, yellow, blue, purple, orange, pink...
+        private static readonly int[,] Preset = { { 0, 14, 8 }, { 10, 15, 13 }, { 44, 14, 8 }, { 56, 13, 8 }, { 5, 15, 10 }, { 65, 10, 12 }, { 5, 11, 4 }, { 42, 1, 15 }, { 46, 3, 1 } };
+        public static int Default(int playerId)
+        {
+            if (playerId <= 0) return 0;
+            int i = (playerId - 1) % Preset.GetLength(0);
+            return Pack(new Part { Tone = Preset[i, 0], Intensity = Preset[i, 1], Bright = Preset[i, 2] }, new Part { Own = true });
+        }
 
         private static int _chosen = -1;
         public static int Mine => _chosen >= 0 ? _chosen : Default(Session.MyId);
@@ -63,7 +76,6 @@ namespace MoonlighterCoop
         /// Other players' looks, from their poses.
         public static readonly Dictionary<int, int> Of = new Dictionary<int, int>();
     }
-
     /// Recoloured copies of Will's art: the same sprites, with body and hair shades swapped for the chosen colours.
     public static class Recolor
     {
@@ -109,6 +121,20 @@ namespace MoonlighterCoop
             return r;
         }
 
+        /// Drop the recoloured copies of looks nobody wears any more (dragging the bars makes many).
+        public static void Prune(HashSet<int> keep)
+        {
+            foreach (var k in new List<(Texture2D, int)>(_tex.Keys))
+                if (!keep.Contains(k.Item2)) { if (_tex[k] != null) Object.Destroy(_tex[k]); _tex.Remove(k); }
+            foreach (var k in new List<(Sprite, int)>(_tinted.Keys))
+                if (!keep.Contains(k.Item2))
+                {
+                    var r = _tinted[k];
+                    _tinted.Remove(k);
+                    if (r != null) { _original.Remove(r); _lookOf.Remove(r); Object.Destroy(r); }
+                }
+        }
+
         /// Sprite sheets are not readable: copy through the GPU.
         public static Texture2D ReadableCopy(Texture2D src)
         {
@@ -130,9 +156,9 @@ namespace MoonlighterCoop
             {
                 var copy = ReadableCopy(src);
                 var px = copy.GetPixels32();
-                var body = Looks.Body[Looks.BodyOf(look)];
+                var body = Looks.BodyPaint(Looks.BodyCode(look));
                 // Only Will's own sheets have his hair; weapons and armour keep their whites.
-                var hair = src.name.IndexOf("will", System.StringComparison.OrdinalIgnoreCase) >= 0 ? Looks.Hair[Looks.HairOf(look)] : Looks.Hair[0];
+                var hair = src.name.IndexOf("will", System.StringComparison.OrdinalIgnoreCase) >= 0 ? Looks.HairPaint(Looks.HairCode(look)) : Looks.HairPaint(0);
                 for (int i = 0; i < px.Length; i++) px[i] = Shift(px[i], body, hair);
                 copy.SetPixels32(px);
                 copy.filterMode = src.filterMode;
@@ -188,13 +214,19 @@ namespace MoonlighterCoop
     public class RecolorLocalWill : MonoBehaviour
     {
         private readonly List<SpriteRenderer> _renderers = new List<SpriteRenderer>();
-        private float _rescan;
+        private float _rescan, _prune;
 
         private void LateUpdate()
         {
             var hero = HeroMerchant.Instance;
             if (hero == null) return;
             int look = Plugin.Role == "" && !Looks.Chosen ? 0 : Looks.Mine;
+            if (Time.unscaledTime > _prune)
+            {
+                _prune = Time.unscaledTime + 3f;
+                var keep = new HashSet<int>(Looks.Of.Values) { look, 0 };
+                Recolor.Prune(keep);
+            }
             if (Time.unscaledTime > _rescan)
             {
                 _rescan = Time.unscaledTime + 1f;

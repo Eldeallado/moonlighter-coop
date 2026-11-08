@@ -43,6 +43,8 @@ namespace MoonlighterCoop
         Customers = 30,
         ShopSell = 31,
         DayTime = 32,
+        CatchThief = 33,
+        ShopResults = 34,
     }
 
     public interface IPeer

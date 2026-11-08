@@ -1,4 +1,4 @@
-param([switch]$Desinstalar)
+﻿param([switch]$Desinstalar)
 # Instala (o quita) Moonlighter Coop en tu Moonlighter de Steam. No toca tus partidas.
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -44,5 +44,6 @@ Write-Host ""
 Write-Host "Instalado. Cómo jugar:" -ForegroundColor Green
 Write-Host "  1. Abre Moonlighter desde Steam (los dos con el mod)."
 Write-Host "  2. El anfitrión carga su partida y pulsa F2: se abre la ventana de invitar de Steam."
-Write-Host "  3. El amigo acepta la invitación en Steam y entra solo en la partida del anfitrión."
+Write-Host "  3. El amigo acepta la invitación en Steam y entra solo en la partida del anfitrión (hasta 5 jugadores)."
+Write-Host "  4. F3 abre el menú para elegir el color del cuerpo y del pelo de tu Will."
 Read-Host "Pulsa Enter para salir"

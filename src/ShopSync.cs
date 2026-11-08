@@ -195,6 +195,18 @@ namespace MoonlighterCoop
                 var root = v.transform;
                 w.Write(v.GetInstanceID());
                 w.Write(root.position.x); w.Write(root.position.y);
+                // A thief that has stolen something can be caught by rolling into it.
+                var catcher = v.GetComponentInChildren<ThiefCatcher>(false);
+                var cc = catcher != null ? catcher.GetComponent<Collider2D>() : null;
+                w.Write(cc != null && cc.enabled);
+                // What the customer carries (its quantity label is UI text, not a sprite).
+                var carried = v.GetComponentInChildren<ItemStack>(false);
+                w.Write(carried != null && carried.master != null ? carried.master.name : "");
+                if (carried != null && carried.master != null)
+                {
+                    w.Write(carried.master.plusLevel); w.Write(carried.Quantity);
+                    var cr = carried.transform.position - root.position; w.Write(cr.x); w.Write(cr.y);
+                }
                 _tmp.Clear();
                 root.GetComponentsInChildren(false, _tmp);
                 var parts = _tmp.Where(sr => sr.enabled && sr.sprite != null && sr.color.a > 0.01f).ToList();
@@ -217,7 +229,7 @@ namespace MoonlighterCoop
             CustomersSent++;
         }
 
-        private class Copy { public GameObject go; public List<SpriteRenderer> parts = new List<SpriteRenderer>(); public Vector3 target; public float seen; }
+        private class Copy { public GameObject go; public List<SpriteRenderer> parts = new List<SpriteRenderer>(); public Vector3 target; public float seen; public bool catchable; public ItemStack label; public string labelKey = ""; }
         private static readonly Dictionary<int, Copy> _copies = new Dictionary<int, Copy>();
         private static GameObject _root;
         private static SpriteRenderer _cashCopy;
@@ -246,6 +258,11 @@ namespace MoonlighterCoop
                     _copies[id] = cp;
                 }
                 cp.target = pos; cp.seen = now;
+                cp.catchable = r.ReadBoolean();
+                string carried = r.ReadString();
+                int cPlus = 0, cQty = 0; Vector3 cRel = Vector3.zero;
+                if (carried != "") { cPlus = r.ReadInt32(); cQty = r.ReadInt32(); cRel = new Vector3(r.ReadSingle(), r.ReadSingle(), 0f); }
+                CarriedLabel(cp, carried, cPlus, cQty, cRel);
                 int m = r.ReadInt16();
                 for (int j = 0; j < m; j++)
                 {
@@ -300,6 +317,76 @@ namespace MoonlighterCoop
             return _clean;
         }
 
+        // Only the quantity label of the carried item: its sprite already comes with the customer's sprites.
+        private static void CarriedLabel(Copy cp, string name, int plus, int qty, Vector3 rel)
+        {
+            string key = name == "" || qty <= 1 ? "" : name + "|" + plus + "|" + qty;
+            if (key != cp.labelKey)
+            {
+                cp.labelKey = key;
+                if (cp.label != null) { Object.Destroy(cp.label.gameObject); cp.label = null; }
+                var master = key != "" ? ItemDatabase.GetItemByName(name, plus) : null;
+                if (master != null)
+                {
+                    var st = ItemStack.Create(master, qty);
+                    st.DisableCollision();
+                    if (st.pickOnWalk != null) st.pickOnWalk.CanPick = false;
+                    st.transform.SetParent(cp.go.transform, false);
+                    st.Show();
+                    if (st.itemArt != null) st.itemArt.SetActive(false);
+                    if (st.itemShadow != null) st.itemShadow.enabled = false;
+                    st.itemQuantityLabel.enabled = true;
+                    cp.label = st;
+                }
+            }
+            if (cp.label != null) cp.label.transform.localPosition = rel;
+        }
+
+        // ---------- thieves: any player can catch them ----------
+
+        private static float _nextCatch;
+        public static int CatchesSent, CatchesDone;
+
+        private static void GuestCatchTick()
+        {
+            var hero = HeroMerchant.Instance;
+            if (hero == null || Time.unscaledTime < _nextCatch || _copies.Count == 0) return;
+            var inv = hero.heroMerchantInventory;
+            bool rolling = false;
+            try
+            {
+                var a1 = inv.GetEquippedItemByType(HeroMerchantInventory.EquipmentSlot.Ability1);
+                var a2 = inv.GetEquippedItemByType(HeroMerchantInventory.EquipmentSlot.Ability2);
+                rolling = (a1 != null && a1.Ability != null && a1.Ability.isInUse) || (a2 != null && a2.Ability != null && a2.Ability.isInUse);
+            }
+            catch { }
+            if (!rolling) return;
+            foreach (var kv in _copies)
+            {
+                if (!kv.Value.catchable || kv.Value.go == null) continue;
+                if (((Vector2)(kv.Value.go.transform.position - hero.transform.position)).magnitude > 26f) continue;
+                _nextCatch = Time.unscaledTime + 1f;
+                var ms = new MemoryStream(); new BinaryWriter(ms).Write(kv.Key);
+                Net.Send(Msg.CatchThief, ms.ToArray());
+                CatchesSent++;
+                Plugin.Log.LogInfo($"[shop] I caught thief {kv.Key} (on the host)");
+                return;
+            }
+        }
+
+        public static void OnCatchThief(byte[] data)
+        {
+            if (!InTown || !Session.IsHost) return;
+            int id = new BinaryReader(new MemoryStream(data)).ReadInt32();
+            var v = ShopManager.Instance.visitorGenerator.generatedVisitors.FirstOrDefault(x => x != null && x.GetInstanceID() == id);
+            var catcher = v != null ? v.GetComponentInChildren<ThiefCatcher>(false) : null;
+            var cc = catcher != null ? catcher.GetComponent<Collider2D>() : null;
+            if (catcher == null || cc == null || !cc.enabled) return;
+            catcher.CatchThief();
+            CatchesDone++;
+            Plugin.Log.LogInfo("[shop] a guest caught the thief");
+        }
+
         private static void ShowCashItem(int plus)
         {
             var cash = ShopManager.Instance.references != null ? ShopManager.Instance.references.shopCash : null;
@@ -328,6 +415,7 @@ namespace MoonlighterCoop
         private static void GuestCashTick()
         {
             if (_root != null) _root.SetActive(Session.LocalZone() == "town:shop");
+            GuestCatchTick();
         }
 
         public static void MoveCopies(float dt)
@@ -430,5 +518,72 @@ namespace MoonlighterCoop
             finally { Applying = false; }
             Plugin.Log.LogInfo($"[day] partner: now {t} (day {days}, mine {GameManager.Instance.currentGameSlot.daysPassed})");
         }
+    }
+    /// The end-of-day summary (what was sold, for how much, customers, thieves) is counted where the sales
+    /// happen: on the host. Guests wait for the host's summary and show the same one.
+    public static class ShopResults
+    {
+        public static bool Allow;
+        public static int Sent, Shown;
+        private static readonly string[] Ints = { "totalSalesBoxGoldThisRun", "totalHelperGoldThisRun", "customersThisRun", "customersBoughtThisRun", "thievesThisRun", "questRewardsThisRun" };
+        private static readonly string[] IntLists = { "itemsSoldQuantityThisRun", "itemsSoldPriceThisRun" };
+        private static readonly string[] ItemLists = { "itemsSoldThisRun", "salesBoxItemsSoldThisRun", "helperItemsSoldThisRun", "robbedItemsThisRun" };
+
+        public static void HostSend()
+        {
+            var hs = HeroStatistics.Instance;
+            if (hs == null || !Net.Connected) return;
+            var tr = Traverse.Create(hs);
+            var ms = new MemoryStream(); var w = new BinaryWriter(ms);
+            foreach (var n in Ints) w.Write(tr.Field(n).GetValue<int>());
+            foreach (var n in IntLists) { var l = tr.Field(n).GetValue<List<int>>() ?? new List<int>(); w.Write(l.Count); foreach (var x in l) w.Write(x); }
+            foreach (var n in ItemLists)
+            {
+                var l = tr.Field(n).GetValue<List<ItemMaster>>() ?? new List<ItemMaster>();
+                w.Write(l.Count); foreach (var m in l) { w.Write(m != null ? m.name : ""); w.Write(m != null ? m.plusLevel : 0); }
+            }
+            var q = hs.questRewardItem; w.Write(q != null ? q.name : ""); w.Write(q != null ? q.plusLevel : 0);
+            Net.Send(Msg.ShopResults, ms.ToArray());
+            Sent++;
+            Plugin.Log.LogInfo("[shop] sent the day's summary");
+        }
+
+        public static void OnResults(byte[] data)
+        {
+            var hs = HeroStatistics.Instance;
+            if (hs == null || ShopManager.Instance == null) return;
+            var tr = Traverse.Create(hs);
+            var r = new BinaryReader(new MemoryStream(data));
+            foreach (var n in Ints) tr.Field(n).SetValue(r.ReadInt32());
+            foreach (var n in IntLists) { int c = r.ReadInt32(); var l = new List<int>(); for (int i = 0; i < c; i++) l.Add(r.ReadInt32()); tr.Field(n).SetValue(l); }
+            foreach (var n in ItemLists)
+            {
+                int c = r.ReadInt32(); var l = new List<ItemMaster>();
+                for (int i = 0; i < c; i++) { string name = r.ReadString(); int plus = r.ReadInt32(); var m = name != "" ? ItemDatabase.GetItemByName(name, plus) : null; if (m != null) l.Add(m); }
+                tr.Field(n).SetValue(l);
+            }
+            string qn = r.ReadString(); int qp = r.ReadInt32();
+            hs.questRewardItem = qn != "" ? ItemDatabase.GetItemByName(qn, qp) : null;
+            Allow = true;
+            try { Traverse.Create(ShopManager.Instance).Method("ShowShopResultsAndClose").GetValue(); }
+            finally { Allow = false; }
+            Shown++;
+            Plugin.Log.LogInfo("[shop] showing the host's summary of the day");
+        }
+    }
+
+    [HarmonyPatch(typeof(ShopManager), "ShowShopResultsAndClose")]
+    static class ShopResultsSync
+    {
+        static bool Prefix()
+        {
+            if (Session.IsGuest && Net.Connected && !ShopResults.Allow)
+            {
+                Plugin.Log.LogInfo("[shop] day over here: waiting for the host's summary");
+                return false;
+            }
+            return true;
+        }
+        static void Postfix() { if (Session.IsHost) ShopResults.HostSend(); }
     }
 }

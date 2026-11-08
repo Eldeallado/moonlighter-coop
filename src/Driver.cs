@@ -196,7 +196,11 @@ namespace MoonlighterCoop
                 case "steamstatus": return $"available={SteamCoop.Available} lobby={SteamCoop.Lobby} status={SteamCoop.Status} role={Plugin.Role}";
                 case "gold": hero.addGold(int.Parse(p[1])); return "ok";
                 case "hurt": hero.DealDamageToPlayer(F(p[1]), "QA"); return "ok";
-                case "look": ColorMenu.Set(int.Parse(p[1]), int.Parse(p[2])); return "look=" + Looks.Mine;
+                case "look": // look own|tone,int,bright own|tone,int,bright
+                {
+                    int Part(string s) { if (s == "own") return 0; var q = s.Split(','); return Looks.Code(new Looks.Part { Tone = int.Parse(q[0]), Intensity = int.Parse(q[1]), Bright = int.Parse(q[2]) }); }
+                    ColorMenu.Set(Part(p[1]), Part(p[2])); return "look=" + Looks.Mine;
+                }
                 case "menu": if (ColorMenu.Instance != null) ColorMenu.Instance.SetOpen(p[1] == "on"); return "open=" + ColorMenu.Open;
                 case "looks": return $"mine={Looks.Mine} " + string.Join(" ", Looks.Of.Select(kv => $"p{kv.Key}={kv.Value}"));
                 case "dumpatlas":
@@ -244,6 +248,36 @@ namespace MoonlighterCoop
                     var copies = GameObject.Find("CoopCustomers");
                     return $"open={!ShopManager.Instance.IsShopClosed} visitors={gen.generatedVisitors.Count} atCash={(cash.visitorBuying != null)} guestAtCash={ShopSync.VisitorAtCash} cashItem={ShopSync.CashItem} copies={(copies != null ? copies.transform.childCount : 0)} gold={hero.GetCurrentGold()} cashPos={V(cash.transform.position)}";
                 }
+                case "closepanel": GUIManager.Instance.AllowPanelChange(); GUIManager.Instance.DisableCurrentPanel(); return "ok";
+                case "labels": { var root = GameObject.Find("CoopCustomers"); return "labels=" + (root != null ? root.GetComponentsInChildren<ItemStack>(false).Length : 0); }
+                case "rollstate":
+                {
+                    var inv = hero.heroMerchantInventory;
+                    var a1 = inv.GetEquippedItemByType(HeroMerchantInventory.EquipmentSlot.Ability1);
+                    var a2 = inv.GetEquippedItemByType(HeroMerchantInventory.EquipmentSlot.Ability2);
+                    return $"a1={(a1 != null && a1.Ability != null ? a1.Ability.name + ":" + a1.Ability.isInUse : "-")} a2={(a2 != null && a2.Ability != null ? a2.Ability.name + ":" + a2.Ability.isInUse : "-")} mode={hero.currentMode}";
+                }
+                case "spawnthief":
+                {
+                    var gen = ShopManager.Instance.visitorGenerator;
+                    var prm = gen.visitorSpawners.SelectMany(s => s.visitorGeneration).FirstOrDefault(g => g.agent is Thief);
+                    if (prm == null) return "no thief prefab";
+                    gen.SpawnVisitor(prm.agent.gameObject);
+                    return "spawned " + prm.agent.name;
+                }
+                case "thiefinfo":
+                {
+                    var sb = new StringBuilder();
+                    foreach (var v in ShopManager.Instance.visitorGenerator.generatedVisitors.Where(x => x is Thief))
+                    {
+                        var c = v.GetComponentInChildren<ThiefCatcher>(false);
+                        var cc = c != null ? c.GetComponent<Collider2D>() : null;
+                        sb.Append($"{v.name}@{V(v.transform.position)} catchable={(cc != null && cc.enabled)} ");
+                    }
+                    sb.Append($"caught_sent={ShopSync.CatchesSent} caught_done={ShopSync.CatchesDone}");
+                    return sb.ToString();
+                }
+                case "roll": { var a = hero.heroMerchantController.inputDevice; _buttonsUntil["Roll"] = Time.unscaledTime + 0.2f; return "ok"; }
                 case "visitorparts":
                 {
                     var sb = new StringBuilder();

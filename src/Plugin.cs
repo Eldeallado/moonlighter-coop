@@ -52,7 +52,7 @@ namespace MoonlighterCoop
             Session.Start();
             gameObject.AddComponent<RecolorLocalWill>();
             gameObject.AddComponent<ColorMenu>();
-            _lookCfg = Config.Bind("Aspecto", "Color", -1, "Cuerpo*16 + pelo (lo elige el menú F3). -1 = según el número de jugador");
+            _lookCfg = Config.Bind("Aspecto", "Colores", -1, "Cuerpo y pelo (lo elige el menú F3). -1 = según el número de jugador");
             if (_lookCfg.Value >= 0) Looks.LoadSaved(_lookCfg.Value);
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
             // The game turns its own log off; keep errors and the loading/room flow for debugging.

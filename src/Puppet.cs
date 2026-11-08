@@ -16,7 +16,7 @@ namespace MoonlighterCoop
             var ms = new MemoryStream();
             var w = new BinaryWriter(ms);
             w.Write((byte)playerId);
-            w.Write((byte)Looks.Mine);
+            w.Write(Looks.Mine);
             w.Write(zone);
             if (hero == null) { w.Write(false); return ms.ToArray(); }
             w.Write(true);
@@ -116,7 +116,7 @@ namespace MoonlighterCoop
         {
             var r = new BinaryReader(new MemoryStream(data));
             r.ReadByte();   // player number (already used to pick this puppet)
-            Look = r.ReadByte();
+            Look = r.ReadInt32();
             Looks.Of[PlayerId] = Look;
             Zone = r.ReadString();
             bool hasHero = r.ReadBoolean();

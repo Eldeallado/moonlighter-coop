@@ -17,7 +17,7 @@ namespace MoonlighterCoop
         public static bool IsGhost(int player) => Ghosts.Contains(player);
         public static bool EndingRun;   // let the game's own death run (both down)
         private static float _reviveProgress;
-        private static float _nextFountainMsg;
+        private static float _nextFountainMsg, _nextFountainCheck;
         public static int Revives;
 
         public const float ReviveRange = 32f;
@@ -180,6 +180,23 @@ namespace MoonlighterCoop
                 return;
             }
             // No revive by touch: the living player must reach a fountain, or beat the floor.
+            // The fountain only heals someone hurt, and checked once on entering, so a living player at full health
+            // walking in never counted. Watch it instead: while I am in the water and someone is a ghost, revive them.
+            if (Partner && Time.unscaledTime >= _nextFountainCheck)
+            {
+                _nextFountainCheck = Time.unscaledTime + 0.3f;
+                foreach (var area in Object.FindObjectsOfType<HealingArea>())
+                {
+                    var tr = Traverse.Create(area);
+                    if (!tr.Field("isHeroMerchantIn").GetValue<bool>()) continue;
+                    var ac = tr.Field("areaCollider").GetValue<Collider2D>();
+                    var hc = tr.Field("heroMerchantCollider").GetValue<Collider2D>();
+                    if (ac != null && hc != null && !ac.IsTouching(hc)) continue;
+                    Plugin.Log.LogInfo("[downed] I am in a fountain: ghosts come back");
+                    LocalFountainHealed();
+                    break;
+                }
+            }
         }
 
         public static string Hint()
@@ -236,15 +253,6 @@ namespace MoonlighterCoop
         {
             __state = HeroMerchant.Instance != null ? (float)HeroMerchant.Instance.heroMerchantStats.currentHealth.Value : 0f;
             return !Downed.Me;   // a ghost cannot use the fountain itself
-        }
-        static void Postfix(HealingArea __instance, float __state)
-        {
-            var h = HeroMerchant.Instance;
-            if (h == null || Downed.Me || !Downed.Partner) return;
-            // Only if the living player is really in the water (a teleport out can leave the area thinking it is).
-            var col = __instance.GetComponent<Collider2D>();
-            if (col != null && !col.OverlapPoint(h.transform.position)) return;
-            Downed.LocalFountainHealed();
         }
     }
 
