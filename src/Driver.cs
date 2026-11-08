@@ -188,7 +188,7 @@ namespace MoonlighterCoop
                     int rx = int.Parse(p[1]), ry = int.Parse(p[2]);
                     var to = dm.dungeonRooms.FirstOrDefault(r => r != null && r.x == rx && r.y == ry && !r.isSecret);
                     if (to == null) return "no room";
-                    dm.SpecialChangeRoomTo(to); hero.heroMerchantController.TeleportTo(to.transform.position);
+                    dm.SpecialChangeRoomTo(to); hero.heroMerchantController.TeleportTo(to.transform.position); CameraManager.Instance.TeleportCameraToPoint(hero.gameObject); CameraManager.Instance.SetFollowTarget();
                     return "ok";
                 }
                 case "nextfloor": hero.LoadNextLevelDungeonScene(DungeonManager.Instance.culture); return "ok";
@@ -299,6 +299,13 @@ namespace MoonlighterCoop
                     }
                     return $"{n} -> {dir}";
                 }
+                case "goboss": { var br = dm.bossRoom; if (br == null) return "no boss room"; dm.SpecialChangeRoomTo(br); hero.heroMerchantController.TeleportTo(br.transform.position + Vector3.down * 120f); return $"boss room {br.name} enemies={br.roomEnemies.Count}"; }
+                case "bossinfo": { var br = dm.bossRoom; var sb2 = new StringBuilder(); foreach (var e in br.roomEnemies.Where(e => e != null)) sb2.Append($"{e.name}@{V(e.transform.position)} hp={(e.enemyStats != null ? e.enemyStats.CurrentHealth : -1):F0}/{(e.enemyStats != null ? e.enemyStats.maxHealth : -1):F0} alive={(e.enemyStats != null && e.enemyStats.isAlive)} id={EnemySync.IdOf(e)} beh={(e.enemyBehaviour != null ? e.enemyBehaviour.GetType().Name + ":" + e.enemyBehaviour.enabled : "-")}; "); return sb2.ToString(); }
+                case "cultures": { int c = gm.currentGameSlot.culturesDefeated; return string.Join(" ", ((ItemMaster.Culture[])Enum.GetValues(typeof(ItemMaster.Culture))).Select(cu => cu + "=" + ((c & (int)Mathf.Pow(2f, (float)cu)) > 0 ? "derrotado" : "vivo"))); }
+                case "setculture": { var cu = (ItemMaster.Culture)Enum.Parse(typeof(ItemMaster.Culture), p[1]); int bit = (int)Mathf.Pow(2f, (float)cu); if (p[2] == "vivo") gm.currentGameSlot.culturesDefeated &= ~bit; else gm.currentGameSlot.culturesDefeated |= bit; return "ok"; }
+                case "prevboss": { var ed = dm.bossRoom.bossRoomEnterDoor; var pr = ed.previousRoom; dm.SpecialChangeRoomTo(pr); hero.heroMerchantController.TeleportTo(ed.transform.position + Vector3.down * 60f); CameraManager.Instance.TeleportCameraToPoint(hero.gameObject); CameraManager.Instance.SetFollowTarget(); return $"room={pr.x},{pr.y} door@{V(ed.transform.position)}"; }
+                case "enterboss": { var ed = dm.bossRoom.bossRoomEnterDoor; ed.OnPlayerEnter(hero.gameObject); return "ok"; }
+                case "bossstate": { var b = dm.bossRoom.Boss; return b == null ? "no boss" : $"{b.name} active={b.gameObject.activeInHierarchy} pos={V(b.transform.position)} hp={(b.enemy != null && b.enemy.enemyStats != null ? b.enemy.enemyStats.CurrentHealth : -1):F0}/{(b.enemy != null && b.enemy.enemyStats != null ? b.enemy.enemyStats.maxHealth : -1):F0} id={(b.enemy != null ? EnemySync.IdOf(b.enemy) : null)} beh={b.enabled} zone={Session.LocalZone()}"; }
                 case "nearboss": // move to the room next to the boss room; returns the door name to walk through
                 {
                     foreach (var rr in dm.dungeonRooms)
@@ -316,6 +323,15 @@ namespace MoonlighterCoop
                     var hits = dm.dungeonRooms.Where(rr => rr != null && rr.roomEnemies.Any(e => e != null && e.name.IndexOf(p[1], StringComparison.OrdinalIgnoreCase) >= 0))
                         .Select(rr => $"{rr.x},{rr.y}:" + string.Join("/", rr.roomEnemies.Where(e => e != null).Select(e => e.name.Replace("(Clone)", "")).Distinct()));
                     return string.Join(" ", hits);
+                }
+                case "dropnet": Net.CloseAll(); return "dropped";
+                case "killone":
+                {
+                    var en = dm.currentDungeonRoom.roomEnemies.FirstOrDefault(e => e != null && e.enemyStats != null && e.enemyStats.isAlive);
+                    if (en == null) return "none";
+                    string kid = EnemySync.IdOf(en);
+                    en.DealDamageToEnemy(99999f);
+                    return "killed " + kid;
                 }
                 case "rollstate":
                 {

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using HarmonyLib;
 using UnityEngine;
@@ -20,7 +20,7 @@ namespace MoonlighterCoop
 
         public static void Reset()
         {
-            _byId.Clear(); _idOf.Clear(); _counter.Clear();
+            _byId.Clear(); _idOf.Clear(); _counter.Clear(); Dead.Clear();
         }
 
         public static void Register(DungeonRoom room, Enemy e)
@@ -31,6 +31,53 @@ namespace MoonlighterCoop
             string id = $"{room.x},{room.y}{(room.isSecret ? "s" : "")}{(room is DungeonBossRoom ? "b" : "")}#{n}";
             _byId[id] = e;
             _idOf[e] = id;
+        }
+
+        /// Bosses are part of their room (not spawned), so they get a fixed id: "boss:<culture>:<floor>".
+        public static void RegisterBoss(DungeonBossRoom room)
+        {
+            var e = room != null && room.Boss != null ? room.Boss.enemy : null;
+            if (e == null) return;
+            var dm = DungeonManager.Instance;
+            string id = $"boss:{(dm != null ? dm.culture.ToString() : "?")}:{(dm != null ? dm.level : 0)}";
+            _byId[id] = e; _idOf[e] = id;
+            Plugin.Log.LogInfo($"[enemy] boss {e.name} is {id}");
+        }
+
+        /// Host: enemies already killed on this floor (a guest joining mid-floor must not see them alive).
+        public static readonly HashSet<string> Dead = new HashSet<string>();
+        private static readonly List<string> _pendingDead = new List<string>();
+
+        public static void SendDeadTo(IPeer p)
+        {
+            var ms = new MemoryStream(); var w = new BinaryWriter(ms);
+            w.Write(Dead.Count); foreach (var id in Dead) w.Write(id);
+            p.Send(Msg.DeadEnemies, ms.ToArray());
+        }
+
+        public static void OnDeadEnemies(byte[] data)
+        {
+            var r = new BinaryReader(new MemoryStream(data));
+            int n = r.ReadInt32();
+            _pendingDead.Clear();
+            for (int i = 0; i < n; i++) _pendingDead.Add(r.ReadString());
+        }
+
+        /// Guest: once the floor is built, quietly take away the enemies the host already killed (no drops).
+        public static void GuestTick()
+        {
+            if (_pendingDead.Count == 0 || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded() || !GameManager.Instance.NotLoadingScene || _byId.Count == 0) return;
+            int gone = 0;
+            foreach (var id in _pendingDead)
+            {
+                var e = Find(id);
+                if (e == null) continue;
+                if (e.enemyRoom != null) e.enemyRoom.roomEnemies.Remove(e);
+                e.gameObject.SetActive(false);
+                gone++;
+            }
+            Plugin.Log.LogInfo($"[enemy] removed {gone} enemies the host had already killed");
+            _pendingDead.Clear();
         }
 
         public static string IdOf(Enemy e) => e != null && _idOf.TryGetValue(e, out var id) ? id : null;
@@ -52,6 +99,12 @@ namespace MoonlighterCoop
             {
                 var id = IdOf(e);
                 if (id != null && e != null && e.gameObject.activeInHierarchy) list.Add((id, e));
+            }
+            // The boss is not in the room's enemy list.
+            if (dm.currentDungeonRoom is DungeonBossRoom br && br.Boss != null && br.Boss.enemy != null && br.Boss.gameObject.activeInHierarchy)
+            {
+                var bid = IdOf(br.Boss.enemy);
+                if (bid != null && !list.Exists(x => x.Item1 == bid)) list.Add((bid, br.Boss.enemy));
             }
             if (list.Count == 0) return;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
@@ -82,6 +135,7 @@ namespace MoonlighterCoop
         {
             var id = IdOf(e);
             if (id == null || !Session.IsHost || !Net.Connected) return;
+            Dead.Add(id);
             Net.Send(Msg.EnemyDeath, System.Text.Encoding.UTF8.GetBytes(id));
             DeathsSent++;
         }
@@ -194,6 +248,12 @@ namespace MoonlighterCoop
     static class RegisterSpawnedEnemy
     {
         static void Postfix(DungeonRoom __instance, Enemy __result) => EnemySync.Register(__instance, __result);
+    }
+
+    [HarmonyPatch(typeof(DungeonBossRoom), nameof(DungeonBossRoom.Start))]
+    static class RegisterBoss
+    {
+        static void Postfix(DungeonBossRoom __instance) { if (!__instance.IsBossDefeated) EnemySync.RegisterBoss(__instance); }
     }
 
     [HarmonyPatch(typeof(DungeonGenerator), nameof(DungeonGenerator.GenerateDungeon), typeof(ItemMaster.Culture), typeof(int), typeof(bool))]

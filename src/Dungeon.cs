@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
@@ -65,6 +65,25 @@ namespace MoonlighterCoop
             w.Write((byte)kind); w.Write((int)culture); w.Write(level); w.Write(FloorSeed);
             Net.Send(Msg.Travel, ms.ToArray());
             Plugin.Log.LogInfo($"[dungeon] host travel {kind} {culture} {level} seed {FloorSeed}");
+        }
+
+        /// Send one guest (reconnecting, or joining late) to the host's floor, starting in the host's room.
+        public static void CatchUp(IPeer p)
+        {
+            var dm = DungeonManager.Instance;
+            if (dm == null || dm.currentDungeonRoom == null) return;
+            var ms = new MemoryStream(); var w = new BinaryWriter(ms);
+            w.Write((byte)Travel.NextLevel); w.Write((int)dm.culture); w.Write(dm.level); w.Write(FloorSeed);
+            p.Send(Msg.Travel, ms.ToArray());
+            var info = new DungeonSaveInfo(dm);
+            var cur = dm.currentDungeonRoom;
+            info.portalRoomIndex = info.rooms.FindIndex(r => r.x == cur.x && r.y == cur.y && r.isSecret == cur.isSecret);
+            info.portalPosition = HeroMerchant.Instance != null ? HeroMerchant.Instance.transform.position : cur.transform.position;
+            FsJSONManager.Serialize(info, out fsData data);
+            p.Send(Msg.DungeonInfo, Encoding.UTF8.GetBytes(fsJsonPrinter.CompressedJson(data)));
+            EnemySync.SendDeadTo(p);
+            Reconnect.CatchUps++;
+            Plugin.Log.LogInfo($"[dungeon] catch-up for player {p.Id}: {dm.culture} floor {dm.level}, room {cur.x},{cur.y}, {EnemySync.Dead.Count} dead");
         }
 
         private static void OnGenerated()
@@ -135,6 +154,8 @@ namespace MoonlighterCoop
 
         public static void OnInfo(byte[] data)
         {
+            // Same check as for the save: only the game's own types, sane size.
+            if (!SaveGuard.IsSafe(data, out var why)) { Plugin.Log.LogWarning("[dungeon] floor from host refused: " + why); return; }
             var text = Encoding.UTF8.GetString(data);
             DungeonSaveInfo info = null;
             FsJSONManager.Deserialize(text, ref info, false);

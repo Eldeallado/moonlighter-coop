@@ -55,8 +55,16 @@ namespace MoonlighterCoop
             // Wait a moment so a move (take from one slot, drop in another) goes as one snapshot.
             if (!_bagDirty || Time.unscaledTime - _bagDirtyAt < 0.25f || !Net.Connected) return;
             _bagDirty = false;
+            var bag = BagBytes();
+            if (bag == null) return;
+            Net.Send(Msg.Bag, bag);
+            BagsSent++;
+        }
+
+        private static byte[] BagBytes()
+        {
             var inv = HeroMerchant.Instance?.heroMerchantInventory;
-            if (inv == null || inv.slots == null) return;
+            if (inv == null || inv.slots == null) return null;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
             w.Write(inv.slots.Length);
             foreach (var slot in inv.slots)
@@ -68,8 +76,30 @@ namespace MoonlighterCoop
                 w.Write(si.name ?? ""); w.Write(si.plusLevel); w.Write(si.quantity);
                 w.Write(si.enchantmentLevel); w.Write(si.enchantmentType); w.Write(si.enchantmentEffectName ?? "");
             }
-            Net.Send(Msg.Bag, ms.ToArray());
-            BagsSent++;
+            return ms.ToArray();
+        }
+
+        /// A guest who just (re)joined: the shared bag and purse as they are right now.
+        public static void SendStateTo(IPeer p)
+        {
+            var hero = HeroMerchant.Instance;
+            if (hero == null) return;
+            var bag = BagBytes();
+            if (bag != null) p.Send(Msg.Bag, bag);
+            var ms = new MemoryStream(); new BinaryWriter(ms).Write(hero.GetCurrentGold());
+            p.Send(Msg.GoldSet, ms.ToArray());
+            Plugin.Log.LogInfo($"[shared] sent bag and gold to player {p.Id}");
+        }
+
+        public static void OnGoldSet(byte[] data)
+        {
+            int target = new BinaryReader(new MemoryStream(data)).ReadInt32();
+            var hero = HeroMerchant.Instance;
+            if (hero == null) return;
+            int diff = target - hero.GetCurrentGold();
+            if (diff == 0) return;
+            ApplyingGold = true;
+            try { hero.addGold(diff); } finally { ApplyingGold = false; }
         }
 
         public static void OnBag(byte[] data)

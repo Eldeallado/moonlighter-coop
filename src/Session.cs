@@ -40,6 +40,7 @@ namespace MoonlighterCoop
             Downed.Ghosts.Clear();
             ShopSync.ClearCopies();
             Projectiles.Clear();
+            Reconnect.Reset();
         }
 
         /// Someone left: their Will disappears for everyone, and they no longer count as a ghost or a vote.
@@ -101,6 +102,7 @@ namespace MoonlighterCoop
                     _saveSentTo.Add(peer);
                     peer.Send(Msg.Welcome, new[] { (byte)peer.Id });
                     SendSave(peer);
+                    Reconnect.Joined(peer);
                 }
             }
             if (IsHost && Net.Connected && now >= _nextCount)
@@ -137,6 +139,9 @@ namespace MoonlighterCoop
             Shared.Tick();
             ShopSync.Tick();
             Projectiles.Tick();
+            Reconnect.GuestTick(now);
+            Reconnect.HostTick();
+            if (IsGuest) EnemySync.GuestTick();
             Regroup();
             EnemySync.HostTick();
             DoorSync.HostTick();
@@ -289,6 +294,8 @@ namespace MoonlighterCoop
                     break;
                 case Msg.PlayerLeft: if (IsGuest) RemovePlayer(data[0]); break;
                 case Msg.Projectiles: Projectiles.OnProjectiles(data); break;
+                case Msg.GoldSet: if (IsGuest) Shared.OnGoldSet(data); break;
+                case Msg.DeadEnemies: if (IsGuest) EnemySync.OnDeadEnemies(data); break;
                 case Msg.Bag: Shared.OnBag(data); break;
                 case Msg.Vote: Vote.OnVote(from.Id, data); break;
                 case Msg.VoteResult: if (IsGuest) Vote.OnResult(data); break;

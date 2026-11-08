@@ -17,13 +17,23 @@ namespace MoonlighterCoop
         private static float _nextScan, _nextSend;
         private static bool _sentEmpty = true;
 
+        // Boss attacks that are separate objects (falling rocks, slime traps, roots, portals...).
+        private static readonly HashSet<string> BossAttacks = new HashSet<string>
+        {
+            "EvilWillArrowBehaviour", "GolemKingRockBehaviour", "GolemKingPunchBehaviour", "GolemKingSlimeArm", "GolemKingSlimeTrap",
+            "GolemKingForcePushAttack", "CarnivorousMutaeBossRoots", "CarnivorousMutaeBossTentacle", "CarnivorousMutaeSpores", "GizmoBossPortalAttack",
+        };
+
         private static readonly string[] PlayerKinds = { "HeroMerchant", "BowArrow", "ExplosiveArrow", "TrickWeapon", "Familiar", "Amulet" };
 
         private static bool IsProjectile(MonoBehaviour b)
         {
             if (b == null) return false;
             string n = b.GetType().Name;
-            return (n.EndsWith("Projectile") || n.EndsWith("Arrow") || n == "EvilWillArrowBehaviour") && !n.Contains("Pool") && !n.StartsWith("Sound");
+            if (n.Contains("Pool") || n.StartsWith("Sound")) return false;
+            if (!(n.EndsWith("Projectile") || n.EndsWith("Proyectile") || n.EndsWith("Arrow") || BossAttacks.Contains(n))) return false;
+            // Pieces that hang from an enemy (a boss's arm) are already drawn by that enemy's copy.
+            return b.GetComponentInParent<Enemy>() == null || n.EndsWith("Projectile") || n.EndsWith("Proyectile");
         }
 
         private static bool FromPlayer(MonoBehaviour b) { string n = b.GetType().Name; return PlayerKinds.Any(k => n.Contains(k)); }
@@ -37,6 +47,10 @@ namespace MoonlighterCoop
                 if (st != null) return Mathf.Max(1f, st.strength);
             }
             catch { }
+            // Boss attacks: the boss's strength.
+            var dm = DungeonManager.Instance;
+            if (BossAttacks.Contains(b.GetType().Name) && dm != null && dm.bossRoom != null && dm.bossRoom.Boss != null && dm.bossRoom.Boss.enemy != null && dm.bossRoom.Boss.enemy.enemyStats != null)
+                return Mathf.Max(1f, dm.bossRoom.Boss.enemy.enemyStats.strength);
             return 10f;
         }
 

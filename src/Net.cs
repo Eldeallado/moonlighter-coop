@@ -48,6 +48,8 @@ namespace MoonlighterCoop
         Bye = 35,
         PlayerLeft = 36,
         Projectiles = 37,
+        GoldSet = 38,
+        DeadEnemies = 39,
     }
 
     public interface IPeer
