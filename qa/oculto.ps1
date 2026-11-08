@@ -17,6 +17,38 @@ public static class CoopOculto
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     static extern bool CreateProcess(string app, string cmd, IntPtr pa, IntPtr ta, bool inherit, int flags,
         IntPtr env, string dir, ref STARTUPINFO si, out PROCESS_INFORMATION pi);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr OpenDesktop(string name, int flags, bool inherit, uint access);
+    [DllImport("user32.dll")] static extern bool SetThreadDesktop(IntPtr desk);
+    delegate bool EnumProc(IntPtr h, IntPtr l);
+    [DllImport("user32.dll")] static extern bool EnumDesktopWindows(IntPtr desk, EnumProc f, IntPtr l);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr p, IntPtr after, string cls, string title);
+    [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
+    /// Unity's "Configuration" dialog (it shows when Alt is held at launch): press its Play button on the hidden desktop.
+    public static int ClickPlay()
+    {
+        int clicked = 0;
+        var t = new System.Threading.Thread(() =>
+        {
+            var d = OpenDesktop("CoopQaOculto", 0, false, 0x10000000);
+            if (d == IntPtr.Zero || !SetThreadDesktop(d)) return;
+            EnumDesktopWindows(d, (h, l) =>
+            {
+                var sb = new System.Text.StringBuilder(256); GetWindowText(h, sb, 256);
+                if (sb.ToString().Contains("Configuration"))
+                {
+                    foreach (var txt in new[] { "Play!", "&Play!" })
+                    {
+                        var b = FindWindowEx(h, IntPtr.Zero, "Button", txt);
+                        if (b != IntPtr.Zero) { SendMessage(b, 0x00F5, IntPtr.Zero, IntPtr.Zero); clicked++; break; }
+                    }
+                }
+                return true;
+            }, IntPtr.Zero);
+        });
+        t.Start(); t.Join();
+        return clicked;
+    }
     static IntPtr _desk;
     public static int Start(string exe, string args, string dir)
     {
@@ -31,4 +63,8 @@ public static class CoopOculto
 }
 '@ -ErrorAction SilentlyContinue
 
-function Start-Oculto($dir, $argsLine) { [CoopOculto]::Start("$dir\Moonlighter.exe", $argsLine, $dir) }
+function Start-Oculto($dir, $argsLine) {
+    $id = [CoopOculto]::Start("$dir\Moonlighter.exe", $argsLine, $dir)
+    for ($i = 0; $i -lt 10; $i++) { Start-Sleep 1; if ([CoopOculto]::ClickPlay() -gt 0) { break } }
+    $id
+}

@@ -342,6 +342,11 @@ namespace MoonlighterCoop
             w.Write(gm.currentGameSlot.seed);
             w.Write(json.Length);
             w.Write(json);
+            // The current slot on its own as well: a brand new game is not always in the save data yet.
+            FsJSONManager.Serialize(gm.currentGameSlot, out fsData slotData);
+            var slotJson = Encoding.UTF8.GetBytes(fsJsonPrinter.CompressedJson(slotData));
+            w.Write(slotJson.Length);
+            w.Write(slotJson);
             to.Send(Msg.Save, ms.ToArray());
             Plugin.Log.LogInfo($"[session] sent save to guest {to.Id}: slot {gm.currentGameSlot.seed}, {json.Length} bytes");
         }
@@ -366,6 +371,17 @@ namespace MoonlighterCoop
             GameSlot slot = null;
             foreach (var s in gm.gameSaveData.gameSlots)
                 if (s != null && s.seed == seed) slot = s;
+            if (slot == null && r.BaseStream.Length - r.BaseStream.Position >= 4)
+            {
+                int slen = r.ReadInt32();
+                var sjson = slen > 0 && slen <= SaveGuard.MaxSaveBytes ? r.ReadBytes(slen) : null;
+                if (sjson != null && SaveGuard.IsSafe(sjson, out _))
+                {
+                    var gs = new GameSlot();
+                    FsJSONManager.Deserialize(Encoding.UTF8.GetString(sjson), ref gs, assert: false);
+                    if (gs != null && gs.seed == seed) { slot = gs; Plugin.Log.LogInfo("[session] host slot taken from its own copy"); }
+                }
+            }
             if (slot == null) slot = gm.currentGameSlot;
             // Host still in the tutorial: the guest plays its own tutorial from the same point, seeing the host.
             if (slot != null && slot.playedTutorial != 4) Plugin.Log.LogInfo($"[session] host is in the tutorial (part {slot.playedTutorial}): the guest plays it too");

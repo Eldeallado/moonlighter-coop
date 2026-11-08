@@ -340,6 +340,27 @@ namespace MoonlighterCoop
                     var si = an.GetCurrentAnimatorStateInfo(0);
                     return $"hp={hero.heroMerchantStats.currentHealth} mode={an.updateMode} death={si.IsName("Death")} t={si.normalizedTime:0.00} speed={an.speed} enabled={an.enabled} active={an.gameObject.activeInHierarchy} ts={Time.timeScale}";
                 }
+                case "tfield": // a field of the current tutorial scene: tfield _greenOldManInstance
+                {
+                    var tm = UnityEngine.Object.FindObjectOfType<TutorialManager>();
+                    var sc = tm != null ? Traverse.Create(tm).Field("_currentScene").GetValue<object>() : null;
+                    if (sc == null) return "no scene";
+                    var v = Traverse.Create(sc).Field(p[1]).GetValue<object>();
+                    var go = v is Component c ? c.gameObject : v as GameObject;
+                    return go != null ? $"{go.name} active={go.activeInHierarchy} pos={go.transform.position}" : (v?.ToString() ?? "null");
+                }
+                case "where": // positions of the active objects of a game type: where WorldDungeonDoor
+                {
+                    var ty = typeof(GameManager).Assembly.GetType(p[1]);
+                    if (ty == null) return "no type";
+                    return string.Join(";", UnityEngine.Object.FindObjectsOfType(ty).Select(o => o is Component c ? $"{c.name}@{c.transform.position.x:0},{c.transform.position.y:0}" : o.name).Take(12).ToArray());
+                }
+                case "portal": // what walking into a dungeon gate does (the tutorial listens to it)
+                    WorldDungeonDoor.OnDungeonPortalActivate?.Invoke(ItemMaster.Culture.Golem, false);
+                    return "portal";
+                case "pendant":
+                    hero.UseMerchantPendant();
+                    return "pendant";
                 case "dotest":
                     _doTest = 0;
                     DG.Tweening.DOVirtual.DelayedCall(0.3f, () => _doTest = 1);
@@ -357,8 +378,20 @@ namespace MoonlighterCoop
                 case "newgame": // a brand new game in the last slot, in memory only (test copies never save)
                 {
                     var g = GameManager.Instance;
-                    int idx = g.gameSaveData.gameSlots.Length - 1;
+                    // The slot the main menu has selected: the menu can pick it again as current after loading.
+                    int idx = System.Array.IndexOf(g.gameSaveData.gameSlots, g.currentGameSlot);
+                    if (idx < 0) idx = g.gameSaveData.gameSlots.Length - 1;
+                    // Reset that slot IN PLACE: the main menu keeps a reference to the old object and puts it back as current.
+                    var old = g.gameSaveData.gameSlots[idx];
                     g.ResetSlot(idx);
+                    var fresh = g.gameSaveData.gameSlots[idx];
+                    if (old != null)
+                    {
+                        foreach (var fi in typeof(GameSlot).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic))
+                            fi.SetValue(old, fi.GetValue(fresh));
+                        g.gameSaveData.gameSlots[idx] = old;
+                    }
+                    if (p.Length > 1) g.gameSaveData.gameSlots[idx].playedTutorial = int.Parse(p[1]);   // start at that part of the tutorial
                     Plugin.LoadSlotFromMenu(g.gameSaveData.gameSlots[idx]);
                     return "new game in slot " + idx + ", tutorial " + g.gameSaveData.gameSlots[idx].playedTutorial;
                 }
@@ -483,3 +516,20 @@ namespace MoonlighterCoop
 
 
 
+
+namespace MoonlighterCoop
+{
+    // QA only: who keeps disabling Will's movement (logged at most once a second, with the caller).
+    [HarmonyLib.HarmonyPatch(typeof(HeroMerchantController), nameof(HeroMerchantController.DisableMoveInput))]
+    static class QaWhoDisablesMove
+    {
+        static float _last;
+        static void Postfix()
+        {
+            if (!Plugin.Drive || UnityEngine.Time.unscaledTime - _last < 1f) return;
+            _last = UnityEngine.Time.unscaledTime;
+            var st = new System.Diagnostics.StackTrace(2, false);
+            Plugin.Log.LogInfo("[qa] DisableMoveInput from " + string.Join(" < ", System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(System.Linq.Enumerable.Take(st.GetFrames() ?? new System.Diagnostics.StackFrame[0], 4), f => f.GetMethod()?.DeclaringType?.Name + "." + f.GetMethod()?.Name))));
+        }
+    }
+}
