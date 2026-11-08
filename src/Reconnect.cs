@@ -64,6 +64,7 @@ namespace MoonlighterCoop
 
         // ---------- host ----------
         private static readonly HashSet<IPeer> _pending = new HashSet<IPeer>();
+        private static readonly Dictionary<IPeer, float> _seenInTown = new Dictionary<IPeer, float>();
         public static int CatchUps;
 
         /// Called when the host sends its save to a guest.
@@ -76,13 +77,17 @@ namespace MoonlighterCoop
             {
                 if (p.Closed) { _pending.Remove(p); continue; }
                 // Wait until the guest is in the game (its Will shows up in town).
-                if (!Puppet.All.TryGetValue(p.Id, out var pup) || pup == null || !pup.Zone.StartsWith("town")) continue;
+                if (!Puppet.All.TryGetValue(p.Id, out var pup) || pup == null || !pup.Zone.StartsWith("town")) { _seenInTown.Remove(p); continue; }
+                // Give the guest's town a few seconds to finish loading before sending it anywhere.
+                if (!_seenInTown.TryGetValue(p, out var since)) { _seenInTown[p] = Time.unscaledTime; continue; }
+                if (Time.unscaledTime - since < 6f) continue;
+                _seenInTown.Remove(p);
                 _pending.Remove(p);
                 Shared.SendStateTo(p);
                 if (GameManager.Instance != null && GameManager.Instance.IsDungeonSceneLoaded()) Dungeon.CatchUp(p);
             }
         }
 
-        public static void Reset() { _pending.Clear(); }
+        public static void Reset() { _pending.Clear(); _seenInTown.Clear(); }
     }
 }
