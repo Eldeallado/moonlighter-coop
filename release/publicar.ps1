@@ -1,9 +1,10 @@
-param([Parameter(Mandatory)][string]$Version, [Parameter(Mandatory)][string]$NotesFile)
+﻿param([Parameter(Mandatory)][string]$Version, [Parameter(Mandatory)][string]$NotesFile)
 # Builds the zip for $Version, pushes the code, creates the GitHub release and updates the game on this PC.
 $ErrorActionPreference = "Continue"
 $m = "E:\CoopAnything\MoonlighterCoop"; $r = "$m\release"; $gh = "C:\Program Files\GitHub CLI\gh.exe"
 Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep 2
+$NotesFile = (Resolve-Path $NotesFile).Path
 Push-Location $m
 dotnet build -c Release | Select-String "Compilación|error" | Select-Object -First 3
 Copy-Item "$m\bin\Release\net472\MoonlighterCoop.dll" "$r\MoonlighterCoop\juego\BepInEx\plugins\" -Force
@@ -16,5 +17,5 @@ Copy-Item "$m\bin\Release\net472\MoonlighterCoop.dll" "E:\Steam\steamapps\common
 git add -A
 git commit -q -m "Versión $Version"
 git push -q origin main
-& $gh release create "v$Version" $zip --repo Eldeallado/moonlighter-coop --title "Moonlighter Coop $Version" --notes-file $NotesFile
+& $gh release create "v$Version" $zip --repo Eldeallado/moonlighter-coop --title "Moonlighter Coop $Version" --notes-file (Resolve-Path $NotesFile)
 Pop-Location
