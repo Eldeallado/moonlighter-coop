@@ -1,5 +1,13 @@
 # Novedades de Moonlighter Coop
 
+## 0.9.0 — 9/11/2026
+- **Menús con el estilo de los del juego:** fondo gris pardo con el grano del menú de opciones, franjas de triángulos, el ojo y la cola del menú de pausa, texto crema y lo elegido en verde con las espirales del juego. Los dibujos se sacan del propio juego.
+  - Los ajustes se cambian con flechas a los lados, como en Opciones, y las barras de progreso son las de cuadraditos verdes.
+- **Menú cooperativo reordenado:** a la izquierda la partida (código, ajustes y jugadores con su color); a la derecha las opciones en lista y «Salir» abajo. Reglas y Dar equipo se abren en la parte izquierda.
+- **Menú de aspecto rehecho:** las partes en un mosaico con su color, los estilos como fichas con su paleta y tus estilos centrados y en dorado.
+  - **Mando:** se mueve en las cuatro direcciones por todo el menú, de Will a Gólem hacia abajo y hasta los botones de abajo. En una barra, izquierda y derecha cambian el color.
+- Los avisos en pergamino (fantasma, compañero caído) siguen igual.
+
 ## 0.8.3 — 9/11/2026
 - **Todos los menús con el estilo del juego:** pergamino con varillas de madera, la letra de Moonlighter en tinta marrón, botones de madera y marco dorado para el mando.
   - Menú F2 (con Novedades, Logros, Reglas y Dar equipo), menú de colores F3, elegir rol, aviso de entrar en la mazmorra, resumen de la expedición y del día, y chat.

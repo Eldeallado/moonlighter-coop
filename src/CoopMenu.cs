@@ -59,28 +59,7 @@ namespace MoonlighterCoop
         /// Moves the focus to the closest button in that direction (as it looks on screen).
         private void MoveFocus(float dx, float dy)
         {
-            if (_lastRects.Count == 0) return;
-            if (_focus >= _lastRects.Count) { _focus = 0; return; }
-            var fr = _lastRects[_focus];
-            Vector2 from = fr.center;
-            int best = -1; float bestScore = float.MaxValue;
-            for (int i = 0; i < _lastRects.Count; i++)
-            {
-                if (i == _focus) continue;
-                var o = _lastRects[i];
-                Vector2 d = o.center - from;
-                float along = d.x * dx + d.y * dy, across = Mathf.Abs(d.x * dy) + Mathf.Abs(d.y * dx);
-                if (along <= 1f) continue;
-                // Buttons in line with this one (sharing some of its width for up/down, of its height for
-                // left/right) come first, the nearest row or column; then anything within 45 degrees.
-                bool inLine = dy != 0 ? o.xMax > fr.xMin && o.xMin < fr.xMax : o.yMax > fr.yMin && o.yMin < fr.yMax;
-                float score;
-                if (inLine) score = along + across * 0.01f;
-                else if (along > across) score = 100000f + along + across * 2f;
-                else continue;
-                if (score < bestScore) { bestScore = score; best = i; }
-            }
-            if (best >= 0) _focus = best;
+            _focus = Ui.Nearest(_lastRects, _focus, dx, dy);
         }
 
         private void OpenPanel(ref bool flag)
@@ -242,11 +221,11 @@ namespace MoonlighterCoop
             float k = Ui.K;
             GUI.depth = -1001;
             _btnCount = 0; _grp = 0; _rects.Clear();
-            float w = 680 * k, h = 520 * k;
+            float w = 760 * k, h = 540 * k;
             var p = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
             Ui.Dim();
             Ui.Sheet(p);
-            L(new Rect(p.x + 34 * k, p.y + 22 * k, w, 38 * k), "Cooperativo", STitle, Ui.Title);
+            L(new Rect(p.x + 34 * k, p.y + 22 * k, w, 38 * k), "Cooperativo", STitle, Ui.Ink);
             L(new Rect(p.xMax - 140 * k, p.y + 26 * k, 106 * k, 26 * k), "versión " + Plugin.Version, SSmall, Ui.InkSoft, TextAnchor.MiddleRight);
             if (Versions.UpdateAvailable && Btn(new Rect(p.x + 200 * k, p.y + 24 * k, 220 * k, 30 * k), "¡Hay versión " + Versions.Latest + "! Descargar")) Application.OpenURL(Versions.ReleasesUrl);
             if (Btn(new Rect(p.xMax - 262 * k, p.y + 24 * k, 116 * k, 30 * k), _showNews || _showAch ? "Volver" : "Novedades")) { if (_showAch) ClosePanels(); else { _showNews = !_showNews; _newsScroll = Vector2.zero; } }
@@ -269,14 +248,14 @@ namespace MoonlighterCoop
             if (Event.current.type == EventType.Repaint) { _lastRects = new List<Rect>(_rects); if (_focus >= _lastRects.Count) _focus = 0; }
         }
 
-        private bool Btn(Rect r, string text, bool on = false, float size = 16f)
+        private bool Btn(Rect r, string text, bool on = false, float size = 16f, Ui.Tone tone = Ui.Tone.Wood)
         {
             _btnCount++;
             // Only the buttons of the group the pad is in can take the focus.
             int idx = -1;
             if (_grp == NavGroup) { idx = _rects.Count; _rects.Add(r); }
             bool focused = PadNav.Active && idx >= 0 && idx == _focus && !_showAch && !_showNews;   // those pages scroll instead
-            bool pressed = Ui.Button(r, text, focused, on, GUI.enabled, size);
+            bool pressed = Ui.Button(r, text, focused, on, GUI.enabled, size, tone);
             if (focused && _padA && Event.current.type == EventType.Repaint) { _padA = false; pressed = true; }
             return pressed;
         }
@@ -324,7 +303,7 @@ namespace MoonlighterCoop
             // Header: how many, and a bar for the whole set.
             L(new Rect(r.x, r.y - 4 * k, r.width * 0.6f, 26 * k), "Logros del cooperativo", SHead, Ui.Ink);
             L(new Rect(r.xMax - 140 * k, r.y - 4 * k, 140 * k, 26 * k), $"{got} de {all.Length}", SHead, Ui.Title, TextAnchor.MiddleRight);
-            Ui.Bar(new Rect(r.x, r.y + 26 * k, r.width, 10 * k), got / (float)Mathf.Max(1, all.Length), Ui.Gold);
+            Ui.Bar(new Rect(r.x, r.y + 24 * k, r.width, 16 * k), got / (float)Mathf.Max(1, all.Length), Ui.Green);
 
             // The list.
             float cardH = 58 * k, gap = 7 * k;
@@ -347,25 +326,16 @@ namespace MoonlighterCoop
                 Ui.Card(c, done, PadNav.Active && i == _listSel);
                 // Badge: a gold medal with a tick when done, a dark slot with the percentage when not.
                 var b = new Rect(c.x + 9 * k, c.y + 9 * k, cardH - 18 * k, cardH - 18 * k);
-                if (done)
-                {
-                    Ui.Box(b, Ui.Outline);
-                    Ui.Box(new Rect(b.x + Ui.U, b.y + Ui.U, b.width - 2 * Ui.U, b.height - 2 * Ui.U), Ui.Gold);
-                    Ui.Box(new Rect(b.x + Ui.U, b.y + Ui.U, b.width - 2 * Ui.U, Ui.U), new Color(1f, 1f, 1f, 0.5f));
-                    Ui.Check(new Rect(b.x + b.width * 0.18f, b.y + b.height * 0.18f, b.width * 0.64f, b.height * 0.64f), true);
-                }
-                else
-                {
-                    Ui.Slot(b);
-                    Ui.Label(b, $"{Mathf.FloorToInt(100f * a.Count / a.Goal)}%", SSmall, Ui.Cream, TextAnchor.MiddleCenter);
-                }
+                // Badge: a green rune mark with a tick when done, an empty ring with the percentage when not.
+                Ui.Check(b, done);
+                if (!done) Ui.Label(b, $"{Mathf.FloorToInt(100f * a.Count / a.Goal)}%", 13f, Ui.InkSoft, TextAnchor.MiddleCenter);
                 // Name and what to do.
                 float tx = b.xMax + 12 * k, tw = c.xMax - tx - 156 * k;
                 L(new Rect(tx, c.y + 7 * k, tw, 24 * k), a.Name, SBody + 1f, done ? Ui.Title : Ui.Ink);
                 L(new Rect(tx, c.y + 30 * k, tw, 20 * k), a.Text, SSmall, Ui.InkSoft);
                 // Progress on the right.
-                var pb = new Rect(c.xMax - 146 * k, c.y + 14 * k, 132 * k, 10 * k);
-                Ui.Bar(pb, a.Count / (float)a.Goal, done ? Ui.Gold : Ui.WoodLight);
+                var pb = new Rect(c.xMax - 156 * k, c.y + 8 * k, 142 * k, 18 * k);
+                Ui.Bar(pb, a.Count / (float)a.Goal, done ? Ui.Green : Ui.Tan);
                 L(new Rect(pb.x, pb.yMax + 3 * k, pb.width, 18 * k), done ? "¡Conseguido!" : a.Count.ToString("N0", Es) + " / " + a.Goal.ToString("N0", Es), SSmall, done ? Ui.Good : Ui.InkSoft, TextAnchor.MiddleCenter);
             }
             Ui.EndScroll();
@@ -376,7 +346,7 @@ namespace MoonlighterCoop
             float bh = 50 * k, gap = 14 * k, y = r.y + 4 * k;
             L(new Rect(r.x, y, r.width, 26 * k), SteamCoop.Available ? $"Steam: {SteamCoop.MyName}" : "Steam no está abierto: solo se puede jugar por IP", SBody, Ui.Ink, TextAnchor.MiddleCenter);
             y += 36 * k;
-            if (Btn(new Rect(r.x + r.width * 0.1f, y, r.width * 0.8f, bh), "Crear partida", false, 20f)) CreateGame();
+            if (Btn(new Rect(r.x + r.width * 0.1f, y, r.width * 0.8f, bh), "Crear partida", false, 20f, Ui.Tone.Gold)) CreateGame();
             L(new Rect(r.x, y + bh + 2 * k, r.width, 22 * k), "Te da un código para que tus amigos se unan (hasta 5 jugadores).", SSmall, Ui.InkSoft, TextAnchor.MiddleCenter);
             y += bh + gap + 24 * k;
             GUI.enabled = SteamCoop.Available;
@@ -412,7 +382,7 @@ namespace MoonlighterCoop
             }
             y += 88 * k;
             bool enter = Event.current.type == EventType.KeyDown && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter);
-            if (Btn(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 48 * k), "Unirse", false, 20f) || enter) JoinCode();
+            if (Btn(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 48 * k), "Unirse", false, 20f, Ui.Tone.Gold) || enter) JoinCode();
             y += 62 * k;
             if (Btn(new Rect(r.x + r.width * 0.35f, y, r.width * 0.3f, 36 * k), "Atrás")) _page = Page.Main;
             L(new Rect(r.x, y + 44 * k, r.width, 40 * k), "Al unirte vuelves al menú principal y entras en la partida de tu amigo.", SSmall, Ui.InkSoft, TextAnchor.MiddleCenter, true);
@@ -427,121 +397,170 @@ namespace MoonlighterCoop
             GUI.FocusControl("ip");
             y += 88 * k;
             bool enter = Event.current.type == EventType.KeyDown && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter);
-            if (Btn(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 48 * k), "Conectar", false, 20f) || enter) JoinIp();
+            if (Btn(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 48 * k), "Conectar", false, 20f, Ui.Tone.Gold) || enter) JoinIp();
             y += 62 * k;
             if (Btn(new Rect(r.x + r.width * 0.35f, y, r.width * 0.3f, 36 * k), "Atrás")) _page = Page.Main;
         }
 
+        /// In a game: two columns. Left, the game itself (code, settings, players) — or the open panel (Reglas,
+        /// Dar equipo). Right, the options as a list, like the game's own pause menu, and leaving at the bottom.
         private void DrawInGame(Rect r, float k)
         {
-            float y = r.y;
             bool host = Session.IsHost;
-            L(new Rect(r.x, y, r.width, 26 * k), host ? "Tu partida está abierta" : "Estás en la partida de tu amigo", SHead, Ui.Ink);
-            y += 32 * k;
-            // With Reglas or Dar equipo open, the panel takes this space (and the pad stays inside it).
-            bool panel = _showRules || _showGive;
-            if (!panel)
-            {
-                if (!string.IsNullOrEmpty(SteamCoop.Code))
-                {
-                    L(new Rect(r.x, y, r.width, 20 * k), "Código para unirse:", SSmall, Ui.InkSoft);
-                    var cr = new Rect(r.x, y + 20 * k, r.width * 0.6f, 62 * k);
-                    Ui.Slot(cr);
-                    Ui.Shadowed(cr, SteamCoop.Code, 40f, Ui.Gold, new Color(0f, 0f, 0f, 0.6f));
-                    float bx = cr.xMax + 12 * k, bw = r.width - cr.width - 12 * k;
-                    if (Btn(new Rect(bx, cr.y, bw, 28 * k), _copied == SteamCoop.Code && Time.unscaledTime - _copiedAt < 2f ? "¡Copiado!" : "Copiar código"))
-                    { GUIUtility.systemCopyBuffer = SteamCoop.Code; _copied = SteamCoop.Code; _copiedAt = Time.unscaledTime; }
-                    if (Btn(new Rect(bx, cr.y + 34 * k, bw, 28 * k), "Invitar amigos de Steam")) SteamCoop.Invite();
-                    y += 94 * k;
-                }
-                if (host)
-                {
-                    // Joining by IP opens a port on this PC: only while the host wants it.
-                    if (Btn(new Rect(r.x, y, 250 * k, 28 * k), Net.Listening ? "Unirse por IP: abierto" : "Permitir unirse por IP", Net.Listening)) { if (Net.Listening) Net.StopHost(); else Net.StartHost(Plugin.Port); }
-                    if (Net.Listening) L(new Rect(r.x + 262 * k, y, r.width - 262 * k, 28 * k), $"Tu IP en la red: {LocalIp()}", SBody, Ui.Ink);
-                    y += 36 * k;
-                    if (Btn(new Rect(r.x, y, r.width, 28 * k), "Dificultad: " + Difficulty.Describe(Session.Players))) { Difficulty.Mode = (Difficulty.Mode + 1) % 3; Plugin.SaveDifficulty(Difficulty.Mode); }
-                }
-                else L(new Rect(r.x, y, r.width, 28 * k), "Dificultad: " + Difficulty.Describe(Session.Players), SBody, Ui.Ink);
-                y += 38 * k;
-                L(new Rect(r.x, y, r.width, 22 * k), $"Jugadores ({Session.Players}/5)", SHead, Ui.Ink);
-                y += 26 * k;
-                string me = (SteamCoop.Available ? SteamCoop.MyName : "Tú") + (host ? " (anfitrión, tú)" : " (tú)");
-                Player(r, ref y, me, k);
-                if (host)
-                    foreach (var peer in Net.Live)
-                    {
-                        float py = y;
-                        Player(r, ref y, $"{SteamCoop.PeerName(peer)} (jugador {peer.Id + 1})", k);
-                        if (Btn(new Rect(r.xMax - 110 * k, py, 110 * k, 22 * k), "Expulsar")) Kick(peer);
-                    }
-                else if (Net.Connected) Player(r, ref y, $"{SteamCoop.PeerName(Net.Peer)} (anfitrión)", k);
-                if (host && Net.ConnectedCount == 0) L(new Rect(r.x + 18 * k, y, r.width, 22 * k), "Esperando a que se una alguien…", SSmall, Ui.InkFaint);
-                // Other mods that differ between players (see Mods.cs).
-                foreach (var kv in Mods.Differences)
-                {
-                    y += 6 * k;
-                    L(new Rect(r.x, y, r.width, 40 * k), $"Mods distintos ({(kv.Key == 0 ? "anfitrión" : "jugador " + (kv.Key + 1))}): {kv.Value}", SSmall, Ui.Bad, TextAnchor.UpperLeft, true);
-                    y += 40 * k;
-                }
-            }
-            // Options of this player, and the co-op achievements: a row of tabs (left/right on the pad).
-            float oy = r.yMax - 84 * k, q4 = (r.width - 30 * k) / 4f;
-            if (Btn(new Rect(r.x, oy, q4, 32 * k), "Ver vida: " + (EnemyBars.On ? "sí" : "no"), EnemyBars.On)) EnemyBars.Toggle();
-            if (Btn(new Rect(r.x + (q4 + 10 * k), oy, q4, 32 * k), $"Logros ({Achievements.Unlocked}/{Achievements.All.Length})")) OpenPanel(ref _showAch);
-            if (Btn(new Rect(r.x + 2 * (q4 + 10 * k), oy, q4, 32 * k), "Reglas", _showRules)) OpenPanel(ref _showRules);
-            if (Btn(new Rect(r.x + 3 * (q4 + 10 * k), oy, q4, 32 * k), "Dar equipo", _showGive)) OpenPanel(ref _showGive);
+            float lw = 420 * k, gap = 24 * k;
+            var left = new Rect(r.x, r.y, lw, r.height);
+            var right = new Rect(r.x + lw + gap, r.y, r.width - lw - gap, r.height);
+            Ui.Box(new Rect(r.x + lw + gap / 2f, r.y + 4 * k, Mathf.Max(1f, Ui.U * 0.5f), r.height - 8 * k), Ui.InkFaint);
+
+            // ----- right: options -----
+            float y = right.y, bh = 34 * k, step = 41 * k;
+            Ui.Section(new Rect(right.x, y, right.width, 20 * k), "Opciones");
+            y += 28 * k;
+            if (Btn(new Rect(right.x, y, right.width, bh), $"Logros   {Achievements.Unlocked}/{Achievements.All.Length}")) OpenPanel(ref _showAch);
+            y += step;
+            if (Btn(new Rect(right.x, y, right.width, bh), "Reglas de la partida", _showRules)) OpenPanel(ref _showRules);
+            y += step;
+            if (Btn(new Rect(right.x, y, right.width, bh), "Dar equipo", _showGive)) OpenPanel(ref _showGive);
+            y += step;
+            if (Btn(new Rect(right.x, y, right.width, bh), "Aspecto de tu Will")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
+            y += step;
+            if (Btn(new Rect(right.x, y, right.width, bh), "Vida de enemigos: " + (EnemyBars.On ? "sí" : "no"), EnemyBars.On)) EnemyBars.Toggle();
+            y += step;
+            if (Btn(new Rect(right.x, y, right.width, bh), "Desatascarme")) { SetOpen(false); Arreglos.Desatascar(); }
+            if (Btn(new Rect(right.x, right.yMax - 38 * k, right.width, 38 * k), host ? "Cerrar la partida" : "Salir de la partida", false, 17f, Ui.Tone.Red)) LeaveGame();
+
+            // ----- left: the open panel, or the game -----
             _grp = 1;
-            if (_showGive)
-            {
-                var ar = new Rect(r.x, r.y + 32 * k, r.width, oy - r.y - 40 * k);
-                Ui.Card(ar);
-                float ay = ar.y + 10 * k;
-                L(new Rect(ar.x + 12 * k, ay, ar.width - 24 * k, 24 * k), "Deja una pieza en la mochila compartida para que la coja otro:", SBody, Ui.Ink);
-                ay += 32 * k;
-                for (int i = 0; i < Give.Slots.Length; i++)
-                {
-                    var st = Give.Equipped(i);
-                    string label = Give.SlotNames[i] + ": " + (st != null ? Stats.ItemName(st.master) : "—");
-                    float gw = (ar.width - 34 * k) / 2f, gx = ar.x + 12 * k + (i % 2) * (gw + 10 * k), gy = ay + (i / 2) * 34 * k;
-                    if (st != null) { if (Btn(new Rect(gx, gy, gw, 28 * k), label, false, 14f)) Give.ToBag(i); }
-                    else L(new Rect(gx, gy, gw, 28 * k), label, SSmall, Ui.InkFaint, TextAnchor.MiddleCenter);
-                }
-            }
-            if (_showRules)
-            {
-                var ar = new Rect(r.x, r.y + 32 * k, r.width, oy - r.y - 40 * k);
-                Ui.Card(ar);
-                float ay = ar.y + 10 * k;
-                L(new Rect(ar.x + 12 * k, ay, ar.width - 24 * k, 24 * k), host ? "Reglas (las eliges tú, valen para todos):" : "Reglas que ha elegido el anfitrión:", SBody, Ui.Ink);
-                ay += 30 * k;
-                for (int i = 0; i < HostSettings.Count; i++)
-                {
-                    var row = new Rect(ar.x + 12 * k, ay, ar.width - 24 * k, 26 * k);
-                    if (host) { if (Btn(new Rect(row.x + 32 * k, row.y, row.width - 32 * k, row.height), HostSettings.Names[i])) HostSettings.Toggle(i); }
-                    else L(new Rect(row.x + 32 * k, row.y, row.width - 32 * k, row.height), HostSettings.Names[i], SBody, Ui.Ink);
-                    Ui.Check(new Rect(row.x, row.y + 2 * k, 22 * k, 22 * k), HostSettings.Get(i));
-                    ay += 30 * k;
-                }
-                if (HostSettings.Roles)
-                {
-                    ay += 4 * k;
-                    L(new Rect(ar.x + 12 * k, ay, ar.width - 24 * k, 40 * k), "Tu rol: " + Roles.Names[Roles.Mine] + (Roles.Mine > 0 ? " — " + Roles.Texts[Roles.Mine] : "") + " (se elige al entrar en la mazmorra)", SSmall, Ui.InkSoft, TextAnchor.UpperLeft, true);
-                }
-            }
+            if (_showRules) { DrawRules(left, k, host); _grp = 0; return; }
+            if (_showGive) { DrawGive(left, k); _grp = 0; return; }
             _grp = 0;
-            float by = r.yMax - 42 * k;
-            if (Btn(new Rect(r.x, by, 200 * k, 40 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
-            if (Btn(new Rect(r.x + 210 * k, by, 170 * k, 40 * k), "Desatascarme")) { SetOpen(false); Arreglos.Desatascar(); }
-            if (Btn(new Rect(r.xMax - 200 * k, by, 200 * k, 40 * k), host ? "Cerrar la partida" : "Salir de la partida")) LeaveGame();
+
+            y = left.y;
+            L(new Rect(left.x, y, left.width, 26 * k), host ? "Tu partida está abierta" : "Estás en la partida de tu amigo", SHead, Ui.Ink);
+            y += 32 * k;
+            if (!string.IsNullOrEmpty(SteamCoop.Code))
+            {
+                Ui.Section(new Rect(left.x, y, left.width, 20 * k), "Código para unirse");
+                y += 24 * k;
+                var cr = new Rect(left.x, y, 236 * k, 60 * k);
+                Ui.Slot(cr);
+                Ui.Shadowed(cr, SteamCoop.Code, 38f, Ui.Gold, new Color(0f, 0f, 0f, 0.6f));
+                float bx = cr.xMax + 12 * k, bw = left.xMax - bx;
+                if (Btn(new Rect(bx, y, bw, 28 * k), _copied == SteamCoop.Code && Time.unscaledTime - _copiedAt < 2f ? "¡Copiado!" : "Copiar código", false, 15f))
+                { GUIUtility.systemCopyBuffer = SteamCoop.Code; _copied = SteamCoop.Code; _copiedAt = Time.unscaledTime; }
+                if (Btn(new Rect(bx, y + 32 * k, bw, 28 * k), "Invitar de Steam", false, 15f)) SteamCoop.Invite();
+                y += 70 * k;
+            }
+            Ui.Section(new Rect(left.x, y, left.width, 20 * k), "Ajustes");
+            y += 26 * k;
+            float cw = 230 * k, cx = left.xMax - cw;
+            L(new Rect(left.x, y, cx - left.x, 28 * k), "Dificultad", SBody, Ui.Ink);
+            if (host) { if (Choose(new Rect(cx, y, cw, 28 * k), Difficulty.Describe(Session.Players))) { Difficulty.Mode = (Difficulty.Mode + 1) % 3; Plugin.SaveDifficulty(Difficulty.Mode); } }
+            else L(new Rect(cx, y, cw, 28 * k), Difficulty.Describe(Session.Players), SBody, Ui.InkSoft, TextAnchor.MiddleCenter);
+            y += 34 * k;
+            if (host)
+            {
+                // Joining by IP opens a port on this PC: only while the host wants it.
+                L(new Rect(left.x, y, cx - left.x, 28 * k), "Unirse por IP", SBody, Ui.Ink);
+                if (Choose(new Rect(cx, y, cw, 28 * k), Net.Listening ? "Abierto: " + LocalIp() : "Cerrado")) { if (Net.Listening) Net.StopHost(); else Net.StartHost(Plugin.Port); }
+                y += 34 * k;
+            }
+            y += 4 * k;
+            Ui.Section(new Rect(left.x, y, left.width, 20 * k), $"Jugadores  {Session.Players}/5");
+            y += 26 * k;
+            string me = SteamCoop.Available ? SteamCoop.MyName : "Tú";
+            PlayerRow(left, ref y, me, host ? "anfitrión · tú" : "tú", Looks.Mine, k);
+            if (host)
+                foreach (var peer in Net.Live)
+                {
+                    float py = y;
+                    PlayerRow(left, ref y, SteamCoop.PeerName(peer), "jugador " + (peer.Id + 1), LookOf(peer.Id), k);
+                    if (Btn(new Rect(left.xMax - 74 * k, py + 3 * k, 68 * k, 22 * k), "Echar", false, 13f, Ui.Tone.Red)) Kick(peer);
+                }
+            else if (Net.Connected) PlayerRow(left, ref y, SteamCoop.PeerName(Net.Peer), "anfitrión", LookOf(0), k);
+            if (host && Net.ConnectedCount == 0) L(new Rect(left.x + 10 * k, y, left.width, 22 * k), "Esperando a que se una alguien…", SSmall, Ui.InkFaint);
+            // Other mods that differ between players (see Mods.cs).
+            foreach (var kv in Mods.Differences)
+            {
+                L(new Rect(left.x, y, left.width, 34 * k), $"Mods distintos ({(kv.Key == 0 ? "anfitrión" : "jugador " + (kv.Key + 1))}): {kv.Value}", SSmall, Ui.Bad, TextAnchor.UpperLeft, true);
+                y += 34 * k;
+            }
         }
 
-        /// One line of the player list: a small wax-seal dot and the name.
-        private static void Player(Rect r, ref float y, string name, float k)
+        private static int LookOf(int playerId) => Puppet.All.TryGetValue(playerId, out var p) && p != null ? p.Look : Looks.Default(playerId);
+
+        /// A player: a small card with their vest colour, name and what they are.
+        private static void PlayerRow(Rect col, ref float y, string name, string tag, int look, float k)
         {
-            Ui.Box(new Rect(r.x + 4 * k, y + 8 * k, 7 * k, 7 * k), Ui.Title);
-            L(new Rect(r.x + 18 * k, y, r.width - 140 * k, 22 * k), name, SBody, Ui.Ink);
-            y += 25 * k;
+            var row = new Rect(col.x, y, col.width, 28 * k);
+            Ui.Card(row);
+            Ui.Swatch(new Rect(row.x + 6 * k, row.y + 5 * k, 18 * k, 18 * k), Looks.Swatch(Looks.Unpack(look)[Looks.Chaleco], Looks.Chaleco));
+            L(new Rect(row.x + 32 * k, row.y, row.width - 200 * k, row.height), name, SBody, Ui.Ink);
+            L(new Rect(row.xMax - 200 * k, row.y, 116 * k, row.height), tag, SSmall, Ui.InkSoft, TextAnchor.MiddleRight);
+            y += 31 * k;
+        }
+
+        /// A chooser (value between arrows) that the pad can focus like a button.
+        private bool Choose(Rect r, string value)
+        {
+            _btnCount++;
+            int idx = -1;
+            if (_grp == NavGroup) { idx = _rects.Count; _rects.Add(r); }
+            bool focused = PadNav.Active && idx >= 0 && idx == _focus && !_showAch && !_showNews;
+            bool pressed = Ui.Chooser(r, value, focused);
+            if (focused && _padA && Event.current.type == EventType.Repaint) { _padA = false; pressed = true; }
+            return pressed;
+        }
+
+        /// A whole row you can click (or A): a card, lit when on, with a tick box or a dimmed look when off.
+        private bool Row(Rect r, bool lit, bool enabled = true)
+        {
+            _btnCount++;
+            int idx = -1;
+            if (enabled && _grp == NavGroup) { idx = _rects.Count; _rects.Add(r); }
+            bool focused = PadNav.Active && idx >= 0 && idx == _focus;
+            bool hover = enabled && r.Contains(Event.current.mousePosition);
+            Ui.Card(r, lit || hover, focused);
+            bool pressed = enabled && GUI.Button(r, GUIContent.none, GUIStyle.none);
+            if (focused && _padA && Event.current.type == EventType.Repaint) { _padA = false; pressed = true; }
+            return pressed;
+        }
+
+        private void DrawRules(Rect r, float k, bool host)
+        {
+            L(new Rect(r.x, r.y, r.width, 26 * k), "Reglas de la partida", SHead, Ui.Ink);
+            L(new Rect(r.x, r.y + 26 * k, r.width, 20 * k), host ? "Las eliges tú y valen para todos." : "Las ha elegido el anfitrión.", SSmall, Ui.InkSoft);
+            float y = r.y + 54 * k;
+            for (int i = 0; i < HostSettings.Count; i++)
+            {
+                var row = new Rect(r.x, y, r.width, 32 * k);
+                bool on = HostSettings.Get(i);
+                if (Row(row, on, host)) HostSettings.Toggle(i);
+                Ui.Check(new Rect(row.x + 8 * k, row.y + 6 * k, 20 * k, 20 * k), on);
+                L(new Rect(row.x + 38 * k, row.y, row.width - 44 * k, row.height), HostSettings.Names[i], 14f, on ? Ui.Ink : Ui.InkSoft);
+                y += 37 * k;
+            }
+            if (HostSettings.Roles)
+                L(new Rect(r.x, y + 4 * k, r.width, 54 * k), "Tu rol: " + Roles.Names[Roles.Mine] + (Roles.Mine > 0 ? " — " + Roles.Texts[Roles.Mine] : "") + " (se elige al entrar en la mazmorra)", SSmall, Ui.InkSoft, TextAnchor.UpperLeft, true);
+        }
+
+        private void DrawGive(Rect r, float k)
+        {
+            L(new Rect(r.x, r.y, r.width, 26 * k), "Dar equipo", SHead, Ui.Ink);
+            L(new Rect(r.x, r.y + 26 * k, r.width, 20 * k), "Deja una pieza en la mochila compartida para que la coja otro.", SSmall, Ui.InkSoft);
+            float y = r.y + 54 * k;
+            for (int i = 0; i < Give.Slots.Length; i++)
+            {
+                var st = Give.Equipped(i);
+                var row = new Rect(r.x, y, r.width, 30 * k);
+                var o = GUI.color; if (st == null) GUI.color = new Color(1f, 1f, 1f, 0.55f);
+                if (Row(row, false, st != null)) Give.ToBag(i);
+                L(new Rect(row.x + 10 * k, row.y, 100 * k, row.height), Give.SlotNames[i], SSmall, Ui.InkSoft);
+                L(new Rect(row.x + 110 * k, row.y, row.width - 180 * k, row.height), st != null ? Stats.ItemName(st.master) : "—", 15.5f, Ui.Ink);
+                if (st != null) L(new Rect(row.xMax - 70 * k, row.y, 62 * k, row.height), "Dejar", SSmall, Ui.Title, TextAnchor.MiddleRight);
+                GUI.color = o;
+                y += 33 * k;
+            }
         }
     }
 }

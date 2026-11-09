@@ -37,7 +37,7 @@ namespace MoonlighterCoop
             if (open)
             {
                 _parts = Looks.Unpack(Looks.Mine);
-                _row = 1; _dragBar = -1;
+                _dragBar = -1; _wantFocus = KPart * 100 + _part;
                 _cursorWas = Cursor.visible; Cursor.visible = true;
                 hero.heroMerchantController.DisableMoveInput();
                 hero.heroMerchantController.DisableAttackInput();
@@ -125,12 +125,18 @@ namespace MoonlighterCoop
             Changed();
         }
 
-        private void Step(int d)
-        {
-            if (_row == 0) { _part = (_part + d + Looks.N) % Looks.N; _grad1 = _grad2 = null; }
-            else if (_row == 4) { int n = StyleList.Count; _style = (_style + d + n) % n; }
-            else SetBar(_row - 1, Get(_parts[_part], _row - 1) + d);
-        }
+        // Pad / keyboard focus: every control registers its rect and an id (kind * 100 + index) while drawing;
+        // the arrows move to the nearest control that way on screen (so down from a style goes to the style
+        // under it, and on to the buttons). On a bar, left/right change its value instead.
+        private const int KPart = 1, KBar = 2, KStyle = 3, KAction = 4, KOwn = 5;
+        private readonly System.Collections.Generic.List<Rect> _rects = new System.Collections.Generic.List<Rect>();
+        private readonly System.Collections.Generic.List<int> _ids = new System.Collections.Generic.List<int>();
+        private System.Collections.Generic.List<Rect> _lastRects = new System.Collections.Generic.List<Rect>();
+        private System.Collections.Generic.List<int> _lastIds = new System.Collections.Generic.List<int>();
+        private int _focus, _wantFocus = -1;
+        private bool _padA;
+        private int FocusedId => _focus >= 0 && _focus < _lastIds.Count ? _lastIds[_focus] : -1;
+        private bool OnBar => FocusedId / 100 == KBar;
 
         private void Update()
         {
@@ -138,25 +144,51 @@ namespace MoonlighterCoop
             if (!Open) return;
             if (HeroMerchant.Instance == null || (GUIManager.Instance != null && GUIManager.Instance.currentInventory != null)) { SetOpen(false); return; }
             PadNav.Poll();
-            if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) || PadNav.Up) _row = (_row + 4) % 5;
-            if (Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S) || PadNav.Down) _row = (_row + 1) % 5;
-            if (PadNav.Left || PadNav.Right) Step(PadNav.Right ? 1 : -1);
-            int d = (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A) ? 1 : 0);
-            if (d != 0 && Time.unscaledTime >= _nextRepeat)
+            _padA = false;
+            bool up = Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) || PadNav.Up;
+            bool down = Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S) || PadNav.Down;
+            if (up) _focus = Ui.Nearest(_lastRects, _focus, 0, -1);
+            if (down) _focus = Ui.Nearest(_lastRects, _focus, 0, 1);
+            if (OnBar)
             {
-                bool bar = _row >= 1 && _row <= 3;
-                _nextRepeat = Time.unscaledTime + (_held && bar ? 0.06f : 0.3f); _held = true;
-                Step(d);
+                // Bars: the pad steps once per press; held keys repeat, faster after a moment.
+                int bar = FocusedId % 100;
+                if (PadNav.Left || PadNav.Right) SetBar(bar, Get(_parts[_part], bar) + (PadNav.Right ? 1 : -1));
+                int d = (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A) ? 1 : 0);
+                if (d != 0 && Time.unscaledTime >= _nextRepeat)
+                {
+                    _nextRepeat = Time.unscaledTime + (_held ? 0.06f : 0.3f); _held = true;
+                    SetBar(bar, Get(_parts[_part], bar) + d);
+                }
+                if (d == 0) { _held = false; _nextRepeat = 0f; }
             }
-            if (d == 0) { _held = false; _nextRepeat = 0f; }
+            else
+            {
+                if (PadNav.Left || Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)) _focus = Ui.Nearest(_lastRects, _focus, -1, 0);
+                if (PadNav.Right || Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)) _focus = Ui.Nearest(_lastRects, _focus, 1, 0);
+            }
             if (_dirty && Time.unscaledTime - _dirtyAt > 0.15f) Commit();
-            bool accept = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || PadNav.A;
-            if (accept && _row == 4) ApplyStyle(_style);
-            else if (accept && _row == 0) _row = 1;
-            else if (accept || Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.Combo) SetOpen(false);
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || PadNav.A) _padA = true;   // pressed on the focused control while drawing
+            if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.Combo) SetOpen(false);
         }
         private float _nextRepeat; private bool _held;
         private string _note = ""; private float _noteAt = -10f;
+
+        /// Registers a control for the focus; true if it has it.
+        private bool Item(Rect r, int id)
+        {
+            int idx = _rects.Count;
+            _rects.Add(r); _ids.Add(id);
+            return idx == _focus;
+        }
+
+        /// The focused control was "pressed" with A / Enter this frame.
+        private bool Pressed(bool focused)
+        {
+            if (!focused || !_padA || Event.current.type != EventType.Repaint) return false;
+            _padA = false;
+            return true;
+        }
 
         // ---------- drawing ----------
 
@@ -175,86 +207,133 @@ namespace MoonlighterCoop
             float k = Ui.K;
             if (_rainbow == null) _rainbow = Grad(x => Color.HSVToRGB(x * 355f / 360f, 0.85f, 0.95f), 72);
             GUI.depth = -1000;
-            float w = Mathf.Min(900 * k, Screen.width - 20), h = Mathf.Min(620 * k, Screen.height - 20);
+            _rects.Clear(); _ids.Clear();
+            bool pad = PadNav.Active;
+
+            var styles = StyleList; int n = styles.Count, perRow = 5, rows = (n + perRow - 1) / perRow;
+            float w = Mathf.Min(920 * k, Screen.width - 20), h = Mathf.Min((545 + rows * 58) * k, Screen.height - 24);
             var panel = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
-            Ui.Dim(0.35f);
+            Ui.Dim(0.5f);
             Ui.Sheet(panel);
-            Ui.Label(new Rect(panel.x + 30 * k, panel.y + 20 * k, w, 38 * k), "Aspecto de tu Will", 32f, Ui.Title);
-            Ui.Divider(panel.x + 30 * k, panel.y + 62 * k, w - 60 * k);
+            Ui.Label(new Rect(panel.x + 30 * k, panel.y + 24 * k, w, 36 * k), "Aspecto de tu Will", 30f, Ui.Ink);
+            Ui.Label(new Rect(panel.xMax - 330 * k, panel.y + 30 * k, 300 * k, 26 * k), "Lo ven todos los jugadores", 15f, Ui.InkFaint, TextAnchor.MiddleRight);
+            Ui.Divider(panel.x + 30 * k, panel.y + 66 * k, w - 60 * k);
 
-            // Preview, in a dark wooden frame.
-            var pv = new Rect(panel.x + 30 * k, panel.y + 76 * k, 210 * k, 252 * k);
+            // Preview, in a dark inset with the game's spirals under it.
+            var pv = new Rect(panel.x + 30 * k, panel.y + 82 * k, 214 * k, 262 * k);
             Ui.Slot(pv);
-            if (_rt != null) GUI.DrawTexture(new Rect(pv.x + 4 * k, pv.y + 4 * k, pv.width - 8 * k, pv.height - 8 * k), _rt, ScaleMode.ScaleAndCrop);
+            if (_rt != null) GUI.DrawTexture(Ui.Shrink(pv, 4 * k), _rt, ScaleMode.ScaleAndCrop);
+            Ui.Label(new Rect(pv.x, pv.yMax + 2 * k, pv.width, 22 * k), "Vista previa", 14.5f, Ui.InkFaint, TextAnchor.MiddleCenter);
 
-            // Parts: two columns of four, each with its colour.
-            float px = pv.xMax + 24 * k, pw = panel.xMax - px - 30 * k, cw = (pw - 10 * k) / 2f, rh = 30 * k;
-            Ui.Label(new Rect(px, panel.y + 70 * k, pw, 26 * k), "Parte", 20f, _row == 0 ? Ui.Title : Ui.Ink);
+            // Parts: a 4 x 2 mosaic of tiles, each with its colour.
+            float px = pv.xMax + 26 * k, pw = panel.xMax - 30 * k - px;
+            Ui.Section(new Rect(px, panel.y + 78 * k, pw, 20 * k), "Partes");
+            float tw = (pw - 3 * 8 * k) / 4f, th = 40 * k, ty = panel.y + 104 * k;
             for (int i = 0; i < Looks.N; i++)
             {
-                var r = new Rect(px + (i % 2) * (cw + 10 * k), panel.y + 98 * k + (i / 2) * (rh + 6 * k), cw, rh);
-                bool on = i == _part;
-                if (Ui.Button(r, "", _row == 0 && on, on)) { _part = i; _row = 1; _grad1 = _grad2 = null; }
-                var sw = new Rect(r.x + 6 * k, r.y + 6 * k, rh - 12 * k, rh - 12 * k);
-                Ui.Box(sw, Ui.Outline);
-                Ui.Box(new Rect(sw.x + Ui.U, sw.y + Ui.U, sw.width - 2 * Ui.U, sw.height - 2 * Ui.U), Looks.Swatch(_parts[i], i));
-                Ui.Shadowed(new Rect(sw.xMax + 8 * k, r.y, cw - rh - 8 * k, rh - 2 * k), Looks.Names[i] + (_parts[i].Own ? "  (Will)" : ""), 16f,
-                    on ? Ui.Gold : Ui.Cream, new Color(0.15f, 0.08f, 0.04f, 0.8f), TextAnchor.MiddleLeft);
+                var r = new Rect(px + (i % 4) * (tw + 8 * k), ty + (i / 4) * (th + 8 * k), tw, th);
+                bool chosen = i == _part, focused = Item(r, KPart * 100 + i) && pad;
+                bool hover = r.Contains(Event.current.mousePosition);
+                Ui.Card(r, chosen || hover, focused);
+                Ui.Swatch(new Rect(r.x + 8 * k, r.y + 9 * k, 22 * k, 22 * k), Looks.Swatch(_parts[i], i));
+                Ui.Label(new Rect(r.x + 38 * k, r.y + 2 * k, r.width - 42 * k, 22 * k), Looks.Names[i], 16f, chosen ? Ui.Green : Ui.Ink);
+                Ui.Label(new Rect(r.x + 38 * k, r.y + 19 * k, r.width - 42 * k, 18 * k), _parts[i].Own ? "como Will" : "propio", 13f, Ui.InkFaint);
+                if (GUI.Button(r, GUIContent.none, GUIStyle.none) || Pressed(focused))
+                {
+                    _part = i; _grad1 = _grad2 = null;
+                    if (focused) _wantFocus = KBar * 100;   // with the pad, go straight to its first bar
+                }
             }
 
-            // Bars of the chosen part.
-            float by0 = panel.y + 98 * k + 4 * (rh + 6 * k) + 8 * k;
-            Bars(new Rect(px, by0, pw, 150 * k), k);
+            // The chosen part's colour: three bars and "like Will".
+            float by = ty + 2 * (th + 8 * k) + 8 * k;
+            Bars(new Rect(px, by, pw, 140 * k), k, pad);
 
-            // Styles.
-            float sy = Mathf.Max(pv.yMax, by0 + 146 * k) + 8 * k;
-            Ui.Label(new Rect(pv.x, sy, 300 * k, 26 * k), "Estilos", 20f, _row == 4 ? Ui.Title : Ui.Ink);
-            var styles = StyleList; int n = styles.Count, perRow = 5;
-            float sbw = (panel.width - 60 * k - (perRow - 1) * 8 * k) / perRow;
+            // Styles: tiles with their name and a small palette; the last row centred.
+            float sy = Mathf.Max(pv.yMax + 26 * k, by + 140 * k) + 6 * k;
+            Ui.Section(new Rect(pv.x, sy, panel.width - 60 * k, 20 * k), "Estilos");
+            float gap = 10 * k, sw = (panel.width - 60 * k - (perRow - 1) * gap) / perRow, sh = 50 * k;
             for (int i = 0; i < n; i++)
             {
-                var r = new Rect(pv.x + (i % perRow) * (sbw + 8 * k), sy + 30 * k + (i / perRow) * 36 * k, sbw, 30 * k);
-                bool sel = _row == 4 && _style == i;
-                if (Ui.Button(r, styles[i].Name, sel, sel, true, 15f)) { _row = 4; ApplyStyle(i); }
+                int row = i / perRow, col = i % perRow, inRow = Mathf.Min(perRow, n - row * perRow);
+                float rowX = pv.x + (panel.width - 60 * k - (inRow * sw + (inRow - 1) * gap)) / 2f;
+                var r = new Rect(rowX + col * (sw + gap), sy + 26 * k + row * (sh + 8 * k), sw, sh);
+                bool focused = Item(r, KStyle * 100 + i) && pad, chosen = i == _style;
+                bool hover = r.Contains(Event.current.mousePosition);
+                Ui.Card(r, chosen || hover, focused);
+                bool mine = i >= Looks.Styles.Length;
+                Ui.Label(new Rect(r.x, r.y + 3 * k, r.width, 22 * k), styles[i].Name, 15.5f, chosen ? Ui.Green : mine ? Ui.Gold : Ui.Ink, TextAnchor.MiddleCenter);
+                // Its palette: vest, shirt, trousers, hair.
+                var parts = styles[i].Parts; int[] show = { Looks.Chaleco, 1, 2, 6 };
+                float d = 14 * k, x0 = r.center.x - (show.Length * d + (show.Length - 1) * 4 * k) / 2f;
+                for (int s = 0; s < show.Length; s++)
+                    Ui.Swatch(new Rect(x0 + s * (d + 4 * k), r.y + 28 * k, d, d), Looks.Swatch(parts[show[s]], show[s]));
+                if (GUI.Button(r, GUIContent.none, GUIStyle.none) || Pressed(focused)) ApplyStyle(i);
             }
 
-            // Buttons.
-            float btY = panel.yMax - 86 * k, bwid = 134 * k;
-            if (Ui.Button(new Rect(pv.x, btY, bwid, 32 * k), "Al azar"))
-            {
-                for (int i = 0; i < Looks.N; i++)
-                    _parts[i] = i == Looks.Piel && Random.value < 0.6f ? new Looks.Part { Own = true }
-                        : Looks.P(Random.Range(0, Looks.Tones), Looks.Pale(i) ? Random.Range(1, 12) : Random.Range(6, 16), Random.Range(3, 15));
-                Changed();
-            }
-            if (Ui.Button(new Rect(pv.x + bwid + 8 * k, btY, bwid, 32 * k), "Will original")) { for (int i = 0; i < Looks.N; i++) _parts[i].Own = true; Changed(); }
-            if (Ui.Button(new Rect(panel.xMax - 30 * k - 110 * k, btY, 110 * k, 32 * k), "Listo", false, false, true, 18f)) SetOpen(false);
-            // Own styles and share codes.
-            float sx = pv.x + 2 * (bwid + 8 * k), sbw2 = 116 * k;
-            if (Ui.Button(new Rect(sx, btY, sbw2, 32 * k), "Guardar estilo", false, false, true, 15f)) { Looks.SaveStyle(_parts); _note = "Guardado en tus estilos"; _noteAt = Time.unscaledTime; }
-            if (Ui.Button(new Rect(sx + sbw2 + 8 * k, btY, sbw2, 32 * k), "Copiar código", false, false, true, 15f)) { GUIUtility.systemCopyBuffer = Looks.ShareCode(Looks.Pack(_parts)); _note = "Copiado: " + GUIUtility.systemCopyBuffer; _noteAt = Time.unscaledTime; }
-            if (Ui.Button(new Rect(sx + 2 * (sbw2 + 8 * k), btY, sbw2, 32 * k), "Pegar código", false, false, true, 15f))
-            {
-                int l = Looks.FromShareCode(GUIUtility.systemCopyBuffer);
-                if (l >= 0) { _parts = Looks.Unpack(l); Changed(); _note = "Aspecto pegado"; } else _note = "El portapapeles no tiene un código ML-…";
-                _noteAt = Time.unscaledTime;
-            }
+            // Actions along the bottom: what to do with the look, and Listo on the right.
+            float ay = panel.yMax - 104 * k, ah = 32 * k;
+            Ui.Box(new Rect(panel.x + 30 * k, ay - 10 * k, panel.width - 60 * k, Mathf.Max(1f, Ui.U * 0.5f)), Ui.Line);
             int custom = _style - Looks.Styles.Length;
-            if (_row == 4 && custom >= 0 && custom < Looks.Mine2.Count && Ui.Button(new Rect(sx + 3 * (sbw2 + 8 * k), btY, 76 * k, 32 * k), "Borrar", false, false, true, 15f)) { Looks.DeleteStyle(custom); _style = 0; }
-            if (Time.unscaledTime - _noteAt < 4f) Ui.Label(new Rect(pv.x, btY - 24 * k, panel.width - 60 * k, 22 * k), _note, 16f, Ui.Good);
-            Ui.Label(new Rect(panel.x + 24 * k, panel.yMax - 46 * k, w - 48 * k, 20 * k),
-                PadNav.Active ? "Cruceta arriba y abajo: fila  ·  izquierda y derecha: cambiar  ·  A: aplicar estilo / cerrar  ·  B: cerrar"
-                              : "Ratón, o flechas: arriba y abajo la fila, izquierda y derecha cambian  ·  Enter aplica el estilo  ·  F3 o Esc: cerrar",
-                14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
+            bool canDelete = custom >= 0 && custom < Looks.Mine2.Count;
+            var acts = new System.Collections.Generic.List<string> { "Al azar", "Will original", "Guardar estilo", "Copiar código", "Pegar código" };
+            if (canDelete) acts.Add("Borrar estilo");
+            float lw = 120 * k, aw = (panel.width - 60 * k - lw - 20 * k - (acts.Count - 1) * 8 * k) / acts.Count;
+            for (int a = 0; a < acts.Count; a++)
+            {
+                var r = new Rect(panel.x + 30 * k + a * (aw + 8 * k), ay, aw, ah);
+                bool focused = Item(r, KAction * 100 + a) && pad;
+                if (Ui.Button(r, acts[a], focused, false, true, 15f, acts[a] == "Borrar estilo" ? Ui.Tone.Red : Ui.Tone.Wood) || Pressed(focused)) Act(acts[a], custom);
+            }
+            var lr = new Rect(panel.xMax - 30 * k - lw, ay, lw, ah);
+            bool lf = Item(lr, KAction * 100 + 99) && pad;
+            if (Ui.Button(lr, "Listo", lf, false, true, 17f, Ui.Tone.Gold) || Pressed(lf)) SetOpen(false);
+            bool note = Time.unscaledTime - _noteAt < 4f;   // a fresh note takes the hint line for a moment
+            Ui.Label(new Rect(panel.x + 24 * k, panel.yMax - 62 * k, w - 48 * k, 20 * k),
+                note ? _note : pad ? "Cruceta: moverse  ·  en una barra, izquierda y derecha cambian el color  ·  A: elegir  ·  B: cerrar"
+                    : "Ratón, o flechas para moverse (en una barra cambian el color)  ·  Enter: elegir  ·  F3 o Esc: cerrar",
+                14.5f, note ? Ui.Green : Ui.InkFaint, TextAnchor.MiddleCenter);
+
+            if (Event.current.type == EventType.Repaint)
+            {
+                // Keep the focus on the same control when the layout changes (a style added or deleted).
+                int had = FocusedId;
+                _lastRects = new System.Collections.Generic.List<Rect>(_rects);
+                _lastIds = new System.Collections.Generic.List<int>(_ids);
+                if (_wantFocus < 0 && had >= 0) { int at = _lastIds.IndexOf(had); if (at >= 0) _focus = at; }
+                if (_wantFocus >= 0) { int at = _lastIds.IndexOf(_wantFocus); if (at >= 0) _focus = at; _wantFocus = -1; }
+                if (_focus >= _lastRects.Count) _focus = 0;
+            }
         }
 
-        private void Bars(Rect r, float k)
+        private void Act(string what, int custom)
+        {
+            switch (what)
+            {
+                case "Al azar":
+                    for (int i = 0; i < Looks.N; i++)
+                        _parts[i] = i == Looks.Piel && Random.value < 0.6f ? new Looks.Part { Own = true }
+                            : Looks.P(Random.Range(0, Looks.Tones), Looks.Pale(i) ? Random.Range(1, 12) : Random.Range(6, 16), Random.Range(3, 15));
+                    Changed(); break;
+                case "Will original": for (int i = 0; i < Looks.N; i++) _parts[i].Own = true; Changed(); break;
+                case "Guardar estilo": Looks.SaveStyle(_parts); _note = "Guardado en tus estilos"; _noteAt = Time.unscaledTime; break;
+                case "Copiar código": GUIUtility.systemCopyBuffer = Looks.ShareCode(Looks.Pack(_parts)); _note = "Copiado: " + GUIUtility.systemCopyBuffer; _noteAt = Time.unscaledTime; break;
+                case "Pegar código":
+                    int l = Looks.FromShareCode(GUIUtility.systemCopyBuffer);
+                    if (l >= 0) { _parts = Looks.Unpack(l); Changed(); _note = "Aspecto pegado"; } else _note = "El portapapeles no tiene un código ML-…";
+                    _noteAt = Time.unscaledTime; break;
+                case "Borrar estilo": Looks.DeleteStyle(custom); _style = 0; _note = "Estilo borrado"; _noteAt = Time.unscaledTime; break;
+            }
+        }
+
+        private void Bars(Rect r, float k, bool pad)
         {
             ref var p = ref _parts[_part];
             int part = _part;
-            Ui.Label(new Rect(r.x, r.y, r.width - 130 * k, 28 * k), Looks.Names[part], 20f, Ui.Ink);
-            float bw = 120 * k;
-            if (Ui.Button(new Rect(r.xMax - bw, r.y + 1 * k, bw, 26 * k), "Como Will", false, p.Own, true, 15f)) { p.Own = !p.Own; Changed(); }
+            Ui.Section(new Rect(r.x, r.y, r.width - 150 * k, 20 * k), "Color de: " + Looks.Names[part]);
+            var own = new Rect(r.xMax - 138 * k, r.y - 5 * k, 138 * k, 28 * k);
+            bool of = Item(own, KOwn * 100) && pad;
+            if (Ui.Button(own, "Como Will", of, p.Own, true, 15f) || Pressed(of)) { p.Own = !p.Own; Changed(); }
             var basePart = p.Own ? Looks.P(Looks.Start[part, 0], Looks.Start[part, 1], Looks.Start[part, 2]) : p;
             if (_grad1 == null)
             {
@@ -266,27 +345,28 @@ namespace MoonlighterCoop
             float u = Ui.U;
             for (int i = 0; i < 3; i++)
             {
-                float y = r.y + 36 * k + i * 36 * k;
-                bool sel = _row == i + 1;
-                if (sel) Ui.Box(new Rect(r.x, y + 9 * k, 6 * k, 8 * k), Ui.Title);   // a small marker on the chosen bar
-                Ui.Label(new Rect(r.x + 12 * k, y, 100 * k, 26 * k), BarNames[i], 17f, sel ? Ui.Title : Ui.Ink);
-                var br = new Rect(r.x + 112 * k, y + 4 * k, r.width - 112 * k, 18 * k);
-                Ui.Box(new Rect(br.x - (sel ? 2 : 1) * u, br.y - (sel ? 2 : 1) * u, br.width + (sel ? 4 : 2) * u, br.height + (sel ? 4 : 2) * u), sel ? Ui.Title : Ui.Outline);
+                float y = r.y + 32 * k + i * 36 * k;
+                var row = new Rect(r.x, y - 4 * k, r.width, 32 * k);
+                bool sel = Item(row, KBar * 100 + i) && pad;
+                if (sel) Ui.Round(row, new Color(Ui.BgLight.r, Ui.BgLight.g, Ui.BgLight.b, 0.8f), u);
+                Ui.Label(new Rect(r.x + 10 * k, y, 100 * k, 24 * k), BarNames[i], 16f, sel ? Ui.Green : Ui.Ink);
+                var br = new Rect(r.x + 116 * k, y + 4 * k, r.width - 126 * k, 16 * k);
+                if (sel) { Ui.Arrow(new Rect(br.x - 14 * k, br.y, 10 * k, br.height), -1, Ui.Green); Ui.Arrow(new Rect(br.xMax + 4 * k, br.y, 10 * k, br.height), 1, Ui.Green); }
+                Ui.Round(Ui.Shrink(br, -u), sel ? Ui.Green : Ui.Outline, u * 0.5f);
                 GUI.color = p.Own ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
                 GUI.DrawTexture(br, texs[i]);
                 GUI.color = Color.white;
                 if (!p.Own)
                 {
-                    // The handle: a little wooden peg.
+                    // The handle: a small cream peg with a dark rim.
                     float f = Get(p, i) / (float)Max(i);
                     var hx = br.x + f * br.width;
                     var peg = new Rect(hx - 4 * u, br.y - 3 * u, 8 * u, br.height + 6 * u);
-                    Ui.Box(peg, Ui.Outline);
-                    Ui.Box(new Rect(peg.x + u, peg.y + u, peg.width - 2 * u, peg.height - 2 * u), Ui.Paper);
-                    Ui.Box(new Rect(peg.x + u, peg.yMax - 2 * u, peg.width - 2 * u, u), Ui.PaperShade);
+                    Ui.Round(peg, Ui.Outline, u * 0.5f);
+                    Ui.Round(Ui.Shrink(peg, u), Ui.Ink, u * 0.5f);
                 }
                 var e = Event.current;
-                if (e.type == EventType.MouseDown && br.Contains(e.mousePosition)) { _dragBar = i; _row = i + 1; }
+                if (e.type == EventType.MouseDown && br.Contains(e.mousePosition)) { _dragBar = i; _wantFocus = KBar * 100 + i; }
                 if (e.type == EventType.MouseUp) _dragBar = -1;
                 if (_dragBar == i && (e.type == EventType.MouseDown || e.type == EventType.MouseDrag))
                 {

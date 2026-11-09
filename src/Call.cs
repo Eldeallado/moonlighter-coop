@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using HarmonyLib;
 using UnityEngine;
@@ -160,7 +160,7 @@ namespace MoonlighterCoop
             if (!Showing) return;
             Ui.Load();
             float k = Ui.K;
-            float w = 620 * k, h = 104 * k;
+            float w = 620 * k, h = 118 * k;
             var r = new Rect((Screen.width - w) / 2f, 60 * k, w, h);
             Ui.Scroll(r);
             int left = Mathf.CeilToInt(Call.ShownUntil - Time.unscaledTime);
@@ -168,9 +168,9 @@ namespace MoonlighterCoop
             string text = Call.ShownKind == Call.Kind.Boss
                 ? $"{who} está en la puerta del jefe: entráis en {left} s"
                 : $"{who} entra en la mazmorra de {Call.CultureName(Call.ShownCulture)}: vais todos en {left} s";
-            Ui.Label(new Rect(r.x + 40 * k, r.y + 12 * k, r.width - 80 * k, 46 * k), text, 19f, Ui.Title, TextAnchor.MiddleCenter, true);
-            Ui.Divider(r.x + 120 * k, r.y + 62 * k, r.width - 240 * k);
-            Ui.Label(new Rect(r.x + 40 * k, r.y + 68 * k, r.width - 80 * k, 26 * k),
+            Ui.Label(new Rect(r.x + 40 * k, r.y + 24 * k, r.width - 80 * k, 46 * k), text, 19f, Ui.Ink, TextAnchor.MiddleCenter, true);
+            Ui.Divider(r.x + 120 * k, r.y + 74 * k, r.width - 240 * k);
+            Ui.Label(new Rect(r.x + 40 * k, r.y + 82 * k, r.width - 80 * k, 26 * k),
                 Call.Answered ? "Respuesta enviada" : (PadNav.Active ? "Cruceta arriba: ¡Listo!  ·  abajo: ¡Espera! (15 s más)" : "H: ¡Listo! ¡Voy!   ·   G: ¡Espera! (15 s más)"), 15.5f, Ui.Ink, TextAnchor.MiddleCenter);
         }
     }

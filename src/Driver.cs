@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -280,6 +280,17 @@ namespace MoonlighterCoop
                 }
                 case "coop": CoopMenu.Do(p[1], p.Length > 2 ? p[2] : ""); return $"role={Plugin.Role} code={SteamCoop.Code} status={SteamCoop.Status} connected={Net.Connected} players={Session.Players}";
                 case "f2": if (CoopMenu.Instance != null) CoopMenu.Instance.SetOpen(p[1] == "on"); return "open=" + CoopMenu.Open;
+                case "pause": GUIManager.Instance.GoToPausePanel(); return "ok";
+                case "options": GUIManager.Instance.ShowOptionsPopUp(); return "ok";
+                case "uiimages": // the images on screen now: object, sprite, size, 9-slice border, colour, type
+                {
+                    var sb = new StringBuilder();
+                    foreach (var im in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Image>().Where(i => i.isActiveAndEnabled && i.sprite != null).Take(120))
+                        sb.Append($"{im.name}={im.sprite.name}[{im.sprite.rect.width}x{im.sprite.rect.height} b={im.sprite.border} {im.type} c={ColorUtility.ToHtmlStringRGBA(im.color)} at {((RectTransform)im.transform).rect.size}]\n");
+                    foreach (var tx in UnityEngine.Object.FindObjectsOfType<UnityEngine.UI.Text>().Where(t => t.isActiveAndEnabled).Take(60))
+                        sb.Append($"TEXT {tx.name}: '{tx.text}' font={(tx.font ? tx.font.name : "-")} size={tx.fontSize} c={ColorUtility.ToHtmlStringRGBA(tx.color)}\n");
+                    return sb.ToString();
+                }
                 case "uiassets":
                 {
                     var sb = new StringBuilder("fonts: ");
@@ -417,7 +428,7 @@ namespace MoonlighterCoop
                     else if (p[1] == "chat") { Chat.Preview = true; Chat.Instance?.DemoLines(); Chat.Typing = true; }
                     return "ok";
                 }
-                case "f2state": { var t = Traverse.Create(CoopMenu.Instance); return $"focus={t.Field("_focus").GetValue<int>()} rects={t.Field("_lastRects").GetValue<List<Rect>>().Count} ach={t.Field("_showAch").GetValue<bool>()} rules={t.Field("_showRules").GetValue<bool>()} give={t.Field("_showGive").GetValue<bool>()} sel={t.Field("_listSel").GetValue<int>()} pad={PadNav.Active}"; }
+                case "f3state": { var t3 = Traverse.Create(ColorMenu.Instance); return "id=" + t3.Property("FocusedId").GetValue<int>() + " part=" + t3.Field("_part").GetValue<int>() + " style=" + t3.Field("_style").GetValue<int>(); } { var t = Traverse.Create(CoopMenu.Instance); return $"focus={t.Field("_focus").GetValue<int>()} rects={t.Field("_lastRects").GetValue<List<Rect>>().Count} ach={t.Field("_showAch").GetValue<bool>()} rules={t.Field("_showRules").GetValue<bool>()} give={t.Field("_showGive").GetValue<bool>()} sel={t.Field("_listSel").GetValue<int>()} pad={PadNav.Active}"; }
                 case "f2page": { var m = CoopMenu.Instance; if (m != null) Traverse.Create(m).Field(p[1]).SetValue(true); return "ok"; }
                 case "summary": Summary.Show(p[1] == "day" ? Summary.Kind.Day : Summary.Kind.Run); return "ok";
                 case "chat": Chat.Send(string.Join(" ", p.Skip(1).ToArray())); return "ok";

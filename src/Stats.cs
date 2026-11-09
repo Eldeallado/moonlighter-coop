@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using HarmonyLib;
@@ -186,13 +186,13 @@ namespace MoonlighterCoop
             foreach (var kv in _others.OrderBy(kv => kv.Key))
                 cols.Add((kv.Value.Name, _kind == Kind.Run ? kv.Value.Run : kv.Value.Day, kv.Value.Items));
             bool items = _kind == Kind.Run;
-            float colW = 170 * k, w = Mathf.Min(Screen.width - 20, Mathf.Max(560 * k, 190 * k + colW * cols.Count)), h = (items ? 440 : 340) * k;
+            float colW = 170 * k, w = Mathf.Min(Screen.width - 20, Mathf.Max(560 * k, 190 * k + colW * cols.Count)), h = (items ? 470 : 370) * k;
             var r = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
             Ui.Dim(0.3f);
             Ui.Sheet(r);
-            Ui.Label(new Rect(r.x, r.y + 20 * k, r.width, 36 * k), _kind == Kind.Run ? "Resumen de la expedición" : "Resumen del día", 28f, Ui.Title, TextAnchor.MiddleCenter);
-            Ui.Divider(r.x + 30 * k, r.y + 60 * k, r.width - 60 * k);
-            float x0 = r.x + 170 * k + (r.width - 190 * k - colW * cols.Count) / 2f, y = r.y + 70 * k;
+            Ui.Label(new Rect(r.x, r.y + 38 * k, r.width, 36 * k), _kind == Kind.Run ? "Resumen de la expedición" : "Resumen del día", 28f, Ui.Title, TextAnchor.MiddleCenter);
+            Ui.Divider(r.x + 30 * k, r.y + 78 * k, r.width - 60 * k);
+            float x0 = r.x + 170 * k + (r.width - 190 * k - colW * cols.Count) / 2f, y = r.y + 88 * k;
             for (int c = 0; c < cols.Count; c++) Ui.Label(new Rect(x0 + c * colW, y, colW, 26 * k), cols[c].name, 17f, Ui.Ink, TextAnchor.MiddleCenter);
             y += 30 * k;
             for (int s = 0; s < Stats.N; s++)
@@ -219,7 +219,7 @@ namespace MoonlighterCoop
                     Ui.Label(new Rect(x0 + c * colW + 6 * k, y + 2 * k, colW - 12 * k, 140 * k), txt == "" ? "—" : txt, 14f, Ui.Ink, TextAnchor.UpperCenter, true);
                 }
             }
-            Ui.Label(new Rect(r.x, r.yMax - 46 * k, r.width, 20 * k), $"Enter o B para cerrar  ·  se cierra solo en {Mathf.CeilToInt(_until - Time.unscaledTime)} s", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
+            Ui.Label(new Rect(r.x, r.yMax - 60 * k, r.width, 20 * k), $"Enter o B para cerrar  ·  se cierra solo en {Mathf.CeilToInt(_until - Time.unscaledTime)} s", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
         }
     }
 }

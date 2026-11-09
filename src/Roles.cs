@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using HarmonyLib;
 using UnityEngine;
@@ -243,14 +243,14 @@ namespace MoonlighterCoop
             if (!Roles.Choosing) return;
             Ui.Load();
             float k = Ui.K;
-            float w = 840 * k, h = 250 * k;
+            float w = 840 * k, h = 290 * k;
             var r = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f - 40 * k, w, h);   // above the notices at the bottom
             Ui.Sheet(r);
-            Ui.Label(new Rect(r.x, r.y + 18 * k, r.width, 30 * k), $"Elige tu rol para esta expedición  ({Mathf.CeilToInt(Roles.ChooseUntil - Time.unscaledTime)} s)", 22f, Ui.Title, TextAnchor.MiddleCenter);
+            Ui.Label(new Rect(r.x, r.y + 38 * k, r.width, 30 * k), $"Elige tu rol para esta expedición  ({Mathf.CeilToInt(Roles.ChooseUntil - Time.unscaledTime)} s)", 22f, Ui.Title, TextAnchor.MiddleCenter);
             float bw = (w - 70 * k) / 4f;
             for (int i = 1; i <= 4; i++)
             {
-                var br = new Rect(r.x + 20 * k + (i - 1) * (bw + 10 * k), r.y + 54 * k, bw, 150 * k);
+                var br = new Rect(r.x + 20 * k + (i - 1) * (bw + 10 * k), r.y + 74 * k, bw, 150 * k);
                 bool taken = Roles.Taken(i);
                 bool mine = Roles.Mine == i, focus = PadNav.Active && _sel == i;
                 var o = GUI.color; if (taken) GUI.color = new Color(1f, 1f, 1f, 0.45f);
@@ -265,7 +265,7 @@ namespace MoonlighterCoop
                 GUI.color = o;
                 if (!taken && GUI.Button(br, GUIContent.none, GUIStyle.none)) Roles.Pick(i);
             }
-            Ui.Label(new Rect(r.x, r.yMax - 42 * k, r.width, 22 * k), PadNav.Active ? "Cruceta izquierda y derecha, y A para elegir" : "Pulsa 1, 2, 3 o 4, o haz clic", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
+            Ui.Label(new Rect(r.x, r.yMax - 58 * k, r.width, 22 * k), PadNav.Active ? "Cruceta izquierda y derecha, y A para elegir" : "Pulsa 1, 2, 3 o 4, o haz clic", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
         }
     }
 }
