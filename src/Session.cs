@@ -124,6 +124,7 @@ namespace MoonlighterCoop
                 {
                     _nextPing = now + 2f;
                     if (IsGuest) Net.Send(Msg.Tutorial, new[] { (byte)(MiTutorial ? 1 : 0) });
+                    HostSettings.Send();
                     // My look's colours (new players may have missed them) and, now and then, my mod list.
                     if (Looks.IsNew(Looks.Mine)) Net.Send(Msg.LookData, Looks.DataBytes(Looks.Mine));
                     if (now >= _nextMods) { _nextMods = now + 30f; Net.Send(Msg.Mods, Mods.ListBytes()); }
@@ -148,6 +149,8 @@ namespace MoonlighterCoop
             Projectiles.Tick();
             Stats.Tick();
             Call.Tick();
+            Roles.Tick();
+            GuestProgress.Tick();
             Reconnect.GuestTick(now);
             Reconnect.HostTick();
             if (IsGuest) EnemySync.GuestTick();
@@ -225,7 +228,7 @@ namespace MoonlighterCoop
 
         // Things one player does that every other player must see: the host passes them on.
         private static readonly System.Collections.Generic.HashSet<Msg> Relayed = new System.Collections.Generic.HashSet<Msg>
-        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods, Msg.Revive, Msg.Stats, Msg.Chat };
+        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods, Msg.Revive, Msg.Stats, Msg.Chat, Msg.Call, Msg.CallReply, Msg.Role, Msg.RoleHeal, Msg.ShopOwner, Msg.Give };
 
         private static void Handle(IPeer from, Msg type, byte[] data)
         {
@@ -242,8 +245,14 @@ namespace MoonlighterCoop
                     break;
                 case Msg.Stats: Stats.OnStats(data); break;
                 case Msg.Chat: Chat.OnChat(data); break;
-                case Msg.Call: if (IsGuest) Call.OnCall(data); break;
-                case Msg.CallReply: if (IsHost) Call.OnReply(from, data); break;
+                case Msg.Call: Call.OnCall(data); break;
+                case Msg.CallReply: Call.OnReply(data); break;
+                case Msg.Settings: HostSettings.OnSettings(data); break;
+                case Msg.Spectate: if (IsGuest) Downed.OnSpectate(); break;
+                case Msg.Give: Give.OnGive(data); break;
+                case Msg.Role: Roles.OnRole(data); break;
+                case Msg.RoleHeal: Roles.OnHeal(data); break;
+                case Msg.ShopOwner: ShopContest.OnOwner(data); break;
                 case Msg.PendantRequest: if (IsHost) GuestPendant.OnRequest(from); break;
                 case Msg.LookData:
                     Looks.Learn(data);
@@ -402,6 +411,7 @@ namespace MoonlighterCoop
             // Host still in the tutorial: the guest plays its own tutorial from the same point, seeing the host.
             if (slot != null && slot.playedTutorial != 4) Plugin.Log.LogInfo($"[session] host is in the tutorial (part {slot.playedTutorial}): the guest plays it too");
             Plugin.Log.LogInfo($"[session] loading host save, slot {seed} found={slot != null && slot.seed == seed}");
+            GuestProgress.Apply(slot);   // the guest's own gear, if it has played this game before
             Plugin.LoadSlotFromMenu(slot);
         }
 

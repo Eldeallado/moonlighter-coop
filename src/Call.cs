@@ -5,46 +5,52 @@ using UnityEngine;
 
 namespace MoonlighterCoop
 {
-    /// "Coming?": when the host walks into a dungeon portal, the others are asked first instead of being dragged
-    /// at once. The host waits inside the portal for up to 8 s (or until everyone answers "on my way"); each other
-    /// player can ask once for 15 s more. Then everybody goes, as always.
+    /// Ready checks. "Coming?": when the host walks into a dungeon portal, the others get a countdown (8 s)
+    /// instead of being dragged at once. "Ready for the boss?" (host setting): whoever reaches the boss door
+    /// waits until everybody is ready (or 20 s). Answers: H = ready / on my way, G = wait (15 s more, once each).
     public static class Call
     {
-        public const float Wait = 8f, Extra = 15f;
-        public static bool Approved;               // the host's own travel, after the call
+        public enum Kind : byte { Dungeon = 0, Boss = 1 }
+        public const float Extra = 15f;
+        public static bool Approved;               // our own action, after the check
+
+        // ---------- the player who started it ----------
         private static bool _calling;
+        private static Kind _kind;
         private static ItemMaster.Culture _culture;
+        private static DungeonBossRoomEnterDoor _door;
         private static float _deadline;
-        private static readonly HashSet<int> _coming = new HashSet<int>(), _waited = new HashSet<int>();
+        private static readonly HashSet<int> _ready = new HashSet<int>(), _waited = new HashSet<int>();
 
-        // ---------- host ----------
-
-        public static bool Start(ItemMaster.Culture culture)
+        public static bool Start(Kind kind, ItemMaster.Culture culture, DungeonBossRoomEnterDoor door = null)
         {
             if (_calling) return true;
-            _calling = true; _culture = culture; _deadline = Time.unscaledTime + Wait;
-            _coming.Clear(); _waited.Clear();
+            _calling = true; _kind = kind; _culture = culture; _door = door;
+            _deadline = Time.unscaledTime + (kind == Kind.Boss ? 20f : 8f);
+            _ready.Clear(); _waited.Clear();
             Send();
-            Banner.Show("Avisando a tus compañeros: entráis a la mazmorra en " + Mathf.CeilToInt(Wait) + " s");
-            Plugin.Log.LogInfo($"[call] host enters {culture}: asking the others first");
+            Banner.Show(kind == Kind.Boss ? "Sala del jefe: esperando a que estéis todos listos" : "Avisando a tus compañeros: entráis a la mazmorra en 8 s");
+            Plugin.Log.LogInfo($"[call] {kind} check started by me");
             return true;
         }
 
         private static void Send()
         {
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
-            w.Write((int)_culture); w.Write(Mathf.Max(0f, _deadline - Time.unscaledTime));
+            w.Write((byte)Session.MyId); w.Write((byte)_kind); w.Write((int)_culture); w.Write(Mathf.Max(0f, _deadline - Time.unscaledTime));
             Net.Send(Msg.Call, ms.ToArray());
         }
 
-        public static void OnReply(IPeer from, byte[] data)
+        public static void OnReply(byte[] data)
         {
-            if (!_calling || data.Length < 1) return;
-            if (data[0] == 1) { _coming.Add(from.Id); Banner.Show($"Jugador {from.Id + 1}: ¡voy!"); }
-            else if (data[0] == 2 && _waited.Add(from.Id))
+            if (data.Length < 3) return;
+            int to = data[0], from = data[1], answer = data[2];
+            if (!_calling || to != Session.MyId) return;
+            if (answer == 1) { if (_ready.Add(from)) Banner.Show($"Jugador {from + 1}: ¡listo!"); }
+            else if (answer == 2 && _waited.Add(from))
             {
                 _deadline += Extra; Send();
-                Banner.Show($"Jugador {from.Id + 1} pide que esperes: {Mathf.CeilToInt(Extra)} s más");
+                Banner.Show($"Jugador {from + 1} pide que esperes: {Mathf.CeilToInt(Extra)} s más");
             }
         }
 
@@ -53,36 +59,44 @@ namespace MoonlighterCoop
             if (!_calling) return;
             var hero = HeroMerchant.Instance;
             if (hero == null || !Net.Juego) { _calling = false; return; }
-            bool all = _coming.Count >= Net.ConnectedCount;
-            if (!all && Time.unscaledTime < _deadline) return;
+            int others = Session.Players - 1 - (_kind == Kind.Boss ? Downed.Ghosts.Count : 0);
+            if (_ready.Count < others && Time.unscaledTime < _deadline) return;
             _calling = false;
             Approved = true;
-            try { hero.LoadDungeonScene(_culture); }
+            try
+            {
+                if (_kind == Kind.Dungeon) hero.LoadDungeonScene(_culture);
+                else if (_door != null) _door.OnPlayerEnter(hero.gameObject);
+            }
             finally { Approved = false; }
+            Net.Send(Msg.Call, new byte[] { (byte)Session.MyId, 255 });   // close the boxes
         }
 
         public static bool Calling => _calling;
 
-        // ---------- others ----------
-
+        // ---------- everybody else ----------
+        public static int ShownFrom;
+        public static Kind ShownKind;
         public static ItemMaster.Culture ShownCulture;
         public static float ShownUntil;
         public static bool Answered;
 
         public static void OnCall(byte[] data)
         {
+            if (data.Length >= 2 && data[1] == 255) { if (data[0] == ShownFrom) ShownUntil = 0f; return; }
             var r = new BinaryReader(new MemoryStream(data));
-            ShownCulture = (ItemMaster.Culture)r.ReadInt32();
-            float left = r.ReadSingle();
-            if (Time.unscaledTime > ShownUntil) Answered = false;   // a new call
+            int from = r.ReadByte(); if (from == Session.MyId) return;
+            var kind = (Kind)r.ReadByte(); var culture = (ItemMaster.Culture)r.ReadInt32(); float left = r.ReadSingle();
+            if (Time.unscaledTime > ShownUntil || from != ShownFrom) Answered = false;   // a new check
+            ShownFrom = from; ShownKind = kind; ShownCulture = culture;
             ShownUntil = Time.unscaledTime + left;
         }
 
-        public static void Reply(bool coming)
+        public static void Reply(bool ready)
         {
-            if (Answered && coming) return;
+            if (Answered && ready) return;
             Answered = true;
-            Net.Send(Msg.CallReply, new[] { (byte)(coming ? 1 : 2) });
+            Net.Send(Msg.CallReply, new[] { (byte)ShownFrom, (byte)Session.MyId, (byte)(ready ? 1 : 2) });
         }
 
         public static string CultureName(ItemMaster.Culture c)
@@ -108,15 +122,31 @@ namespace MoonlighterCoop
             if (Call.Approved || !Session.IsHost || !Net.Juego || Net.ConnectedCount == 0 || Session.TutorialActivo) return true;
             var gm = GameManager.Instance;
             if (gm == null || !gm.IsTownSceneLoaded() || gm.IsDungeonSceneLoaded()) return true;
-            return !Call.Start(culture);
+            return !Call.Start(Call.Kind.Dungeon, culture);
         }
     }
 
-    /// The "Coming?" box on the others' screens.
+    // The boss door (host setting): wait until everybody is ready, then the one who touched it goes in (and,
+    // as with every door, the others come along).
+    [HarmonyPatch(typeof(DungeonBossRoomEnterDoor), nameof(DungeonBossRoomEnterDoor.OnPlayerEnter))]
+    static class CallBeforeBoss
+    {
+        [HarmonyPriority(Priority.First)]
+        static bool Prefix(DungeonBossRoomEnterDoor __instance, GameObject player)
+        {
+            if (Call.Approved || !HostSettings.BossWait || !Net.Juego || Session.Players < 2 || Downed.Me) return true;
+            if (HeroMerchant.Instance == null || player != HeroMerchant.Instance.gameObject || __instance.isBossDefeated || __instance.willChallengedBoss) return true;
+            if (Dungeon.Following || Dungeon.ApplyingRemote) return true;   // coming along with someone else
+            var dm = DungeonManager.Instance;
+            return !Call.Start(Call.Kind.Boss, dm != null ? dm.culture : ItemMaster.Culture.Golem, __instance);
+        }
+    }
+
+    /// The check's box on the others' screens.
     public class CallPanel : MonoBehaviour
     {
         private GUIStyle _t, _l;
-        private bool Showing => Session.IsGuest && Time.unscaledTime < Call.ShownUntil;
+        private bool Showing => Time.unscaledTime < Call.ShownUntil;
 
         private void Update()
         {
@@ -133,13 +163,17 @@ namespace MoonlighterCoop
             if (_t == null) { _t = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true }; _l = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true }; }
             _t.fontSize = (int)(19 * k); _l.fontSize = (int)(14 * k);
             _t.normal.textColor = new Color(1f, 0.85f, 0.45f); _l.normal.textColor = new Color(0.9f, 0.9f, 0.9f);
-            float w = 520 * k, h = 120 * k;
+            float w = 540 * k, h = 120 * k;
             var r = new Rect((Screen.width - w) / 2f, 70 * k, w, h);
             var o = GUI.color; GUI.color = new Color(0.09f, 0.07f, 0.06f, 0.94f); GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = o;
             int left = Mathf.CeilToInt(Call.ShownUntil - Time.unscaledTime);
-            GUI.Label(new Rect(r.x + 10 * k, r.y + 8 * k, r.width - 20 * k, 52 * k), $"El anfitrión entra en la mazmorra de {Call.CultureName(Call.ShownCulture)}: vais todos en {left} s", _t);
+            string who = Call.ShownFrom == 0 ? "El anfitrión" : "El jugador " + (Call.ShownFrom + 1);
+            string text = Call.ShownKind == Call.Kind.Boss
+                ? $"{who} está en la puerta del jefe: entráis en {left} s"
+                : $"{who} entra en la mazmorra de {Call.CultureName(Call.ShownCulture)}: vais todos en {left} s";
+            GUI.Label(new Rect(r.x + 10 * k, r.y + 8 * k, r.width - 20 * k, 52 * k), text, _t);
             GUI.Label(new Rect(r.x + 10 * k, r.y + 62 * k, r.width - 20 * k, 50 * k),
-                Call.Answered ? "Respuesta enviada" : (PadNav.Active ? "Cruceta ↑ ¡Voy! · ↓ ¡Espera! (15 s más)" : "H = ¡Voy!   ·   G = ¡Espera! (15 s más)"), _l);
+                Call.Answered ? "Respuesta enviada" : (PadNav.Active ? "Cruceta ↑ ¡Listo! · ↓ ¡Espera! (15 s más)" : "H = ¡Listo! / ¡Voy!   ·   G = ¡Espera! (15 s más)"), _l);
         }
     }
 }

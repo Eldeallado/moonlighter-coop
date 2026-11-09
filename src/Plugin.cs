@@ -15,7 +15,7 @@ namespace MoonlighterCoop
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "elde_al_lado.moonlighter.coop";
-        public const string Version = "0.7.0";
+        public const string Version = "0.8.0";
 
         public static Plugin Instance;
         public static ManualLogSource Log;
@@ -41,6 +41,9 @@ namespace MoonlighterCoop
         private static BepInEx.Configuration.ConfigEntry<string> _partsCfg, _achCfg, _stylesCfg;
         public static void SaveMyStyles(string s) { if (_stylesCfg != null) _stylesCfg.Value = s; }
         private static BepInEx.Configuration.ConfigEntry<bool> _barsCfg;
+        private static BepInEx.Configuration.ConfigEntry<int> _rulesCfg, _roleCfg;
+        public static void SaveHostSettings(int bits) { if (_rulesCfg != null) _rulesCfg.Value = bits; }
+        public static void SaveRole(int r) { if (_roleCfg != null) _roleCfg.Value = r; }
         public static void SaveEnemyBars(bool on) { if (_barsCfg != null) _barsCfg.Value = on; }
         public static void SaveAchievements(string s) { if (_achCfg != null) _achCfg.Value = s; }
         public static void SaveLook(int look)
@@ -73,9 +76,15 @@ namespace MoonlighterCoop
             gameObject.AddComponent<CallPanel>();
             gameObject.AddComponent<Chat>();
             gameObject.AddComponent<EnemyBars>();
+            gameObject.AddComponent<RolePanel>();
+            ShopContest.Init();
             Versions.StartCheck(this);
             _lookCfg = Config.Bind("Aspecto", "Colores", -1, "Cuerpo y pelo (lo elige el menú F3). -1 = según el número de jugador");
             if (_lookCfg.Value >= 0) Looks.LoadSaved(_lookCfg.Value);
+            _rulesCfg = Config.Bind("Cooperativo", "Reglas", HostSettings.Bits, "Reglas del anfitrión (se cambian en F2)");
+            HostSettings.FromBits(_rulesCfg.Value);
+            _roleCfg = Config.Bind("Cooperativo", "Rol", 0, "Tu último rol");
+            Roles.Mine = _roleCfg.Value;
             _barsCfg = Config.Bind("Cooperativo", "VidaEnemigos", false, "Mostrar la vida de los enemigos con números (se cambia en F2)");
             EnemyBars.On = _barsCfg.Value;
             _stylesCfg = Config.Bind("Aspecto", "MisEstilos", "", "Tus estilos guardados (nombre=código|...); los gestiona el menú F3");

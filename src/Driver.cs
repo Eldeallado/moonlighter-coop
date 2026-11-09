@@ -371,6 +371,11 @@ namespace MoonlighterCoop
                 case "pendant":
                     hero.UseMerchantPendant();
                     return "pendant";
+                case "rule": HostSettings.Toggle(int.Parse(p[1])); return "rules=" + HostSettings.Bits;
+                case "role": Roles.Pick(int.Parse(p[1])); return "role=" + Roles.Mine + " choosing=" + Roles.Choosing;
+                case "give": Give.ToBag(int.Parse(p[1])); return "ok";
+                case "roleinfo": return "role=" + Roles.Mine + " choosing=" + Roles.Choosing + " rules=" + HostSettings.Bits;
+                case "f2page": { var m = CoopMenu.Instance; if (m != null) Traverse.Create(m).Field(p[1]).SetValue(true); return "ok"; }
                 case "summary": Summary.Show(p[1] == "day" ? Summary.Kind.Day : Summary.Kind.Run); return "ok";
                 case "chat": Chat.Send(string.Join(" ", p.Skip(1).ToArray())); return "ok";
                 case "bars": EnemyBars.On = p[1] == "on"; return "ok";

@@ -10,7 +10,7 @@ namespace MoonlighterCoop
     /// and lets you leave.
     public class CoopMenu : MonoBehaviour
     {
-        private bool _showAch;
+        private bool _showAch, _showRules, _showGive;
         public static bool Open;
         public static CoopMenu Instance;
         private enum Page { Main, Code, Ip }
@@ -347,12 +347,50 @@ namespace MoonlighterCoop
                 y += 40 * k;
             }
             // Options of this player, and the co-op achievements.
-            float oy = r.yMax - 86 * k;
-            if (Btn(new Rect(r.x, oy, 240 * k, 30 * k), "Vida de enemigos con números: " + (EnemyBars.On ? "sí" : "no"))) EnemyBars.Toggle();
-            if (Btn(new Rect(r.x + 250 * k, oy, 200 * k, 30 * k), $"Logros ({Achievements.Unlocked}/{Achievements.All.Length})")) _showAch = !_showAch;
+            float oy = r.yMax - 86 * k, q4 = (r.width - 30 * k) / 4f;
+            if (Btn(new Rect(r.x, oy, q4, 30 * k), "Ver vida: " + (EnemyBars.On ? "sí" : "no"))) EnemyBars.Toggle();
+            if (Btn(new Rect(r.x + (q4 + 10 * k), oy, q4, 30 * k), $"Logros ({Achievements.Unlocked}/{Achievements.All.Length})")) { _showAch = !_showAch; _showRules = false; }
+            if (Btn(new Rect(r.x + 2 * (q4 + 10 * k), oy, q4, 30 * k), "Reglas")) { _showRules = !_showRules; _showAch = false; _showGive = false; }
+            if (Btn(new Rect(r.x + 3 * (q4 + 10 * k), oy, q4, 30 * k), "Dar equipo")) { _showGive = !_showGive; _showAch = false; _showRules = false; }
+            if (_showGive)
+            {
+                var ar = new Rect(r.x, r.y + 40 * k, r.width, oy - r.y - 46 * k);
+                var o = GUI.color; GUI.color = new Color(0.07f, 0.05f, 0.04f, 0.97f); GUI.DrawTexture(ar, Texture2D.whiteTexture); GUI.color = o;
+                float ay = ar.y + 8 * k;
+                GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 24 * k), "Deja una pieza en la mochila compartida para que la coja otro:", _head);
+                ay += 30 * k;
+                for (int i = 0; i < Give.Slots.Length; i++)
+                {
+                    var st = Give.Equipped(i);
+                    string label = Give.SlotNames[i] + ": " + (st != null ? Stats.ItemName(st.master) : "—");
+                    float gw = (ar.width - 30 * k) / 2f, gx = ar.x + 10 * k + (i % 2) * (gw + 10 * k), gy = ay + (i / 2) * 30 * k;
+                    if (st != null) { if (Btn(new Rect(gx, gy, gw, 26 * k), label)) Give.ToBag(i); }
+                    else GUI.Label(new Rect(gx, gy, gw, 24 * k), label, _small);
+                }
+            }
+            if (_showRules)
+            {
+                var ar = new Rect(r.x, r.y + 40 * k, r.width, oy - r.y - 46 * k);
+                var o = GUI.color; GUI.color = new Color(0.07f, 0.05f, 0.04f, 0.97f); GUI.DrawTexture(ar, Texture2D.whiteTexture); GUI.color = o;
+                float ay = ar.y + 8 * k;
+                GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 24 * k), host ? "Reglas (las eliges tú, valen para todos):" : "Reglas que ha elegido el anfitrión:", _head);
+                ay += 30 * k;
+                for (int i = 0; i < HostSettings.Count; i++)
+                {
+                    string label = (HostSettings.Get(i) ? "✔ " : "✗ ") + HostSettings.Names[i];
+                    if (host) { if (Btn(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 24 * k), label)) HostSettings.Toggle(i); }
+                    else GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 26 * k), label, _label);
+                    ay += 27 * k;
+                }
+                if (HostSettings.Roles)
+                {
+                    ay += 6 * k;
+                    GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 22 * k), "Tu rol: " + Roles.Names[Roles.Mine] + (Roles.Mine > 0 ? " — " + Roles.Texts[Roles.Mine] : "") + " (se elige al entrar en la mazmorra)", _small);
+                }
+            }
             if (_showAch)
             {
-                var ar = new Rect(r.x, r.y + 70 * k, r.width, oy - r.y - 78 * k);
+                var ar = new Rect(r.x, r.y + 40 * k, r.width, oy - r.y - 46 * k);
                 var o = GUI.color; GUI.color = new Color(0.07f, 0.05f, 0.04f, 0.97f); GUI.DrawTexture(ar, Texture2D.whiteTexture); GUI.color = o;
                 float ay = ar.y + 6 * k;
                 foreach (var a in Achievements.All)

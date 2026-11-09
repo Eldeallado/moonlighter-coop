@@ -96,7 +96,9 @@ namespace MoonlighterCoop
                 string key = Key(st);
                 if (_known[k] == null) { _known[k] = key; continue; }   // first look: just learn
                 if (_known[k] == key) continue;
+                string before = _known[k];
                 _known[k] = key;
+                ShopContest.SlotChanged(k, before, key);
                 (changed ??= new List<(int, string, ItemStack)>()).Add((k, key, st));
             }
             if (changed == null) return;

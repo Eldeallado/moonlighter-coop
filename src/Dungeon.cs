@@ -84,6 +84,7 @@ namespace MoonlighterCoop
             p.Send(Msg.DungeonInfo, Encoding.UTF8.GetBytes(fsJsonPrinter.CompressedJson(data)));
             EnemySync.SendDeadTo(p);
             Reconnect.CatchUps++;
+            if (HostSettings.Spectator) p.Send(Msg.Spectate, new byte[0]);   // joined mid-floor: watch until the next floor
             Plugin.Log.LogInfo($"[dungeon] catch-up for player {p.Id}: {dm.culture} floor {dm.level}, room {cur.x},{cur.y}, {EnemySync.Dead.Count} dead");
         }
 

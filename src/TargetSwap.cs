@@ -40,12 +40,13 @@ namespace MoonlighterCoop
             var me = hero.transform.position;
             var at = __instance.transform.position;
             // Nearest living player in this room: the host itself, or any guest's Will here that is not a ghost.
-            float best = Downed.Me ? float.MaxValue : (me - at).sqrMagnitude;
+            // The Guardian (role) draws enemies: counts as closer.
+            float best = Downed.Me ? float.MaxValue : (me - at).sqrMagnitude * Roles.Pull(Session.MyId);
             Vector3? target = null;
             foreach (var p in Puppet.All.Values)
             {
                 if (p == null || !p.Visible || Downed.IsGhost(p.PlayerId)) continue;
-                float d = (p.transform.position - at).sqrMagnitude;
+                float d = (p.transform.position - at).sqrMagnitude * Roles.Pull(p.PlayerId);
                 if (d < best) { best = d; target = p.transform.position; }
             }
             if (!target.HasValue) return;

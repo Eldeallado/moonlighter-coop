@@ -29,7 +29,7 @@ namespace MoonlighterCoop
         public static bool OnLocalDeathEnded()
         {
             if (EndingRun || !InDungeon) return true;
-            if (EveryoneElseDown)
+            if (EveryoneElseDown || HostSettings.OneHeart)   // "one heart" (host setting): anyone falls, the run ends
             {
                 // Everyone down: end the run on both PCs.
                 Plugin.Log.LogInfo("[downed] both players are down: the run ends");
@@ -46,6 +46,19 @@ namespace MoonlighterCoop
         }
 
         private static string _ghostFloor = "";
+
+        /// Joined in the middle of a floor (host setting): watch as a ghost until the next floor.
+        public static bool SpectatePending;
+        public static void Spectate()
+        {
+            var hero = HeroMerchant.Instance;
+            if (hero == null || Me || !InDungeon) return;
+            Me = true;
+            BecomeGhost();
+            Net.Send(Msg.Downed, new byte[] { 1, (byte)Session.MyId });
+            Banner.Show("Te has unido a mitad de piso: miras como fantasma hasta el siguiente piso");
+            Plugin.Log.LogInfo("[downed] joined mid-floor: spectating as a ghost");
+        }
 
         /// Isaac-style: the dead player floats around as a see-through ghost. It flies over holes, cannot attack,
         /// pick things up or be hurt, and enemies ignore it.
@@ -190,10 +203,13 @@ namespace MoonlighterCoop
             Plugin.Log.LogInfo($"[downed] revived player {near.PlayerId} with a potion");
         }
         public static int PotionRevives;
+        private static float _spectateAt;
+        public static void OnSpectate() { if (HostSettings.Spectator) { SpectatePending = true; _spectateAt = Time.unscaledTime + 3f; } }
 
         public static void Tick()
         {
             var hero = HeroMerchant.Instance;
+            if (SpectatePending && InDungeon && hero != null && GameManager.Instance.NotLoadingScene && Time.unscaledTime > _spectateAt) { SpectatePending = false; Spectate(); }
             if (!InDungeon || hero == null)
             {
                 if (!Net.Juego || GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded())
