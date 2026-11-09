@@ -24,6 +24,9 @@ Todos los jugadores necesitan el mod instalado (la misma versión).
 | Tecla | Qué hace |
 |---|---|
 | **F2** | Menú cooperativo: crear partida, unirse con un código o por IP, ver quién está, expulsar, salir |
+| **T** | Chat: escribe una frase y Enter |
+| **R** (o **L3**) | Junto a un compañero caído, gasta tu poción para revivirlo |
+| **H** o **G** | Cuando el anfitrión entra en la mazmorra: «¡Voy!» o «¡Espera!» (15 s más) |
 | **F3** | Aspecto de tu Will: color de chaleco, camiseta, pantalón, mochila, zapatos, gema, pelo y piel (barras de tono, intensidad y brillo, con vista previa), o un estilo entero (Zenón, Herrero, Bruja, Pete, Gólem, Bosque, Desierto, Tecnología, Fantasma) |
 | **L3 + R3** (mando) | Abre el menú cooperativo con el mando: cruceta para moverse, A aceptar, B volver |
 
