@@ -166,6 +166,7 @@ namespace MoonlighterCoop
         }
 
         public static bool Open => _i != null && Time.unscaledTime < _i._until;
+        public static void Close() { if (_i != null) _i._until = 0f; }
 
         private void Update()
         {
@@ -177,57 +178,48 @@ namespace MoonlighterCoop
         private void OnGUI()
         {
             if (!Open) return;
-            float k = Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
-            if (_t == null)
-            {
-                _t = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-                _h = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true };
-                _l = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter };
-                _s = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.UpperCenter, wordWrap = true };
-            }
-            _t.fontSize = (int)(24 * k); _h.fontSize = (int)(16 * k); _l.fontSize = (int)(15 * k); _s.fontSize = (int)(12 * k);
-            _t.normal.textColor = new Color(1f, 0.85f, 0.45f); _h.normal.textColor = Color.white;
-            _l.normal.textColor = new Color(0.9f, 0.9f, 0.9f); _s.normal.textColor = new Color(0.75f, 0.75f, 0.7f);
+            Ui.Load();
+            float k = Ui.K;
 
             var cols = new List<(string name, int[] v, IEnumerable<KeyValuePair<string, int>> items)>();
             cols.Add(((SteamCoop.Available ? SteamCoop.MyName : "Tú") + " (tú)", _mine, _myItems.OrderByDescending(kv => kv.Value).Take(6)));
             foreach (var kv in _others.OrderBy(kv => kv.Key))
                 cols.Add((kv.Value.Name, _kind == Kind.Run ? kv.Value.Run : kv.Value.Day, kv.Value.Items));
             bool items = _kind == Kind.Run;
-            float colW = 170 * k, w = Mathf.Min(Screen.width - 20, 150 * k + colW * cols.Count), h = (items ? 420 : 300) * k;
+            float colW = 170 * k, w = Mathf.Min(Screen.width - 20, Mathf.Max(560 * k, 190 * k + colW * cols.Count)), h = (items ? 440 : 340) * k;
             var r = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
-            Fill(r, new Color(0.09f, 0.07f, 0.06f, 0.94f)); Frame(r, new Color(0.62f, 0.45f, 0.22f), 3 * k);
-            GUI.Label(new Rect(r.x, r.y + 10 * k, r.width, 34 * k), _kind == Kind.Run ? "Resumen de la expedición" : "Resumen del día", _t);
-            float x0 = r.x + 140 * k, y = r.y + 54 * k;
-            for (int c = 0; c < cols.Count; c++) GUI.Label(new Rect(x0 + c * colW, y, colW, 26 * k), cols[c].name, _h);
-            y += 32 * k;
+            Ui.Dim(0.3f);
+            Ui.Sheet(r);
+            Ui.Label(new Rect(r.x, r.y + 20 * k, r.width, 36 * k), _kind == Kind.Run ? "Resumen de la expedición" : "Resumen del día", 28f, Ui.Title, TextAnchor.MiddleCenter);
+            Ui.Divider(r.x + 30 * k, r.y + 60 * k, r.width - 60 * k);
+            float x0 = r.x + 170 * k + (r.width - 190 * k - colW * cols.Count) / 2f, y = r.y + 70 * k;
+            for (int c = 0; c < cols.Count; c++) Ui.Label(new Rect(x0 + c * colW, y, colW, 26 * k), cols[c].name, 17f, Ui.Ink, TextAnchor.MiddleCenter);
+            y += 30 * k;
             for (int s = 0; s < Stats.N; s++)
             {
-                GUI.Label(new Rect(r.x + 10 * k, y, 130 * k, 24 * k), Stats.Names[s], _l);
+                // Rows striped like a ledger; the best of each row in red ink with a small mark.
+                if (s % 2 == 0) Ui.Box(new Rect(r.x + 24 * k, y, r.width - 48 * k, 26 * k), new Color(Ui.PaperDark.r, Ui.PaperDark.g, Ui.PaperDark.b, 0.45f));
+                Ui.Label(new Rect(r.x + 34 * k, y, 136 * k, 26 * k), Stats.Names[s], 16f, Ui.InkSoft);
                 int best = 0; foreach (var cc in cols) best = Mathf.Max(best, cc.v[s]);
                 for (int c = 0; c < cols.Count; c++)
                 {
                     int v = cols[c].v[s];
-                    var st = new GUIStyle(_l); if (v > 0 && v == best && cols.Count > 1 && s != Stats.Deaths) st.normal.textColor = new Color(1f, 0.85f, 0.45f);
-                    GUI.Label(new Rect(x0 + c * colW, y, colW, 24 * k), v.ToString(), st);
+                    bool top = v > 0 && v == best && cols.Count > 1 && s != Stats.Deaths;
+                    Ui.Label(new Rect(x0 + c * colW, y, colW, 26 * k), v.ToString(), 17f, top ? Ui.Title : Ui.Ink, TextAnchor.MiddleCenter);
                 }
                 y += 26 * k;
             }
             if (items)
             {
-                y += 6 * k;
-                GUI.Label(new Rect(r.x + 10 * k, y, 130 * k, 24 * k), "Ha recogido", _l);
+                y += 10 * k;
+                Ui.Label(new Rect(r.x + 34 * k, y, 136 * k, 24 * k), "Ha recogido", 16f, Ui.InkSoft);
                 for (int c = 0; c < cols.Count; c++)
                 {
-                    var txt = string.Join("\n", cols[c].items.Select(kv => $"{kv.Value} × {kv.Key}").ToArray());
-                    GUI.Label(new Rect(x0 + c * colW + 4 * k, y, colW - 8 * k, 150 * k), txt == "" ? "—" : txt, _s);
+                    var txt = string.Join("\n", cols[c].items.Select(kv => $"{kv.Value} x {kv.Key}").ToArray());
+                    Ui.Label(new Rect(x0 + c * colW + 6 * k, y + 2 * k, colW - 12 * k, 140 * k), txt == "" ? "—" : txt, 14f, Ui.Ink, TextAnchor.UpperCenter, true);
                 }
             }
-            GUI.Label(new Rect(r.x, r.yMax - 28 * k, r.width, 22 * k), $"Enter o B para cerrar · se cierra solo en {Mathf.CeilToInt(_until - Time.unscaledTime)} s", _s);
+            Ui.Label(new Rect(r.x, r.yMax - 46 * k, r.width, 20 * k), $"Enter o B para cerrar  ·  se cierra solo en {Mathf.CeilToInt(_until - Time.unscaledTime)} s", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
         }
-
-        private static Texture2D _white;
-        private static void Fill(Rect r, Color c) { if (_white == null) { _white = new Texture2D(1, 1); _white.SetPixel(0, 0, Color.white); _white.Apply(); } var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, _white); GUI.color = o; }
-        private static void Frame(Rect r, Color c, float w) { Fill(new Rect(r.x, r.y, r.width, w), c); Fill(new Rect(r.x, r.yMax - w, r.width, w), c); Fill(new Rect(r.x, r.y, w, r.height), c); Fill(new Rect(r.xMax - w, r.y, w, r.height), c); }
     }
 }

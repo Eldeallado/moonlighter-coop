@@ -408,6 +408,15 @@ namespace MoonlighterCoop
                     return $"secret rooms {rooms}, marked {marked}, panel={(mp != null)}";
                 }
                 case "roleinfo": return "role=" + Roles.Mine + " choosing=" + Roles.Choosing + " rules=" + HostSettings.Bits;
+                case "uishow": // open one of the mod's windows to look at it: roles | call | summary | chat | off
+                {
+                    Roles.Choosing = false; Call.ShownUntil = 0f; Summary.Close(); Chat.Preview = false; Chat.Typing = false;
+                    if (p[1] == "roles") { Roles.Choosing = true; Roles.ChooseUntil = Time.unscaledTime + 60f; }
+                    else if (p[1] == "call") { Call.ShownFrom = 0; Call.ShownKind = Call.Kind.Dungeon; Call.ShownCulture = ItemMaster.Culture.Golem; Call.Answered = false; Call.ShownUntil = Time.unscaledTime + 60f; }
+                    else if (p[1] == "summary") Summary.Show(Summary.Kind.Run);
+                    else if (p[1] == "chat") { Chat.Preview = true; Chat.Instance?.DemoLines(); Chat.Typing = true; }
+                    return "ok";
+                }
                 case "f2state": { var t = Traverse.Create(CoopMenu.Instance); return $"focus={t.Field("_focus").GetValue<int>()} rects={t.Field("_lastRects").GetValue<List<Rect>>().Count} ach={t.Field("_showAch").GetValue<bool>()} rules={t.Field("_showRules").GetValue<bool>()} give={t.Field("_showGive").GetValue<bool>()} sel={t.Field("_listSel").GetValue<int>()} pad={PadNav.Active}"; }
                 case "f2page": { var m = CoopMenu.Instance; if (m != null) Traverse.Create(m).Field(p[1]).SetValue(true); return "ok"; }
                 case "summary": Summary.Show(p[1] == "day" ? Summary.Kind.Day : Summary.Kind.Run); return "ok";

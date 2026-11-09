@@ -13,7 +13,6 @@ namespace MoonlighterCoop
         private string _text = "";
         private bool _focus;
         private readonly List<(string who, string text, float at)> _lines = new List<(string, string, float)>();
-        private GUIStyle _style, _input;
         private const float Show = 12f;
 
         private void Awake() { Instance = this; }
@@ -56,9 +55,13 @@ namespace MoonlighterCoop
             Plugin.Log.LogInfo($"[chat] {who}: {text}");
         }
 
+        /// QA: show the chat without a partner (some lines and the input box).
+        public static bool Preview;
+        public void DemoLines() { _lines.Clear(); Add("Elde al lado", "¡Vamos a por el Gólem!"); Add("Jugador 2", "Espera, que vendo esto primero"); _text = "Ya voy"; }
+
         private void Update()
         {
-            if (!Net.Connected) { if (Typing) Close(); return; }
+            if (!Net.Connected && !Preview) { if (Typing) Close(); return; }
             bool menus = ColorMenu.Open || CoopMenu.Open || (GUIManager.Instance != null && GUIManager.Instance.currentInventory != null);
             if (!Typing && !menus && Input.GetKeyDown(KeyCode.T) && HeroMerchant.Instance != null)
             {
@@ -78,39 +81,37 @@ namespace MoonlighterCoop
 
         private void OnGUI()
         {
-            float k = Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
-            if (_style == null)
-            {
-                _style = new GUIStyle(GUI.skin.label) { wordWrap = true, richText = false };
-                _input = new GUIStyle(GUI.skin.textField);
-            }
-            _style.fontSize = (int)(15 * k); _input.fontSize = (int)(16 * k);
-            float x = 20 * k, w = 460 * k, y = Screen.height - 120 * k;
+            Ui.Load();
+            float k = Ui.K;
+            float x = 20 * k, w = 470 * k, y = Screen.height - 124 * k;
             if (Typing)
             {
                 var e = Event.current;
                 if (e.type == EventType.KeyDown && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)) { Send(_text); Close(); e.Use(); return; }
                 if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape) { Close(); e.Use(); return; }
-                GUI.SetNextControlName("coopchat");
-                _text = GUI.TextField(new Rect(x, y + 40 * k, w, 30 * k), _text, 120, _input);
+                // A small scroll with the box to write in.
+                var sr = new Rect(x - 10 * k, y + 34 * k, w + 20 * k, 66 * k);
+                Ui.Scroll(sr);
+                _text = Ui.TextField(new Rect(x + 22 * k, y + 42 * k, w - 44 * k, 28 * k), _text, 120, 17f, TextAnchor.MiddleLeft, "coopchat");
                 if (_focus) { GUI.FocusControl("coopchat"); _focus = false; }
-                GUI.Label(new Rect(x, y + 72 * k, w, 20 * k), "Enter enviar · Esc cancelar", _style);
+                Ui.Label(new Rect(x + 22 * k, y + 72 * k, w - 44 * k, 20 * k), "Enter: enviar  ·  Esc: cancelar", 14f, Ui.InkSoft, TextAnchor.MiddleCenter);
             }
             float now = Time.unscaledTime;
-            float ly = y + 30 * k;
+            float ly = y + 28 * k;
             for (int i = _lines.Count - 1; i >= 0; i--)
             {
                 var l = _lines[i];
                 float age = now - l.at;
                 if (!Typing && age > Show) continue;
                 float a = Typing ? 1f : Mathf.Clamp01((Show - age) / 2f);
-                var h = _style.CalcHeight(new GUIContent(l.who + ": " + l.text), w) + 2 * k;
-                ly -= h;
-                var o = GUI.color;
-                GUI.color = new Color(0f, 0f, 0f, 0.55f * a); GUI.DrawTexture(new Rect(x - 4 * k, ly, w + 8 * k, h), Texture2D.whiteTexture);
-                GUI.color = new Color(1f, 0.85f, 0.45f, a); GUI.Label(new Rect(x, ly, w, h), l.who + ":", _style);
-                var nw = _style.CalcSize(new GUIContent(l.who + ": ")).x;
-                GUI.color = new Color(1f, 1f, 1f, a); GUI.Label(new Rect(x + nw, ly, w - nw, h), l.text, _style);
+                float nw = Ui.Width(l.who + ": ", 16f);
+                var h = Mathf.Max(24 * k, Ui.Height(l.text, 16f, w - nw - 16 * k) + 6 * k);
+                ly -= h + 3 * k;
+                // Each line on a little parchment plate: name in red ink, then the message.
+                Ui.Plate(new Rect(x - 4 * k, ly, w + 8 * k, h), 0.92f * a);
+                var o = GUI.color; GUI.color = new Color(1f, 1f, 1f, a);
+                Ui.Label(new Rect(x + 6 * k, ly + 2 * k, nw, h - 4 * k), l.who + ":", 16f, Ui.Title, TextAnchor.UpperLeft);
+                Ui.Label(new Rect(x + 6 * k + nw, ly + 2 * k, w - nw - 16 * k, h - 4 * k), l.text, 16f, Ui.Ink, TextAnchor.UpperLeft, true);
                 GUI.color = o;
             }
         }

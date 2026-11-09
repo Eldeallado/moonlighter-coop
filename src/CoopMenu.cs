@@ -21,8 +21,6 @@ namespace MoonlighterCoop
         private bool _cursorWas;
         private string _copied = "";
         private float _copiedAt;
-        private Texture2D _white;
-        private GUIStyle _title, _head, _label, _small, _big, _button, _field;
 
         private void Awake() { Instance = this; }
 
@@ -231,49 +229,29 @@ namespace MoonlighterCoop
             // A guest was playing on the host's save: back to the main menu to load its own.
             if (wasGuest && HeroMerchant.Instance != null && GameManager.Instance != null) GameManager.Instance.ReturnToMainMenu();
         }
-        // ---------- drawing ----------
+        // ---------- drawing (parchment and wood, see Ui) ----------
 
-        private void Styles(float k)
-        {
-            if (_white == null) { _white = new Texture2D(1, 1); _white.SetPixel(0, 0, Color.white); _white.Apply(); }
-            if (_title == null)
-            {
-                _title = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
-                _head = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
-                _label = new GUIStyle(GUI.skin.label) { wordWrap = true };
-                _small = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true };
-                _big = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-                _button = new GUIStyle(GUI.skin.button);
-                _field = new GUIStyle(GUI.skin.textField) { alignment = TextAnchor.MiddleCenter };
-            }
-            _title.fontSize = (int)(26 * k); _head.fontSize = (int)(18 * k); _label.fontSize = (int)(15 * k);
-            _small.fontSize = (int)(13 * k); _big.fontSize = (int)(46 * k); _button.fontSize = (int)(16 * k); _field.fontSize = (int)(24 * k);
-            _title.normal.textColor = new Color(1f, 0.85f, 0.45f);
-            _head.normal.textColor = Color.white; _label.normal.textColor = new Color(0.88f, 0.88f, 0.88f);
-            _small.normal.textColor = new Color(0.7f, 0.7f, 0.7f); _big.normal.textColor = new Color(1f, 0.9f, 0.55f);
-        }
-
-        private void Fill(Rect r, Color c) { var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, _white); GUI.color = o; }
-        private void Frame(Rect r, Color c, float w) { Fill(new Rect(r.x, r.y, r.width, w), c); Fill(new Rect(r.x, r.yMax - w, r.width, w), c); Fill(new Rect(r.x, r.y, w, r.height), c); Fill(new Rect(r.xMax - w, r.y, w, r.height), c); }
+        // Text sizes (720p points) and inks.
+        private const float STitle = 32f, SHead = 20f, SBody = 17f, SSmall = 14.5f;
+        private static void L(Rect r, string t, float size, Color c, TextAnchor a = TextAnchor.MiddleLeft, bool wrap = false) => Ui.Label(r, t, size, c, a, wrap);
 
         private void OnGUI()
         {
             if (!Open) return;
-            float k = Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
-            Styles(k);
+            Ui.Load();
+            float k = Ui.K;
             GUI.depth = -1001;
             _btnCount = 0; _grp = 0; _rects.Clear();
-            float w = 640 * k, h = 470 * k;
+            float w = 680 * k, h = 520 * k;
             var p = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
-            Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.4f));
-            Fill(p, new Color(0.09f, 0.07f, 0.06f, 0.96f));
-            Frame(p, new Color(0.62f, 0.45f, 0.22f), 3 * k);
-            Frame(new Rect(p.x + 6 * k, p.y + 6 * k, p.width - 12 * k, p.height - 12 * k), new Color(0.3f, 0.22f, 0.12f), 1 * k);
-            GUI.Label(new Rect(p.x + 24 * k, p.y + 14 * k, w, 36 * k), "Cooperativo", _title);
-            GUI.Label(new Rect(p.xMax - 125 * k, p.y + 22 * k, 105 * k, 22 * k), "versión " + Plugin.Version, _small);
-            if (Versions.UpdateAvailable && Btn(new Rect(p.x + 180 * k, p.y + 18 * k, 212 * k, 28 * k), "¡Hay versión " + Versions.Latest + "! Descargar")) Application.OpenURL(Versions.ReleasesUrl);
-            if (Btn(new Rect(p.xMax - 240 * k, p.y + 18 * k, 110 * k, 28 * k), _showNews || _showAch ? "Volver" : "Novedades")) { if (_showAch) ClosePanels(); else { _showNews = !_showNews; _newsScroll = Vector2.zero; } }
-            var inner = new Rect(p.x + 30 * k, p.y + 60 * k, w - 60 * k, h - 110 * k);
+            Ui.Dim();
+            Ui.Sheet(p);
+            L(new Rect(p.x + 34 * k, p.y + 22 * k, w, 38 * k), "Cooperativo", STitle, Ui.Title);
+            L(new Rect(p.xMax - 140 * k, p.y + 26 * k, 106 * k, 26 * k), "versión " + Plugin.Version, SSmall, Ui.InkSoft, TextAnchor.MiddleRight);
+            if (Versions.UpdateAvailable && Btn(new Rect(p.x + 200 * k, p.y + 24 * k, 220 * k, 30 * k), "¡Hay versión " + Versions.Latest + "! Descargar")) Application.OpenURL(Versions.ReleasesUrl);
+            if (Btn(new Rect(p.xMax - 262 * k, p.y + 24 * k, 116 * k, 30 * k), _showNews || _showAch ? "Volver" : "Novedades")) { if (_showAch) ClosePanels(); else { _showNews = !_showNews; _newsScroll = Vector2.zero; } }
+            Ui.Divider(p.x + 34 * k, p.y + 64 * k, w - 68 * k);
+            var inner = new Rect(p.x + 34 * k, p.y + 76 * k, w - 68 * k, h - 152 * k);
 
             bool inGame = Plugin.Role != "" && (Net.Connected || Session.IsHost || SteamCoop.Lobby != Steamworks.CSteamID.Nil);
             if (_showNews) DrawNews(inner, k);
@@ -284,22 +262,21 @@ namespace MoonlighterCoop
             else DrawMain(inner, k);
 
             if (!string.IsNullOrEmpty(SteamCoop.Status))
-                GUI.Label(new Rect(p.x + 20 * k, p.yMax - 64 * k, w - 40 * k, 26 * k), SteamCoop.Status, _small);
-            string hint = _showAch ? (PadNav.Active ? "↑ ↓: ver los logros · B: volver" : "Rueda o ↑ ↓ para ver los logros · Esc: volver")
-                : PadNav.Active ? "Cruceta: moverse · A: aceptar · B: volver · L3+R3: cerrar" : "F2 o Esc para cerrar este menú";
-            GUI.Label(new Rect(p.x + 20 * k, p.yMax - 36 * k, w - 40 * k, 24 * k), hint, _small);
+                L(new Rect(p.x + 24 * k, p.yMax - 72 * k, w - 48 * k, 22 * k), SteamCoop.Status, SSmall, Ui.Ink, TextAnchor.MiddleCenter);
+            string hint = _showAch ? (PadNav.Active ? "Arriba y abajo: ver los logros  ·  B: volver" : "Rueda o flechas para ver los logros  ·  Esc: volver")
+                : PadNav.Active ? "Cruceta: moverse  ·  A: aceptar  ·  B: volver  ·  L3+R3: cerrar" : "F2 o Esc para cerrar este menú";
+            L(new Rect(p.x + 24 * k, p.yMax - 50 * k, w - 48 * k, 20 * k), hint, SSmall, Ui.InkSoft, TextAnchor.MiddleCenter);
             if (Event.current.type == EventType.Repaint) { _lastRects = new List<Rect>(_rects); if (_focus >= _lastRects.Count) _focus = 0; }
         }
 
-        private bool Btn(Rect r, string text)
+        private bool Btn(Rect r, string text, bool on = false, float size = 16f)
         {
             _btnCount++;
             // Only the buttons of the group the pad is in can take the focus.
             int idx = -1;
             if (_grp == NavGroup) { idx = _rects.Count; _rects.Add(r); }
             bool focused = PadNav.Active && idx >= 0 && idx == _focus && !_showAch && !_showNews;   // those pages scroll instead
-            if (focused) Frame(new Rect(r.x - 3, r.y - 3, r.width + 6, r.height + 6), new Color(1f, 0.85f, 0.45f), 3);
-            bool pressed = GUI.Button(r, text, _button);
+            bool pressed = Ui.Button(r, text, focused, on, GUI.enabled, size);
             if (focused && _padA && Event.current.type == EventType.Repaint) { _padA = false; pressed = true; }
             return pressed;
         }
@@ -307,69 +284,52 @@ namespace MoonlighterCoop
         /// F2 → Novedades: every version, newest first, with what it brought (CHANGELOG.md inside the DLL).
         private void DrawNews(Rect r, float k)
         {
-            if (_newsText == null) { _newsText = new GUIStyle(_label) { richText = true }; _newsHead = new GUIStyle(_head) { richText = true }; }
-            _newsText.fontSize = _label.fontSize; _newsHead.fontSize = _head.fontSize;
-            _newsHead.normal.textColor = new Color(1f, 0.85f, 0.45f);
-            float iw = r.width - 24 * k;
+            float iw = r.width - 20 * k;
             // Measure first so the scroll view knows how tall the list is.
             float total = 0f;
             foreach (var e in Changelog.Entries)
             {
-                total += 30 * k;
-                foreach (var l in e.Lines) total += _newsText.CalcHeight(new GUIContent(l), iw) + 3 * k;
-                total += 10 * k;
+                total += 36 * k;
+                foreach (var l in e.Lines) total += Ui.Height(l, SBody, iw, true) + 4 * k;
+                total += 12 * k;
             }
             _newsScroll.y = Mathf.Min(_newsScroll.y, Mathf.Max(0f, total - r.height));
-            _newsScroll = GUI.BeginScrollView(r, _newsScroll, new Rect(0, 0, iw, total));
+            _newsScroll = Ui.BeginScroll(r, _newsScroll, new Rect(0, 0, iw, total));
             float y = 0f;
             foreach (var e in Changelog.Entries)
             {
-                GUI.Label(new Rect(0, y, iw, 28 * k), "Versión " + e.Title, _newsHead);
-                y += 30 * k;
+                Ui.Label(new Rect(0, y, iw, 28 * k), "Versión " + e.Title, SHead, Ui.Title);
+                Ui.Box(new Rect(0, y + 29 * k, iw, Ui.U * 0.5f + 0.5f), Ui.InkFaint);
+                y += 36 * k;
                 foreach (var l in e.Lines)
                 {
-                    float lh = _newsText.CalcHeight(new GUIContent(l), iw);
-                    GUI.Label(new Rect(0, y, iw, lh), l, _newsText);
-                    y += lh + 3 * k;
+                    float lh = Ui.Height(l, SBody, iw, true);
+                    Ui.Label(new Rect(0, y, iw, lh), l, SBody, Ui.Ink, TextAnchor.UpperLeft, true, true);
+                    y += lh + 4 * k;
                 }
-                y += 10 * k;
+                y += 12 * k;
             }
-            GUI.EndScrollView();
+            Ui.EndScroll();
         }
-        private GUIStyle _newsText, _newsHead;
 
         /// F2 → Logros: a page of cards, one per achievement, with its progress bar.
         private static readonly System.Globalization.NumberFormatInfo Es = new System.Globalization.NumberFormatInfo { NumberGroupSeparator = "." };   // 50.000, as in Spain
         private int _listSel, _listSelDrawn = -1;
         private Vector2 _listScroll;
-        private GUIStyle _achName, _achText, _achCount, _badge;
         private void DrawAchievements(Rect r, float k)
         {
-            if (_achName == null)
-            {
-                _achName = new GUIStyle(_head) { alignment = TextAnchor.MiddleLeft };
-                _achText = new GUIStyle(_small) { alignment = TextAnchor.MiddleLeft, wordWrap = false };
-                _achCount = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-                _badge = new GUIStyle(_head) { alignment = TextAnchor.MiddleCenter };
-            }
-            _achName.fontSize = (int)(16 * k); _achText.fontSize = (int)(13 * k); _achCount.fontSize = (int)(11 * k);
-            var gold = new Color(1f, 0.85f, 0.45f);
             var all = Achievements.All;
             int got = Achievements.Unlocked;
 
             // Header: how many, and a bar for the whole set.
-            GUI.Label(new Rect(r.x, r.y - 4 * k, r.width * 0.6f, 26 * k), "Logros del cooperativo", _head);
-            _achCount.normal.textColor = gold; _achCount.fontSize = (int)(15 * k);
-            GUI.Label(new Rect(r.xMax - 120 * k, r.y - 4 * k, 120 * k, 26 * k), $"{got} de {all.Length}", _achCount);
-            _achCount.fontSize = (int)(11 * k);
-            var hb = new Rect(r.x, r.y + 24 * k, r.width, 6 * k);
-            Fill(hb, new Color(0.2f, 0.15f, 0.1f));
-            Fill(new Rect(hb.x, hb.y, hb.width * got / Mathf.Max(1, all.Length), hb.height), gold);
+            L(new Rect(r.x, r.y - 4 * k, r.width * 0.6f, 26 * k), "Logros del cooperativo", SHead, Ui.Ink);
+            L(new Rect(r.xMax - 140 * k, r.y - 4 * k, 140 * k, 26 * k), $"{got} de {all.Length}", SHead, Ui.Title, TextAnchor.MiddleRight);
+            Ui.Bar(new Rect(r.x, r.y + 26 * k, r.width, 10 * k), got / (float)Mathf.Max(1, all.Length), Ui.Gold);
 
             // The list.
-            float cardH = 54 * k, gap = 6 * k;
-            var view = new Rect(r.x, r.y + 38 * k, r.width, r.height - 54 * k);
-            float iw = view.width - 16 * k, total = all.Length * (cardH + gap);
+            float cardH = 58 * k, gap = 7 * k;
+            var view = new Rect(r.x, r.y + 46 * k, r.width, r.height - 46 * k);
+            float iw = view.width - 14 * k, total = all.Length * (cardH + gap);
             if (_listSel != _listSelDrawn)
             {
                 // Keep the chosen card in sight.
@@ -378,208 +338,210 @@ namespace MoonlighterCoop
                 if (bottom > _listScroll.y + view.height) _listScroll.y = bottom - view.height;
                 _listSelDrawn = _listSel;
             }
-            _listScroll = GUI.BeginScrollView(view, _listScroll, new Rect(0, 0, iw, total));
+            _listScroll = Ui.BeginScroll(view, _listScroll, new Rect(0, 0, iw, total));
             for (int i = 0; i < all.Length; i++)
             {
                 var a = all[i];
                 bool done = Achievements.Has(a.Id);
                 var c = new Rect(0, i * (cardH + gap), iw, cardH);
-                Fill(c, done ? new Color(0.22f, 0.16f, 0.08f) : new Color(0.12f, 0.1f, 0.08f));
-                bool sel = PadNav.Active && i == _listSel;
-                Frame(c, sel ? gold : done ? new Color(0.62f, 0.45f, 0.22f) : new Color(0.25f, 0.2f, 0.15f), (sel ? 2f : 1f) * k);
-                // Badge: gold with a tick when done, dark with the percentage when not.
+                Ui.Card(c, done, PadNav.Active && i == _listSel);
+                // Badge: a gold medal with a tick when done, a dark slot with the percentage when not.
                 var b = new Rect(c.x + 9 * k, c.y + 9 * k, cardH - 18 * k, cardH - 18 * k);
-                Fill(b, done ? gold : new Color(0.2f, 0.16f, 0.12f));
-                Frame(b, done ? new Color(0.5f, 0.33f, 0.1f) : new Color(0.35f, 0.28f, 0.2f), 2 * k);
-                _badge.normal.textColor = done ? new Color(0.3f, 0.18f, 0.05f) : new Color(0.6f, 0.53f, 0.45f);
-                _badge.fontSize = (int)((done ? 20 : 11) * k);
-                GUI.Label(b, done ? "✔" : $"{Mathf.FloorToInt(100f * a.Count / a.Goal)}%", _badge);
+                if (done)
+                {
+                    Ui.Box(b, Ui.Outline);
+                    Ui.Box(new Rect(b.x + Ui.U, b.y + Ui.U, b.width - 2 * Ui.U, b.height - 2 * Ui.U), Ui.Gold);
+                    Ui.Box(new Rect(b.x + Ui.U, b.y + Ui.U, b.width - 2 * Ui.U, Ui.U), new Color(1f, 1f, 1f, 0.5f));
+                    Ui.Check(new Rect(b.x + b.width * 0.18f, b.y + b.height * 0.18f, b.width * 0.64f, b.height * 0.64f), true);
+                }
+                else
+                {
+                    Ui.Slot(b);
+                    Ui.Label(b, $"{Mathf.FloorToInt(100f * a.Count / a.Goal)}%", SSmall, Ui.Cream, TextAnchor.MiddleCenter);
+                }
                 // Name and what to do.
-                float tx = b.xMax + 12 * k, tw = c.xMax - tx - 150 * k;
-                _achName.normal.textColor = done ? gold : new Color(0.85f, 0.82f, 0.78f);
-                _achText.normal.textColor = done ? new Color(0.85f, 0.78f, 0.62f) : new Color(0.6f, 0.57f, 0.53f);
-                GUI.Label(new Rect(tx, c.y + 6 * k, tw, 22 * k), a.Name, _achName);
-                GUI.Label(new Rect(tx, c.y + 27 * k, tw, 20 * k), a.Text, _achText);
+                float tx = b.xMax + 12 * k, tw = c.xMax - tx - 156 * k;
+                L(new Rect(tx, c.y + 7 * k, tw, 24 * k), a.Name, SBody + 1f, done ? Ui.Title : Ui.Ink);
+                L(new Rect(tx, c.y + 30 * k, tw, 20 * k), a.Text, SSmall, Ui.InkSoft);
                 // Progress on the right.
-                var pb = new Rect(c.xMax - 140 * k, c.y + 14 * k, 128 * k, 8 * k);
-                Fill(pb, new Color(0.07f, 0.06f, 0.05f));
-                Fill(new Rect(pb.x, pb.y, pb.width * a.Count / a.Goal, pb.height), done ? gold : new Color(0.55f, 0.42f, 0.22f));
-                _achCount.normal.textColor = done ? gold : new Color(0.65f, 0.6f, 0.55f);
-                GUI.Label(new Rect(pb.x, pb.yMax + 2 * k, pb.width, 16 * k), done ? "¡Conseguido!" : a.Count.ToString("N0", Es) + " / " + a.Goal.ToString("N0", Es), _achCount);
+                var pb = new Rect(c.xMax - 146 * k, c.y + 14 * k, 132 * k, 10 * k);
+                Ui.Bar(pb, a.Count / (float)a.Goal, done ? Ui.Gold : Ui.WoodLight);
+                L(new Rect(pb.x, pb.yMax + 3 * k, pb.width, 18 * k), done ? "¡Conseguido!" : a.Count.ToString("N0", Es) + " / " + a.Goal.ToString("N0", Es), SSmall, done ? Ui.Good : Ui.InkSoft, TextAnchor.MiddleCenter);
             }
-            GUI.EndScrollView();
+            Ui.EndScroll();
         }
 
         private void DrawMain(Rect r, float k)
         {
-            float bh = 54 * k, gap = 16 * k, y = r.y + 10 * k;
-            GUI.Label(new Rect(r.x, y, r.width, 26 * k), SteamCoop.Available ? $"Steam: {SteamCoop.MyName}" : "Steam no está abierto: solo se puede jugar por IP", _label);
-            y += 40 * k;
-            if (Btn(new Rect(r.x, y, r.width, bh), "Crear partida")) CreateGame();
-            GUI.Label(new Rect(r.x, y + bh, r.width, 22 * k), "Te da un código para que tus amigos se unan (hasta 5 jugadores).", _small);
-            y += bh + gap + 22 * k;
+            float bh = 50 * k, gap = 14 * k, y = r.y + 4 * k;
+            L(new Rect(r.x, y, r.width, 26 * k), SteamCoop.Available ? $"Steam: {SteamCoop.MyName}" : "Steam no está abierto: solo se puede jugar por IP", SBody, Ui.Ink, TextAnchor.MiddleCenter);
+            y += 36 * k;
+            if (Btn(new Rect(r.x + r.width * 0.1f, y, r.width * 0.8f, bh), "Crear partida", false, 20f)) CreateGame();
+            L(new Rect(r.x, y + bh + 2 * k, r.width, 22 * k), "Te da un código para que tus amigos se unan (hasta 5 jugadores).", SSmall, Ui.InkSoft, TextAnchor.MiddleCenter);
+            y += bh + gap + 24 * k;
             GUI.enabled = SteamCoop.Available;
-            if (Btn(new Rect(r.x, y, r.width, bh), "Unirse con un código")) { _page = Page.Code; _code = ""; }
+            if (Btn(new Rect(r.x + r.width * 0.1f, y, r.width * 0.8f, bh), "Unirse con un código", false, 20f)) { _page = Page.Code; _code = ""; }
             GUI.enabled = true;
             y += bh + gap;
-            if (Btn(new Rect(r.x, y, r.width, bh), "Unirse por IP (misma red)")) _page = Page.Ip;
-            y += bh + gap;
-            if (Btn(new Rect(r.x, y, r.width, 38 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
+            if (Btn(new Rect(r.x + r.width * 0.1f, y, r.width * 0.8f, bh), "Unirse por IP (misma red)", false, 20f)) _page = Page.Ip;
+            y += bh + gap + 6 * k;
+            if (Btn(new Rect(r.x + r.width * 0.25f, y, r.width * 0.5f, 38 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
         }
 
         private void DrawJoinCode(Rect r, float k)
         {
-            float y = r.y + 10 * k;
-            GUI.Label(new Rect(r.x, y, r.width, 26 * k), "Escribe el código que te ha dado tu amigo:", _head);
+            float y = r.y + 6 * k;
+            L(new Rect(r.x, y, r.width, 26 * k), "Escribe el código que te ha dado tu amigo:", SHead, Ui.Ink, TextAnchor.MiddleCenter);
             y += 44 * k;
             if (PadNav.Active)
             {
-                float bw = 44 * k, gap = 8 * k, x0 = r.x + (r.width - (7 * bw + 6 * gap)) / 2f;
+                float bw = 48 * k, gap = 8 * k, x0 = r.x + (r.width - (7 * bw + 6 * gap)) / 2f;
                 for (int i = 0; i < 7; i++)
                 {
-                    var br = new Rect(x0 + i * (bw + gap), y, bw, 56 * k);
-                    Fill(br, new Color(0.03f, 0.03f, 0.03f));
-                    Frame(br, i == _slot ? new Color(1f, 0.85f, 0.45f) : new Color(0.4f, 0.32f, 0.2f), (i == _slot ? 3 : 1) * k);
-                    GUI.Label(br, i < _code.Length ? _code[i].ToString() : "", _field);
+                    var br = new Rect(x0 + i * (bw + gap), y, bw, 58 * k);
+                    if (i == _slot) Ui.Box(new Rect(br.x - 2 * Ui.U, br.y - 2 * Ui.U, br.width + 4 * Ui.U, br.height + 4 * Ui.U), Ui.Gold);
+                    Ui.Slot(br);
+                    L(br, i < _code.Length ? _code[i].ToString() : "", 30f, Ui.Cream, TextAnchor.MiddleCenter);
                 }
-                GUI.Label(new Rect(r.x, y + 58 * k, r.width, 18 * k), "← → letra · ↑ ↓ cambiar · A unirse", _small);
+                L(new Rect(r.x, y + 62 * k, r.width, 20 * k), "Izquierda y derecha: letra  ·  arriba y abajo: cambiarla  ·  A: unirse", SSmall, Ui.InkSoft, TextAnchor.MiddleCenter);
             }
             else
             {
-                GUI.SetNextControlName("code");
-                _code = GUI.TextField(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 56 * k), _code.ToUpperInvariant(), 8, _field);
+                _code = Ui.TextField(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 58 * k), _code.ToUpperInvariant(), 8, 30f, TextAnchor.MiddleCenter, "code");
                 GUI.FocusControl("code");
             }
-            y += 76 * k;
+            y += 88 * k;
             bool enter = Event.current.type == EventType.KeyDown && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter);
-            if (Btn(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 50 * k), "Unirse") || enter) JoinCode();
-            y += 66 * k;
-            if (Btn(new Rect(r.x + r.width * 0.35f, y, r.width * 0.3f, 38 * k), "Atrás")) _page = Page.Main;
-            GUI.Label(new Rect(r.x, y + 46 * k, r.width, 40 * k), "Al unirte vuelves al menú principal y entras en la partida de tu amigo.", _small);
+            if (Btn(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 48 * k), "Unirse", false, 20f) || enter) JoinCode();
+            y += 62 * k;
+            if (Btn(new Rect(r.x + r.width * 0.35f, y, r.width * 0.3f, 36 * k), "Atrás")) _page = Page.Main;
+            L(new Rect(r.x, y + 44 * k, r.width, 40 * k), "Al unirte vuelves al menú principal y entras en la partida de tu amigo.", SSmall, Ui.InkSoft, TextAnchor.MiddleCenter, true);
         }
 
         private void DrawJoinIp(Rect r, float k)
         {
-            float y = r.y + 10 * k;
-            GUI.Label(new Rect(r.x, y, r.width, 26 * k), "IP del anfitrión (la ve en su menú F2):", _head);
+            float y = r.y + 6 * k;
+            L(new Rect(r.x, y, r.width, 26 * k), "IP del anfitrión (la ve en su menú F2):", SHead, Ui.Ink, TextAnchor.MiddleCenter);
             y += 44 * k;
-            GUI.SetNextControlName("ip");
-            _ip = GUI.TextField(new Rect(r.x + r.width * 0.15f, y, r.width * 0.7f, 56 * k), _ip, 40, _field);
+            _ip = Ui.TextField(new Rect(r.x + r.width * 0.15f, y, r.width * 0.7f, 58 * k), _ip, 40, 28f, TextAnchor.MiddleCenter, "ip");
             GUI.FocusControl("ip");
-            y += 76 * k;
+            y += 88 * k;
             bool enter = Event.current.type == EventType.KeyDown && (Event.current.keyCode == KeyCode.Return || Event.current.keyCode == KeyCode.KeypadEnter);
-            if (Btn(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 50 * k), "Conectar") || enter) JoinIp();
-            y += 66 * k;
-            if (Btn(new Rect(r.x + r.width * 0.35f, y, r.width * 0.3f, 38 * k), "Atrás")) _page = Page.Main;
+            if (Btn(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 48 * k), "Conectar", false, 20f) || enter) JoinIp();
+            y += 62 * k;
+            if (Btn(new Rect(r.x + r.width * 0.35f, y, r.width * 0.3f, 36 * k), "Atrás")) _page = Page.Main;
         }
 
         private void DrawInGame(Rect r, float k)
         {
             float y = r.y;
             bool host = Session.IsHost;
-            GUI.Label(new Rect(r.x, y, r.width, 26 * k), host ? "Tu partida está abierta" : "Estás en la partida de tu amigo", _head);
+            L(new Rect(r.x, y, r.width, 26 * k), host ? "Tu partida está abierta" : "Estás en la partida de tu amigo", SHead, Ui.Ink);
             y += 32 * k;
             // With Reglas or Dar equipo open, the panel takes this space (and the pad stays inside it).
             bool panel = _showRules || _showGive;
             if (!panel)
             {
-            if (!string.IsNullOrEmpty(SteamCoop.Code))
-            {
-                GUI.Label(new Rect(r.x, y, r.width, 22 * k), "Código para unirse:", _label);
-                var cr = new Rect(r.x, y + 18 * k, r.width * 0.62f, 64 * k);
-                Fill(cr, new Color(0.03f, 0.03f, 0.03f));
-                Frame(cr, new Color(0.62f, 0.45f, 0.22f), 2 * k);
-                GUI.Label(cr, SteamCoop.Code, _big);
-                if (Btn(new Rect(cr.xMax + 12 * k, cr.y, r.width - cr.width - 12 * k, 28 * k), _copied == SteamCoop.Code && Time.unscaledTime - _copiedAt < 2f ? "¡Copiado!" : "Copiar código"))
-                { GUIUtility.systemCopyBuffer = SteamCoop.Code; _copied = SteamCoop.Code; _copiedAt = Time.unscaledTime; }
-                if (Btn(new Rect(cr.xMax + 12 * k, cr.y + 36 * k, r.width - cr.width - 12 * k, 28 * k), "Invitar amigos de Steam")) SteamCoop.Invite();
-                y += 92 * k;
-            }
-            if (host)
-            {
-                // Joining by IP opens a port on this PC: only while the host wants it.
-                if (Btn(new Rect(r.x, y, 250 * k, 26 * k), Net.Listening ? "Unirse por IP: abierto" : "Permitir unirse por IP")) { if (Net.Listening) Net.StopHost(); else Net.StartHost(Plugin.Port); }
-                if (Net.Listening) GUI.Label(new Rect(r.x + 262 * k, y + 2 * k, r.width - 262 * k, 22 * k), $"Tu IP en la red: {LocalIp()}", _label);
-                y += 34 * k;
-            }
-            if (host)
-            {
-                if (Btn(new Rect(r.x, y, r.width, 26 * k), "Dificultad: " + Difficulty.Describe(Session.Players))) { Difficulty.Mode = (Difficulty.Mode + 1) % 3; Plugin.SaveDifficulty(Difficulty.Mode); }
-            }
-            else GUI.Label(new Rect(r.x, y, r.width, 22 * k), "Dificultad: " + Difficulty.Describe(Session.Players), _label);
-            y += 32 * k;
-            GUI.Label(new Rect(r.x, y, r.width, 22 * k), $"Jugadores ({Session.Players}/5):", _head);
-            y += 28 * k;
-            string me = (SteamCoop.Available ? SteamCoop.MyName : "Tú") + (host ? " (anfitrión, tú)" : " (tú)");
-            GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), "• " + me, _label); y += 24 * k;
-            if (host)
-                foreach (var peer in Net.Live)
+                if (!string.IsNullOrEmpty(SteamCoop.Code))
                 {
-                    GUI.Label(new Rect(r.x + 14 * k, y, r.width - 140 * k, 22 * k), $"• {SteamCoop.PeerName(peer)} (jugador {peer.Id + 1})", _label);
-                    if (Btn(new Rect(r.xMax - 120 * k, y, 120 * k, 22 * k), "Expulsar")) Kick(peer);
-                    y += 26 * k;
+                    L(new Rect(r.x, y, r.width, 20 * k), "Código para unirse:", SSmall, Ui.InkSoft);
+                    var cr = new Rect(r.x, y + 20 * k, r.width * 0.6f, 62 * k);
+                    Ui.Slot(cr);
+                    Ui.Shadowed(cr, SteamCoop.Code, 40f, Ui.Gold, new Color(0f, 0f, 0f, 0.6f));
+                    float bx = cr.xMax + 12 * k, bw = r.width - cr.width - 12 * k;
+                    if (Btn(new Rect(bx, cr.y, bw, 28 * k), _copied == SteamCoop.Code && Time.unscaledTime - _copiedAt < 2f ? "¡Copiado!" : "Copiar código"))
+                    { GUIUtility.systemCopyBuffer = SteamCoop.Code; _copied = SteamCoop.Code; _copiedAt = Time.unscaledTime; }
+                    if (Btn(new Rect(bx, cr.y + 34 * k, bw, 28 * k), "Invitar amigos de Steam")) SteamCoop.Invite();
+                    y += 94 * k;
                 }
-            else if (Net.Connected)
-            { GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), $"• {SteamCoop.PeerName(Net.Peer)} (anfitrión)", _label); y += 24 * k; }
-            if (host && Net.ConnectedCount == 0) { GUI.Label(new Rect(r.x + 14 * k, y, r.width, 22 * k), "Esperando a que se una alguien…", _small); }
-            // Other mods that differ between players (see Mods.cs).
-            foreach (var kv in Mods.Differences)
-            {
-                y += 6 * k;
-                GUI.Label(new Rect(r.x, y, r.width, 40 * k), $"Mods distintos ({(kv.Key == 0 ? "anfitrión" : "jugador " + (kv.Key + 1))}): {kv.Value}", _small);
-                y += 40 * k;
-            }
+                if (host)
+                {
+                    // Joining by IP opens a port on this PC: only while the host wants it.
+                    if (Btn(new Rect(r.x, y, 250 * k, 28 * k), Net.Listening ? "Unirse por IP: abierto" : "Permitir unirse por IP", Net.Listening)) { if (Net.Listening) Net.StopHost(); else Net.StartHost(Plugin.Port); }
+                    if (Net.Listening) L(new Rect(r.x + 262 * k, y, r.width - 262 * k, 28 * k), $"Tu IP en la red: {LocalIp()}", SBody, Ui.Ink);
+                    y += 36 * k;
+                    if (Btn(new Rect(r.x, y, r.width, 28 * k), "Dificultad: " + Difficulty.Describe(Session.Players))) { Difficulty.Mode = (Difficulty.Mode + 1) % 3; Plugin.SaveDifficulty(Difficulty.Mode); }
+                }
+                else L(new Rect(r.x, y, r.width, 28 * k), "Dificultad: " + Difficulty.Describe(Session.Players), SBody, Ui.Ink);
+                y += 38 * k;
+                L(new Rect(r.x, y, r.width, 22 * k), $"Jugadores ({Session.Players}/5)", SHead, Ui.Ink);
+                y += 26 * k;
+                string me = (SteamCoop.Available ? SteamCoop.MyName : "Tú") + (host ? " (anfitrión, tú)" : " (tú)");
+                Player(r, ref y, me, k);
+                if (host)
+                    foreach (var peer in Net.Live)
+                    {
+                        float py = y;
+                        Player(r, ref y, $"{SteamCoop.PeerName(peer)} (jugador {peer.Id + 1})", k);
+                        if (Btn(new Rect(r.xMax - 110 * k, py, 110 * k, 22 * k), "Expulsar")) Kick(peer);
+                    }
+                else if (Net.Connected) Player(r, ref y, $"{SteamCoop.PeerName(Net.Peer)} (anfitrión)", k);
+                if (host && Net.ConnectedCount == 0) L(new Rect(r.x + 18 * k, y, r.width, 22 * k), "Esperando a que se una alguien…", SSmall, Ui.InkFaint);
+                // Other mods that differ between players (see Mods.cs).
+                foreach (var kv in Mods.Differences)
+                {
+                    y += 6 * k;
+                    L(new Rect(r.x, y, r.width, 40 * k), $"Mods distintos ({(kv.Key == 0 ? "anfitrión" : "jugador " + (kv.Key + 1))}): {kv.Value}", SSmall, Ui.Bad, TextAnchor.UpperLeft, true);
+                    y += 40 * k;
+                }
             }
             // Options of this player, and the co-op achievements: a row of tabs (left/right on the pad).
-            float oy = r.yMax - 86 * k, q4 = (r.width - 30 * k) / 4f;
-            if (Btn(new Rect(r.x, oy, q4, 30 * k), "Ver vida: " + (EnemyBars.On ? "sí" : "no"))) EnemyBars.Toggle();
-            if (Btn(new Rect(r.x + (q4 + 10 * k), oy, q4, 30 * k), $"Logros ({Achievements.Unlocked}/{Achievements.All.Length})")) OpenPanel(ref _showAch);
-            if (Btn(new Rect(r.x + 2 * (q4 + 10 * k), oy, q4, 30 * k), "Reglas")) OpenPanel(ref _showRules);
-            if (Btn(new Rect(r.x + 3 * (q4 + 10 * k), oy, q4, 30 * k), "Dar equipo")) OpenPanel(ref _showGive);
-            var gold = new Color(1f, 0.85f, 0.45f);
-            if (_showRules) Fill(new Rect(r.x + 2 * (q4 + 10 * k), oy + 32 * k, q4, 3 * k), gold);
-            if (_showGive) Fill(new Rect(r.x + 3 * (q4 + 10 * k), oy + 32 * k, q4, 3 * k), gold);
+            float oy = r.yMax - 84 * k, q4 = (r.width - 30 * k) / 4f;
+            if (Btn(new Rect(r.x, oy, q4, 32 * k), "Ver vida: " + (EnemyBars.On ? "sí" : "no"), EnemyBars.On)) EnemyBars.Toggle();
+            if (Btn(new Rect(r.x + (q4 + 10 * k), oy, q4, 32 * k), $"Logros ({Achievements.Unlocked}/{Achievements.All.Length})")) OpenPanel(ref _showAch);
+            if (Btn(new Rect(r.x + 2 * (q4 + 10 * k), oy, q4, 32 * k), "Reglas", _showRules)) OpenPanel(ref _showRules);
+            if (Btn(new Rect(r.x + 3 * (q4 + 10 * k), oy, q4, 32 * k), "Dar equipo", _showGive)) OpenPanel(ref _showGive);
             _grp = 1;
             if (_showGive)
             {
-                var ar = new Rect(r.x, r.y + 34 * k, r.width, oy - r.y - 40 * k);
-                Fill(ar, new Color(0.13f, 0.1f, 0.07f, 0.97f)); Frame(ar, new Color(0.45f, 0.33f, 0.17f), 1 * k);
-                float ay = ar.y + 8 * k;
-                GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 24 * k), "Deja una pieza en la mochila compartida para que la coja otro:", _head);
-                ay += 30 * k;
+                var ar = new Rect(r.x, r.y + 32 * k, r.width, oy - r.y - 40 * k);
+                Ui.Card(ar);
+                float ay = ar.y + 10 * k;
+                L(new Rect(ar.x + 12 * k, ay, ar.width - 24 * k, 24 * k), "Deja una pieza en la mochila compartida para que la coja otro:", SBody, Ui.Ink);
+                ay += 32 * k;
                 for (int i = 0; i < Give.Slots.Length; i++)
                 {
                     var st = Give.Equipped(i);
                     string label = Give.SlotNames[i] + ": " + (st != null ? Stats.ItemName(st.master) : "—");
-                    float gw = (ar.width - 30 * k) / 2f, gx = ar.x + 10 * k + (i % 2) * (gw + 10 * k), gy = ay + (i / 2) * 30 * k;
-                    if (st != null) { if (Btn(new Rect(gx, gy, gw, 26 * k), label)) Give.ToBag(i); }
-                    else GUI.Label(new Rect(gx, gy, gw, 24 * k), label, _small);
+                    float gw = (ar.width - 34 * k) / 2f, gx = ar.x + 12 * k + (i % 2) * (gw + 10 * k), gy = ay + (i / 2) * 34 * k;
+                    if (st != null) { if (Btn(new Rect(gx, gy, gw, 28 * k), label, false, 14f)) Give.ToBag(i); }
+                    else L(new Rect(gx, gy, gw, 28 * k), label, SSmall, Ui.InkFaint, TextAnchor.MiddleCenter);
                 }
             }
             if (_showRules)
             {
-                var ar = new Rect(r.x, r.y + 34 * k, r.width, oy - r.y - 40 * k);
-                Fill(ar, new Color(0.13f, 0.1f, 0.07f, 0.97f)); Frame(ar, new Color(0.45f, 0.33f, 0.17f), 1 * k);
-                float ay = ar.y + 8 * k;
-                GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 24 * k), host ? "Reglas (las eliges tú, valen para todos):" : "Reglas que ha elegido el anfitrión:", _head);
+                var ar = new Rect(r.x, r.y + 32 * k, r.width, oy - r.y - 40 * k);
+                Ui.Card(ar);
+                float ay = ar.y + 10 * k;
+                L(new Rect(ar.x + 12 * k, ay, ar.width - 24 * k, 24 * k), host ? "Reglas (las eliges tú, valen para todos):" : "Reglas que ha elegido el anfitrión:", SBody, Ui.Ink);
                 ay += 30 * k;
                 for (int i = 0; i < HostSettings.Count; i++)
                 {
-                    string label = (HostSettings.Get(i) ? "✔ " : "✗ ") + HostSettings.Names[i];
-                    if (host) { if (Btn(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 24 * k), label)) HostSettings.Toggle(i); }
-                    else GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 26 * k), label, _label);
-                    ay += 27 * k;
+                    var row = new Rect(ar.x + 12 * k, ay, ar.width - 24 * k, 26 * k);
+                    if (host) { if (Btn(new Rect(row.x + 32 * k, row.y, row.width - 32 * k, row.height), HostSettings.Names[i])) HostSettings.Toggle(i); }
+                    else L(new Rect(row.x + 32 * k, row.y, row.width - 32 * k, row.height), HostSettings.Names[i], SBody, Ui.Ink);
+                    Ui.Check(new Rect(row.x, row.y + 2 * k, 22 * k, 22 * k), HostSettings.Get(i));
+                    ay += 30 * k;
                 }
                 if (HostSettings.Roles)
                 {
-                    ay += 6 * k;
-                    GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 44 * k), "Tu rol: " + Roles.Names[Roles.Mine] + (Roles.Mine > 0 ? " — " + Roles.Texts[Roles.Mine] : "") + " (se elige al entrar en la mazmorra)", _small);
+                    ay += 4 * k;
+                    L(new Rect(ar.x + 12 * k, ay, ar.width - 24 * k, 40 * k), "Tu rol: " + Roles.Names[Roles.Mine] + (Roles.Mine > 0 ? " — " + Roles.Texts[Roles.Mine] : "") + " (se elige al entrar en la mazmorra)", SSmall, Ui.InkSoft, TextAnchor.UpperLeft, true);
                 }
             }
             _grp = 0;
-            if (Btn(new Rect(r.x, r.yMax - 46 * k, 200 * k, 40 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
-            if (Btn(new Rect(r.x + 210 * k, r.yMax - 46 * k, 170 * k, 40 * k), "Desatascarme")) { SetOpen(false); Arreglos.Desatascar(); }
-            if (Btn(new Rect(r.xMax - 200 * k, r.yMax - 46 * k, 200 * k, 40 * k), host ? "Cerrar la partida" : "Salir de la partida")) LeaveGame();
+            float by = r.yMax - 42 * k;
+            if (Btn(new Rect(r.x, by, 200 * k, 40 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
+            if (Btn(new Rect(r.x + 210 * k, by, 170 * k, 40 * k), "Desatascarme")) { SetOpen(false); Arreglos.Desatascar(); }
+            if (Btn(new Rect(r.xMax - 200 * k, by, 200 * k, 40 * k), host ? "Cerrar la partida" : "Salir de la partida")) LeaveGame();
+        }
+
+        /// One line of the player list: a small wax-seal dot and the name.
+        private static void Player(Rect r, ref float y, string name, float k)
+        {
+            Ui.Box(new Rect(r.x + 4 * k, y + 8 * k, 7 * k, 7 * k), Ui.Title);
+            L(new Rect(r.x + 18 * k, y, r.width - 140 * k, 22 * k), name, SBody, Ui.Ink);
+            y += 25 * k;
         }
     }
 }

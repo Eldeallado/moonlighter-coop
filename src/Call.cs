@@ -145,7 +145,6 @@ namespace MoonlighterCoop
     /// The check's box on the others' screens.
     public class CallPanel : MonoBehaviour
     {
-        private GUIStyle _t, _l;
         private bool Showing => Time.unscaledTime < Call.ShownUntil;
 
         private void Update()
@@ -159,21 +158,20 @@ namespace MoonlighterCoop
         private void OnGUI()
         {
             if (!Showing) return;
-            float k = Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
-            if (_t == null) { _t = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, wordWrap = true }; _l = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true }; }
-            _t.fontSize = (int)(19 * k); _l.fontSize = (int)(14 * k);
-            _t.normal.textColor = new Color(1f, 0.85f, 0.45f); _l.normal.textColor = new Color(0.9f, 0.9f, 0.9f);
-            float w = 540 * k, h = 120 * k;
-            var r = new Rect((Screen.width - w) / 2f, 70 * k, w, h);
-            var o = GUI.color; GUI.color = new Color(0.09f, 0.07f, 0.06f, 0.94f); GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = o;
+            Ui.Load();
+            float k = Ui.K;
+            float w = 620 * k, h = 104 * k;
+            var r = new Rect((Screen.width - w) / 2f, 60 * k, w, h);
+            Ui.Scroll(r);
             int left = Mathf.CeilToInt(Call.ShownUntil - Time.unscaledTime);
             string who = Call.ShownFrom == 0 ? "El anfitrión" : "El jugador " + (Call.ShownFrom + 1);
             string text = Call.ShownKind == Call.Kind.Boss
                 ? $"{who} está en la puerta del jefe: entráis en {left} s"
                 : $"{who} entra en la mazmorra de {Call.CultureName(Call.ShownCulture)}: vais todos en {left} s";
-            GUI.Label(new Rect(r.x + 10 * k, r.y + 8 * k, r.width - 20 * k, 52 * k), text, _t);
-            GUI.Label(new Rect(r.x + 10 * k, r.y + 62 * k, r.width - 20 * k, 50 * k),
-                Call.Answered ? "Respuesta enviada" : (PadNav.Active ? "Cruceta ↑ ¡Listo! · ↓ ¡Espera! (15 s más)" : "H = ¡Listo! / ¡Voy!   ·   G = ¡Espera! (15 s más)"), _l);
+            Ui.Label(new Rect(r.x + 40 * k, r.y + 12 * k, r.width - 80 * k, 46 * k), text, 19f, Ui.Title, TextAnchor.MiddleCenter, true);
+            Ui.Divider(r.x + 120 * k, r.y + 62 * k, r.width - 240 * k);
+            Ui.Label(new Rect(r.x + 40 * k, r.y + 68 * k, r.width - 80 * k, 26 * k),
+                Call.Answered ? "Respuesta enviada" : (PadNav.Active ? "Cruceta arriba: ¡Listo!  ·  abajo: ¡Espera! (15 s más)" : "H: ¡Listo! ¡Voy!   ·   G: ¡Espera! (15 s más)"), 15.5f, Ui.Ink, TextAnchor.MiddleCenter);
         }
     }
 }

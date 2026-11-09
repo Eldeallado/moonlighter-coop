@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace MoonlighterCoop
@@ -11,7 +11,7 @@ namespace MoonlighterCoop
 
         private readonly List<EnemyStats> _enemies = new List<EnemyStats>();
         private float _rescan;
-        private GUIStyle _style;
+
 
         private void LateUpdate()
         {
@@ -29,9 +29,8 @@ namespace MoonlighterCoop
         {
             if (!On || _enemies.Count == 0) return;
             var cam = Camera.main; if (cam == null) return;
-            float k = Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
-            if (_style == null) _style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            _style.fontSize = (int)(13 * k);
+            Ui.Load();
+            float k = Ui.K;
             foreach (var e in _enemies)
             {
                 if (e == null) continue;
@@ -40,14 +39,12 @@ namespace MoonlighterCoop
                 if (max <= 0f || hp <= 0f) continue;
                 var p = cam.WorldToScreenPoint(e.transform.position + Vector3.up * 30f);
                 if (p.z < 0f) continue;
-                var r = new Rect(p.x - 40 * k, Screen.height - p.y - 10 * k, 80 * k, 20 * k);
-                var o = GUI.color;
-                GUI.color = new Color(0f, 0f, 0f, 0.55f); GUI.DrawTexture(new Rect(r.x, r.y + 2 * k, r.width, r.height - 4 * k), Texture2D.whiteTexture);
+                // A tiny parchment tag: the numbers in ink and a thin bar under them.
+                var r = new Rect(p.x - 38 * k, Screen.height - p.y - 12 * k, 76 * k, 24 * k);
+                Ui.Plate(r, 0.9f);
                 float f = Mathf.Clamp01(hp / max);
-                GUI.color = new Color(1f - f, 0.25f + 0.6f * f, 0.2f, 0.75f); GUI.DrawTexture(new Rect(r.x, r.yMax - 5 * k, r.width * f, 3 * k), Texture2D.whiteTexture);
-                GUI.color = Color.white;
-                GUI.Label(r, Mathf.CeilToInt(hp) + " / " + Mathf.CeilToInt(max), _style);
-                GUI.color = o;
+                Ui.Label(new Rect(r.x, r.y + 1 * k, r.width, 14 * k), Mathf.CeilToInt(hp) + " / " + Mathf.CeilToInt(max), 12.5f, Ui.Ink, TextAnchor.MiddleCenter);
+                Ui.Bar(new Rect(r.x + 5 * k, r.yMax - 8 * k, r.width - 10 * k, 5 * k), f, f > 0.5f ? Ui.Good : f > 0.25f ? new Color(0.9f, 0.55f, 0.15f) : Ui.Bad);
             }
         }
     }

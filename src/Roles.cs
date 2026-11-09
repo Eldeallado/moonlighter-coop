@@ -241,30 +241,31 @@ namespace MoonlighterCoop
         private void OnGUI()
         {
             if (!Roles.Choosing) return;
-            float k = Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
-            if (_t == null)
-            {
-                _t = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-                _b = new GUIStyle(GUI.skin.button) { wordWrap = true }; _bOn = new GUIStyle(GUI.skin.button) { wordWrap = true, fontStyle = FontStyle.Bold };
-                _s = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true };
-            }
-            _t.fontSize = (int)(20 * k); _b.fontSize = _bOn.fontSize = (int)(13 * k); _s.fontSize = (int)(12 * k);
-            _t.normal.textColor = new Color(1f, 0.85f, 0.45f); _bOn.normal.textColor = new Color(1f, 0.85f, 0.45f);
-            float w = 820 * k, h = 230 * k;
-            var r = new Rect((Screen.width - w) / 2f, Screen.height - h - 40 * k, w, h);
-            var o = GUI.color; GUI.color = new Color(0.09f, 0.07f, 0.06f, 0.95f); GUI.DrawTexture(r, Texture2D.whiteTexture); GUI.color = o;
-            GUI.Label(new Rect(r.x, r.y + 6 * k, r.width, 30 * k), $"Elige tu rol para esta expedición ({Mathf.CeilToInt(Roles.ChooseUntil - Time.unscaledTime)} s)", _t);
-            float bw = (w - 50 * k) / 4f;
+            Ui.Load();
+            float k = Ui.K;
+            float w = 840 * k, h = 250 * k;
+            var r = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f - 40 * k, w, h);   // above the notices at the bottom
+            Ui.Sheet(r);
+            Ui.Label(new Rect(r.x, r.y + 18 * k, r.width, 30 * k), $"Elige tu rol para esta expedición  ({Mathf.CeilToInt(Roles.ChooseUntil - Time.unscaledTime)} s)", 22f, Ui.Title, TextAnchor.MiddleCenter);
+            float bw = (w - 70 * k) / 4f;
             for (int i = 1; i <= 4; i++)
             {
-                var br = new Rect(r.x + 10 * k + (i - 1) * (bw + 10 * k), r.y + 42 * k, bw, 150 * k);
+                var br = new Rect(r.x + 20 * k + (i - 1) * (bw + 10 * k), r.y + 54 * k, bw, 150 * k);
                 bool taken = Roles.Taken(i);
-                GUI.enabled = !taken;
-                bool on = Roles.Mine == i || (PadNav.Active && _sel == i);
-                if (GUI.Button(br, $"{i}. {Roles.Names[i]}\n\n{Roles.Texts[i]}" + (taken ? "\n(ya elegido)" : ""), on ? _bOn : _b)) Roles.Pick(i);
-                GUI.enabled = true;
+                bool mine = Roles.Mine == i, focus = PadNav.Active && _sel == i;
+                var o = GUI.color; if (taken) GUI.color = new Color(1f, 1f, 1f, 0.45f);
+                Ui.Card(br, mine, focus);
+                // Number key in a little wooden cap, then the name and what it does.
+                var cap = new Rect(br.x + 8 * k, br.y + 8 * k, 22 * k, 22 * k);
+                Ui.Box(cap, Ui.Outline); Ui.Box(new Rect(cap.x + Ui.U, cap.y + Ui.U, cap.width - 2 * Ui.U, cap.height - 2 * Ui.U), Ui.Wood);
+                Ui.Label(cap, i.ToString(), 15f, Ui.Cream, TextAnchor.MiddleCenter);
+                Ui.Label(new Rect(cap.xMax + 8 * k, br.y + 6 * k, br.width - 40 * k, 26 * k), Roles.Names[i], 19f, mine ? Ui.Title : Ui.Ink);
+                Ui.Box(new Rect(br.x + 8 * k, br.y + 36 * k, br.width - 16 * k, Mathf.Max(1f, Ui.U * 0.5f)), Ui.InkFaint);
+                Ui.Label(new Rect(br.x + 10 * k, br.y + 42 * k, br.width - 20 * k, br.height - 50 * k), Roles.Texts[i] + (taken ? "\n\n(ya lo tiene otro)" : ""), 14.5f, Ui.Ink, TextAnchor.UpperLeft, true);
+                GUI.color = o;
+                if (!taken && GUI.Button(br, GUIContent.none, GUIStyle.none)) Roles.Pick(i);
             }
-            GUI.Label(new Rect(r.x, r.yMax - 32 * k, r.width, 26 * k), PadNav.Active ? "Cruceta ←→ y A" : "Pulsa 1, 2, 3 o 4, o haz clic", _s);
+            Ui.Label(new Rect(r.x, r.yMax - 42 * k, r.width, 22 * k), PadNav.Active ? "Cruceta izquierda y derecha, y A para elegir" : "Pulsa 1, 2, 3 o 4, o haz clic", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
         }
     }
 }

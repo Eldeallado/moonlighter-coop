@@ -1,5 +1,11 @@
 # Novedades de Moonlighter Coop
 
+## 0.8.3 — 9/11/2026
+- **Todos los menús con el estilo del juego:** pergamino con varillas de madera, la letra de Moonlighter en tinta marrón, botones de madera y marco dorado para el mando.
+  - Menú F2 (con Novedades, Logros, Reglas y Dar equipo), menú de colores F3, elegir rol, aviso de entrar en la mazmorra, resumen de la expedición y del día, y chat.
+  - La vida de los compañeros y la de los enemigos van en pequeñas placas de pergamino.
+  - Las reglas llevan casillas dibujadas y los logros, medallas.
+
 ## 0.8.2 — 9/11/2026
 - **Logros rehechos:** pantalla propia con una tarjeta por logro, barra de progreso (por ejemplo, 7 / 100) y el total arriba.
 - **Mando en el menú F2:** la cruceta va hacia donde apuntas (izquierda y derecha pasan de Ver vida a Logros, Reglas y Dar equipo).

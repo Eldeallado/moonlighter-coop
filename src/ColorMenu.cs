@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace MoonlighterCoop
 {
@@ -20,7 +20,7 @@ namespace MoonlighterCoop
 
         private Camera _cam;
         private RenderTexture _rt;
-        private Texture2D _white, _rainbow, _grad1, _grad2;
+        private Texture2D _rainbow, _grad1, _grad2;
         private GUIStyle _title, _head, _label, _small, _button, _buttonOn;
 
         private static readonly string[] BarNames = { "Tono", "Intensidad", "Brillo" };
@@ -168,116 +168,93 @@ namespace MoonlighterCoop
             return t;
         }
 
-        private void Styles(float k)
-        {
-            if (_white == null) { _white = new Texture2D(1, 1); _white.SetPixel(0, 0, Color.white); _white.Apply(); }
-            if (_rainbow == null) _rainbow = Grad(x => Color.HSVToRGB(x * 355f / 360f, 0.85f, 0.95f), 72);
-            if (_title == null)
-            {
-                _title = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
-                _head = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
-                _label = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft };
-                _small = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true };
-                _button = new GUIStyle(GUI.skin.button);
-                _buttonOn = new GUIStyle(GUI.skin.button) { fontStyle = FontStyle.Bold };
-            }
-            _title.fontSize = (int)(26 * k); _head.fontSize = (int)(19 * k); _label.fontSize = (int)(15 * k);
-            _small.fontSize = (int)(13 * k); _button.fontSize = _buttonOn.fontSize = (int)(14 * k);
-            _title.normal.textColor = new Color(1f, 0.85f, 0.45f);
-            _head.normal.textColor = Color.white; _label.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
-            _small.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
-            _buttonOn.normal.textColor = new Color(1f, 0.85f, 0.45f);
-        }
-
-        private void Fill(Rect r, Color c) { var o = GUI.color; GUI.color = c; GUI.DrawTexture(r, _white); GUI.color = o; }
-        private void Frame(Rect r, Color c, float w) { Fill(new Rect(r.x, r.y, r.width, w), c); Fill(new Rect(r.x, r.yMax - w, r.width, w), c); Fill(new Rect(r.x, r.y, w, r.height), c); Fill(new Rect(r.xMax - w, r.y, w, r.height), c); }
-        private static readonly Color Gold = new Color(1f, 0.85f, 0.45f), Dim = new Color(0.35f, 0.3f, 0.25f);
-
         private void OnGUI()
         {
             if (!Open) return;
-            float k = Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
-            Styles(k);
+            Ui.Load();
+            float k = Ui.K;
+            if (_rainbow == null) _rainbow = Grad(x => Color.HSVToRGB(x * 355f / 360f, 0.85f, 0.95f), 72);
             GUI.depth = -1000;
-            float w = Mathf.Min(900 * k, Screen.width - 20), h = Mathf.Min(600 * k, Screen.height - 20);
+            float w = Mathf.Min(900 * k, Screen.width - 20), h = Mathf.Min(620 * k, Screen.height - 20);
             var panel = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
-            Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.35f));
-            Fill(panel, new Color(0.09f, 0.07f, 0.06f, 0.95f));
-            Frame(panel, new Color(0.62f, 0.45f, 0.22f), 3 * k);
-            Frame(new Rect(panel.x + 6 * k, panel.y + 6 * k, panel.width - 12 * k, panel.height - 12 * k), new Color(0.3f, 0.22f, 0.12f), 1 * k);
-            GUI.Label(new Rect(panel.x + 24 * k, panel.y + 12 * k, w, 36 * k), "Aspecto de tu Will", _title);
+            Ui.Dim(0.35f);
+            Ui.Sheet(panel);
+            Ui.Label(new Rect(panel.x + 30 * k, panel.y + 20 * k, w, 38 * k), "Aspecto de tu Will", 32f, Ui.Title);
+            Ui.Divider(panel.x + 30 * k, panel.y + 62 * k, w - 60 * k);
 
-            // Preview
-            var pv = new Rect(panel.x + 24 * k, panel.y + 58 * k, 210 * k, 252 * k);
-            Fill(pv, new Color(0.03f, 0.03f, 0.03f, 1f));
+            // Preview, in a dark wooden frame.
+            var pv = new Rect(panel.x + 30 * k, panel.y + 76 * k, 210 * k, 252 * k);
+            Ui.Slot(pv);
             if (_rt != null) GUI.DrawTexture(new Rect(pv.x + 4 * k, pv.y + 4 * k, pv.width - 8 * k, pv.height - 8 * k), _rt, ScaleMode.ScaleAndCrop);
-            Frame(pv, new Color(0.62f, 0.45f, 0.22f), 2 * k);
 
-            // Parts: two columns of four, each with its colour
-            float px = pv.xMax + 26 * k, pw = panel.xMax - px - 24 * k, cw = (pw - 10 * k) / 2f, rh = 30 * k;
-            GUI.Label(new Rect(px, panel.y + 54 * k, pw, 26 * k), (_row == 0 ? "▶ " : "") + "Parte", _head);
+            // Parts: two columns of four, each with its colour.
+            float px = pv.xMax + 24 * k, pw = panel.xMax - px - 30 * k, cw = (pw - 10 * k) / 2f, rh = 30 * k;
+            Ui.Label(new Rect(px, panel.y + 70 * k, pw, 26 * k), "Parte", 20f, _row == 0 ? Ui.Title : Ui.Ink);
             for (int i = 0; i < Looks.N; i++)
             {
-                var r = new Rect(px + (i % 2) * (cw + 10 * k), panel.y + 84 * k + (i / 2) * (rh + 6 * k), cw, rh);
+                var r = new Rect(px + (i % 2) * (cw + 10 * k), panel.y + 98 * k + (i / 2) * (rh + 6 * k), cw, rh);
                 bool on = i == _part;
-                if (GUI.Button(r, "", on ? _buttonOn : _button)) { _part = i; _row = 1; _grad1 = _grad2 = null; }
-                Fill(new Rect(r.x + 5 * k, r.y + 5 * k, rh - 10 * k, rh - 10 * k), Looks.Swatch(_parts[i], i));
-                Frame(new Rect(r.x + 5 * k, r.y + 5 * k, rh - 10 * k, rh - 10 * k), Color.white, 1 * k);
-                GUI.Label(new Rect(r.x + rh + 2 * k, r.y, cw - rh, rh), Looks.Names[i] + (_parts[i].Own ? "  (Will)" : ""), on ? _head : _label);
-                if (on) Frame(r, _row == 0 ? Gold : new Color(0.62f, 0.45f, 0.22f), 2 * k);
+                if (Ui.Button(r, "", _row == 0 && on, on)) { _part = i; _row = 1; _grad1 = _grad2 = null; }
+                var sw = new Rect(r.x + 6 * k, r.y + 6 * k, rh - 12 * k, rh - 12 * k);
+                Ui.Box(sw, Ui.Outline);
+                Ui.Box(new Rect(sw.x + Ui.U, sw.y + Ui.U, sw.width - 2 * Ui.U, sw.height - 2 * Ui.U), Looks.Swatch(_parts[i], i));
+                Ui.Shadowed(new Rect(sw.xMax + 8 * k, r.y, cw - rh - 8 * k, rh - 2 * k), Looks.Names[i] + (_parts[i].Own ? "  (Will)" : ""), 16f,
+                    on ? Ui.Gold : Ui.Cream, new Color(0.15f, 0.08f, 0.04f, 0.8f), TextAnchor.MiddleLeft);
             }
 
-            // Bars of the chosen part
-            float by0 = panel.y + 84 * k + 4 * (rh + 6 * k) + 8 * k;
+            // Bars of the chosen part.
+            float by0 = panel.y + 98 * k + 4 * (rh + 6 * k) + 8 * k;
             Bars(new Rect(px, by0, pw, 150 * k), k);
 
-            // Styles
-            float sy = Mathf.Max(pv.yMax, by0 + 146 * k) + 10 * k;
-            GUI.Label(new Rect(pv.x, sy, 300 * k, 26 * k), (_row == 4 ? "▶ " : "") + "Estilos", _head);
+            // Styles.
+            float sy = Mathf.Max(pv.yMax, by0 + 146 * k) + 8 * k;
+            Ui.Label(new Rect(pv.x, sy, 300 * k, 26 * k), "Estilos", 20f, _row == 4 ? Ui.Title : Ui.Ink);
             var styles = StyleList; int n = styles.Count, perRow = 5;
-            float sw = (panel.width - 48 * k - (perRow - 1) * 8 * k) / perRow;
+            float sbw = (panel.width - 60 * k - (perRow - 1) * 8 * k) / perRow;
             for (int i = 0; i < n; i++)
             {
-                var r = new Rect(pv.x + (i % perRow) * (sw + 8 * k), sy + 30 * k + (i / perRow) * 36 * k, sw, 30 * k);
-                if (GUI.Button(r, styles[i].Name, _row == 4 && _style == i ? _buttonOn : _button)) { _row = 4; ApplyStyle(i); }
-                if (_row == 4 && _style == i) Frame(r, Gold, 2 * k);
+                var r = new Rect(pv.x + (i % perRow) * (sbw + 8 * k), sy + 30 * k + (i / perRow) * 36 * k, sbw, 30 * k);
+                bool sel = _row == 4 && _style == i;
+                if (Ui.Button(r, styles[i].Name, sel, sel, true, 15f)) { _row = 4; ApplyStyle(i); }
             }
 
-            // Buttons
-            float btY = panel.yMax - 72 * k, bwid = 140 * k;
-            if (GUI.Button(new Rect(pv.x, btY, bwid, 32 * k), "Al azar", _button))
+            // Buttons.
+            float btY = panel.yMax - 86 * k, bwid = 134 * k;
+            if (Ui.Button(new Rect(pv.x, btY, bwid, 32 * k), "Al azar"))
             {
                 for (int i = 0; i < Looks.N; i++)
                     _parts[i] = i == Looks.Piel && Random.value < 0.6f ? new Looks.Part { Own = true }
                         : Looks.P(Random.Range(0, Looks.Tones), Looks.Pale(i) ? Random.Range(1, 12) : Random.Range(6, 16), Random.Range(3, 15));
                 Changed();
             }
-            if (GUI.Button(new Rect(pv.x + bwid + 10 * k, btY, bwid, 32 * k), "Will original", _button)) { for (int i = 0; i < Looks.N; i++) _parts[i].Own = true; Changed(); }
-            if (GUI.Button(new Rect(panel.xMax - 24 * k - bwid, btY, bwid, 32 * k), "Listo", _buttonOn)) SetOpen(false);
-            // Own styles and share codes
-            float sx = pv.x + 2 * (bwid + 10 * k), sbw = 118 * k;
-            if (GUI.Button(new Rect(sx, btY, sbw, 32 * k), "Guardar estilo", _button)) { Looks.SaveStyle(_parts); _note = "Guardado en tus estilos"; _noteAt = Time.unscaledTime; }
-            if (GUI.Button(new Rect(sx + sbw + 8 * k, btY, sbw, 32 * k), "Copiar código", _button)) { GUIUtility.systemCopyBuffer = Looks.ShareCode(Looks.Pack(_parts)); _note = "Copiado: " + GUIUtility.systemCopyBuffer; _noteAt = Time.unscaledTime; }
-            if (GUI.Button(new Rect(sx + 2 * (sbw + 8 * k), btY, sbw, 32 * k), "Pegar código", _button))
+            if (Ui.Button(new Rect(pv.x + bwid + 8 * k, btY, bwid, 32 * k), "Will original")) { for (int i = 0; i < Looks.N; i++) _parts[i].Own = true; Changed(); }
+            if (Ui.Button(new Rect(panel.xMax - 30 * k - 110 * k, btY, 110 * k, 32 * k), "Listo", false, false, true, 18f)) SetOpen(false);
+            // Own styles and share codes.
+            float sx = pv.x + 2 * (bwid + 8 * k), sbw2 = 116 * k;
+            if (Ui.Button(new Rect(sx, btY, sbw2, 32 * k), "Guardar estilo", false, false, true, 15f)) { Looks.SaveStyle(_parts); _note = "Guardado en tus estilos"; _noteAt = Time.unscaledTime; }
+            if (Ui.Button(new Rect(sx + sbw2 + 8 * k, btY, sbw2, 32 * k), "Copiar código", false, false, true, 15f)) { GUIUtility.systemCopyBuffer = Looks.ShareCode(Looks.Pack(_parts)); _note = "Copiado: " + GUIUtility.systemCopyBuffer; _noteAt = Time.unscaledTime; }
+            if (Ui.Button(new Rect(sx + 2 * (sbw2 + 8 * k), btY, sbw2, 32 * k), "Pegar código", false, false, true, 15f))
             {
                 int l = Looks.FromShareCode(GUIUtility.systemCopyBuffer);
                 if (l >= 0) { _parts = Looks.Unpack(l); Changed(); _note = "Aspecto pegado"; } else _note = "El portapapeles no tiene un código ML-…";
                 _noteAt = Time.unscaledTime;
             }
             int custom = _style - Looks.Styles.Length;
-            if (_row == 4 && custom >= 0 && custom < Looks.Mine2.Count && GUI.Button(new Rect(sx + 3 * (sbw + 8 * k), btY, 80 * k, 32 * k), "Borrar", _button)) { Looks.DeleteStyle(custom); _style = 0; }
-            if (Time.unscaledTime - _noteAt < 4f) GUI.Label(new Rect(pv.x, btY - 26 * k, panel.width - 48 * k, 22 * k), _note, _label);
-            GUI.Label(new Rect(panel.x + 20 * k, panel.yMax - 34 * k, w - 40 * k, 24 * k),
-                PadNav.Active ? "Cruceta ↑↓ fila, ←→ cambiar · A aplicar estilo / cerrar · B cerrar" : "Ratón, o ↑↓ fila y ←→ cambiar · Enter aplica el estilo · F3 o Esc para cerrar", _small);
+            if (_row == 4 && custom >= 0 && custom < Looks.Mine2.Count && Ui.Button(new Rect(sx + 3 * (sbw2 + 8 * k), btY, 76 * k, 32 * k), "Borrar", false, false, true, 15f)) { Looks.DeleteStyle(custom); _style = 0; }
+            if (Time.unscaledTime - _noteAt < 4f) Ui.Label(new Rect(pv.x, btY - 24 * k, panel.width - 60 * k, 22 * k), _note, 16f, Ui.Good);
+            Ui.Label(new Rect(panel.x + 24 * k, panel.yMax - 46 * k, w - 48 * k, 20 * k),
+                PadNav.Active ? "Cruceta arriba y abajo: fila  ·  izquierda y derecha: cambiar  ·  A: aplicar estilo / cerrar  ·  B: cerrar"
+                              : "Ratón, o flechas: arriba y abajo la fila, izquierda y derecha cambian  ·  Enter aplica el estilo  ·  F3 o Esc: cerrar",
+                14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
         }
 
         private void Bars(Rect r, float k)
         {
             ref var p = ref _parts[_part];
             int part = _part;
-            GUI.Label(new Rect(r.x, r.y, r.width - 130 * k, 28 * k), Looks.Names[part], _head);
+            Ui.Label(new Rect(r.x, r.y, r.width - 130 * k, 28 * k), Looks.Names[part], 20f, Ui.Ink);
             float bw = 120 * k;
-            if (GUI.Button(new Rect(r.xMax - bw, r.y + 1 * k, bw, 26 * k), p.Own ? "✔ Como Will" : "Como Will", p.Own ? _buttonOn : _button)) { p.Own = !p.Own; Changed(); }
+            if (Ui.Button(new Rect(r.xMax - bw, r.y + 1 * k, bw, 26 * k), "Como Will", false, p.Own, true, 15f)) { p.Own = !p.Own; Changed(); }
             var basePart = p.Own ? Looks.P(Looks.Start[part, 0], Looks.Start[part, 1], Looks.Start[part, 2]) : p;
             if (_grad1 == null)
             {
@@ -286,22 +263,27 @@ namespace MoonlighterCoop
                 _grad2 = Grad(x => Looks.Swatch(Looks.P(q.Tone, q.Intensity, Mathf.RoundToInt(x * 15)), part), 16);
             }
             var texs = new[] { _rainbow, _grad1, _grad2 };
+            float u = Ui.U;
             for (int i = 0; i < 3; i++)
             {
-                float y = r.y + 34 * k + i * 36 * k;
+                float y = r.y + 36 * k + i * 36 * k;
                 bool sel = _row == i + 1;
-                GUI.Label(new Rect(r.x, y, 110 * k, 26 * k), (sel ? "▶ " : "   ") + BarNames[i], _label);
+                if (sel) Ui.Box(new Rect(r.x, y + 9 * k, 6 * k, 8 * k), Ui.Title);   // a small marker on the chosen bar
+                Ui.Label(new Rect(r.x + 12 * k, y, 100 * k, 26 * k), BarNames[i], 17f, sel ? Ui.Title : Ui.Ink);
                 var br = new Rect(r.x + 112 * k, y + 4 * k, r.width - 112 * k, 18 * k);
+                Ui.Box(new Rect(br.x - (sel ? 2 : 1) * u, br.y - (sel ? 2 : 1) * u, br.width + (sel ? 4 : 2) * u, br.height + (sel ? 4 : 2) * u), sel ? Ui.Title : Ui.Outline);
                 GUI.color = p.Own ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
                 GUI.DrawTexture(br, texs[i]);
                 GUI.color = Color.white;
-                Frame(br, sel ? Gold : Dim, (sel ? 2 : 1) * k);
                 if (!p.Own)
                 {
+                    // The handle: a little wooden peg.
                     float f = Get(p, i) / (float)Max(i);
                     var hx = br.x + f * br.width;
-                    Fill(new Rect(hx - 4 * k, br.y - 5 * k, 8 * k, br.height + 10 * k), Color.black);
-                    Fill(new Rect(hx - 2 * k, br.y - 3 * k, 4 * k, br.height + 6 * k), Color.white);
+                    var peg = new Rect(hx - 4 * u, br.y - 3 * u, 8 * u, br.height + 6 * u);
+                    Ui.Box(peg, Ui.Outline);
+                    Ui.Box(new Rect(peg.x + u, peg.y + u, peg.width - 2 * u, peg.height - 2 * u), Ui.Paper);
+                    Ui.Box(new Rect(peg.x + u, peg.yMax - 2 * u, peg.width - 2 * u, u), Ui.PaperShade);
                 }
                 var e = Event.current;
                 if (e.type == EventType.MouseDown && br.Contains(e.mousePosition)) { _dragBar = i; _row = i + 1; }
