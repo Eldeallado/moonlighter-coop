@@ -8,6 +8,7 @@ Push-Location $m
 dotnet build -c Release | Select-String "Compilación|error" | Select-Object -First 3
 Copy-Item "$m\bin\Release\net472\MoonlighterCoop.dll" "$r\MoonlighterCoop\juego\BepInEx\plugins\" -Force
 Copy-Item "$m\README.md" "$r\MoonlighterCoop\LEEME.md" -Force
+Copy-Item "$m\CHANGELOG.md" "$r\MoonlighterCoop\NOVEDADES.md" -Force
 Get-ChildItem $r -Filter "*.zip" | ForEach-Object { $_.Delete() }
 $zip = "$r\MoonlighterCoop-$Version.zip"
 Compress-Archive -Path "$r\MoonlighterCoop" -DestinationPath $zip -Force

@@ -91,7 +91,7 @@ namespace MoonlighterCoop
                 _hintStyle = new GUIStyle { alignment = TextAnchor.MiddleLeft, font = _font };
             }
             _keyStyle.fontSize = _hintStyle.fontSize = Mathf.Max(9, (int)(12 * k));
-            string right = Net.Connected ? $"Cooperativo · {Session.Players} jugadores" : "Cooperativo";
+            string right = Changelog.Unseen ? "Cooperativo · ¡novedades!" : Net.Connected ? $"Cooperativo · {Session.Players} jugadores" : "Cooperativo";
             float w = 290 * k, h = 30 * k;
             var r = new Rect(Screen.width - w - 14 * k, Screen.height - h - 14 * k, w, h);
             Parchment(r, k * 0.75f, a);

@@ -180,7 +180,8 @@ namespace MoonlighterCoop
         {
             var hero = HeroMerchant.Instance;
             if (!InDungeon || Me || Ghosts.Count == 0 || hero == null) return;
-            Puppet near = null; float best = 56f;
+            bool healer = Roles.Is(Roles.Healer);   // from further away, and twice the health
+            Puppet near = null; float best = healer ? 110f : 56f;
             foreach (var p in Puppet.All.Values)
             {
                 if (p == null || !p.Visible || !IsGhost(p.PlayerId)) continue;
@@ -194,7 +195,7 @@ namespace MoonlighterCoop
             potion.Quantity -= 1;
             if (potion.Quantity > 0) HUDManager.Instance.SetPotionQuantity(potion.Quantity);
             else { HUDManager.Instance.SetEmptyConsumableIcon(); inv.SetEquippedItemByType(null, HeroMerchantInventory.EquipmentSlot.Potion); }
-            var ms = new MemoryStream(); var w = new BinaryWriter(ms); w.Write(0.35f); w.Write((byte)near.PlayerId);
+            var ms = new MemoryStream(); var w = new BinaryWriter(ms); w.Write(healer ? 0.7f : 0.35f); w.Write((byte)near.PlayerId);
             Net.Send(Msg.Revive, ms.ToArray());
             Ghosts.Remove(near.PlayerId);
             PotionRevives++;

@@ -10,7 +10,8 @@ namespace MoonlighterCoop
     /// and lets you leave.
     public class CoopMenu : MonoBehaviour
     {
-        private bool _showAch, _showRules, _showGive;
+        private bool _showAch, _showRules, _showGive, _showNews;
+        private Vector2 _newsScroll;
         public static bool Open;
         public static CoopMenu Instance;
         private enum Page { Main, Code, Ip }
@@ -33,6 +34,8 @@ namespace MoonlighterCoop
             if (open)
             {
                 _page = Page.Main;
+                // First time after updating: start on what is new.
+                if (Changelog.Unseen) { _showNews = true; _newsScroll = Vector2.zero; Changelog.MarkSeen(); }
                 _cursorWas = Cursor.visible; Cursor.visible = true;
                 if (hero != null) { hero.heroMerchantController.DisableMoveInput(); hero.heroMerchantController.DisableAttackInput(); }
                 if (gin != null) gin.Enabled = false;   // typing a code must not drive the game's menus
@@ -55,6 +58,14 @@ namespace MoonlighterCoop
             _padA = false;
             if (Input.GetKeyDown(KeyCode.F2) || PadNav.Combo && !ColorMenu.Open) { SetOpen(!Open); _focus = 0; return; }
             if (!Open) return;
+            if (_showNews)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.A) _showNews = false;
+                if (PadNav.Up) _newsScroll.y -= 80f;
+                if (PadNav.Down) _newsScroll.y += 80f;
+                _newsScroll.y = Mathf.Max(0f, _newsScroll.y);
+                return;
+            }
             if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B) { if (_page != Page.Main) { _page = Page.Main; _focus = 0; } else SetOpen(false); return; }
             if (_page == Page.Code && PadNav.Active)
             {
@@ -205,12 +216,14 @@ namespace MoonlighterCoop
             Frame(p, new Color(0.62f, 0.45f, 0.22f), 3 * k);
             Frame(new Rect(p.x + 6 * k, p.y + 6 * k, p.width - 12 * k, p.height - 12 * k), new Color(0.3f, 0.22f, 0.12f), 1 * k);
             GUI.Label(new Rect(p.x + 24 * k, p.y + 14 * k, w, 36 * k), "Cooperativo", _title);
-            GUI.Label(new Rect(p.xMax - 190 * k, p.y + 22 * k, 160 * k, 22 * k), "versión " + Plugin.Version, _small);
-            if (Versions.UpdateAvailable && Btn(new Rect(p.x + 190 * k, p.y + 18 * k, 260 * k, 28 * k), "¡Versión " + Versions.Latest + " disponible! Descargar")) Application.OpenURL(Versions.ReleasesUrl);
+            GUI.Label(new Rect(p.xMax - 125 * k, p.y + 22 * k, 105 * k, 22 * k), "versión " + Plugin.Version, _small);
+            if (Versions.UpdateAvailable && Btn(new Rect(p.x + 180 * k, p.y + 18 * k, 212 * k, 28 * k), "¡Hay versión " + Versions.Latest + "! Descargar")) Application.OpenURL(Versions.ReleasesUrl);
+            if (Btn(new Rect(p.xMax - 240 * k, p.y + 18 * k, 110 * k, 28 * k), _showNews ? "Volver" : "Novedades")) { _showNews = !_showNews; _newsScroll = Vector2.zero; }
             var inner = new Rect(p.x + 30 * k, p.y + 60 * k, w - 60 * k, h - 110 * k);
 
             bool inGame = Plugin.Role != "" && (Net.Connected || Session.IsHost || SteamCoop.Lobby != Steamworks.CSteamID.Nil);
-            if (inGame) DrawInGame(inner, k);
+            if (_showNews) DrawNews(inner, k);
+            else if (inGame) DrawInGame(inner, k);
             else if (_page == Page.Code) DrawJoinCode(inner, k);
             else if (_page == Page.Ip) DrawJoinIp(inner, k);
             else DrawMain(inner, k);
@@ -230,6 +243,40 @@ namespace MoonlighterCoop
             if (focused && _padA && Event.current.type == EventType.Repaint) { _padA = false; pressed = true; }
             return pressed;
         }
+
+        /// F2 → Novedades: every version, newest first, with what it brought (CHANGELOG.md inside the DLL).
+        private void DrawNews(Rect r, float k)
+        {
+            if (_newsText == null) { _newsText = new GUIStyle(_label) { richText = true }; _newsHead = new GUIStyle(_head) { richText = true }; }
+            _newsText.fontSize = _label.fontSize; _newsHead.fontSize = _head.fontSize;
+            _newsHead.normal.textColor = new Color(1f, 0.85f, 0.45f);
+            float iw = r.width - 24 * k;
+            // Measure first so the scroll view knows how tall the list is.
+            float total = 0f;
+            foreach (var e in Changelog.Entries)
+            {
+                total += 30 * k;
+                foreach (var l in e.Lines) total += _newsText.CalcHeight(new GUIContent(l), iw) + 3 * k;
+                total += 10 * k;
+            }
+            _newsScroll.y = Mathf.Min(_newsScroll.y, Mathf.Max(0f, total - r.height));
+            _newsScroll = GUI.BeginScrollView(r, _newsScroll, new Rect(0, 0, iw, total));
+            float y = 0f;
+            foreach (var e in Changelog.Entries)
+            {
+                GUI.Label(new Rect(0, y, iw, 28 * k), "Versión " + e.Title, _newsHead);
+                y += 30 * k;
+                foreach (var l in e.Lines)
+                {
+                    float lh = _newsText.CalcHeight(new GUIContent(l), iw);
+                    GUI.Label(new Rect(0, y, iw, lh), l, _newsText);
+                    y += lh + 3 * k;
+                }
+                y += 10 * k;
+            }
+            GUI.EndScrollView();
+        }
+        private GUIStyle _newsText, _newsHead;
 
         private void DrawMain(Rect r, float k)
         {

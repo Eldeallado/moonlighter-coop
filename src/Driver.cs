@@ -374,6 +374,39 @@ namespace MoonlighterCoop
                 case "rule": HostSettings.Toggle(int.Parse(p[1])); return "rules=" + HostSettings.Bits;
                 case "role": Roles.Pick(int.Parse(p[1])); return "role=" + Roles.Mine + " choosing=" + Roles.Choosing;
                 case "give": Give.ToBag(int.Parse(p[1])); return "ok";
+                case "hp": { var h = hero.heroMerchantStats.currentHealth; return $"hp={(float)h.Value}/{(float)h.maxValue} dealt={Roles.DamageDealt} taken={Roles.DamageTaken}"; }
+                case "openchest": // the nearest chest not opened yet: unlock it, open it, count what is inside
+                {
+                    Chest best = null; float bd = float.MaxValue;
+                    foreach (var c in UnityEngine.Object.FindObjectsOfType<Chest>())
+                    {
+                        if (c.hasBeenOpened || !c.gameObject.activeInHierarchy) continue;
+                        float d = Vector2.Distance(c.transform.position, hero.transform.position);
+                        if (d < bd) { bd = d; best = c; }
+                    }
+                    if (best == null) return "no chest";
+                    if (best.isLocked) { best.isLocked = false; return $"chest {best.type} at {bd:0}: unlocking, ask again in a few seconds"; }
+                    int before = best.GetAllItems().Count;
+                    best.OpenChest();
+                    return $"chest {best.type} at {bd:0} items {before} -> {best.GetAllItems().Count} opened={best.hasBeenOpened}";
+                }
+                case "chestroom": // a room of this floor with a chest in it, as "x y"
+                {
+                    var cr = dm.dungeonRooms.FirstOrDefault(r => r != null && !r.isSecret && r.roomChests.Any(c => c != null && !c.GetComponent<Chest>().hasBeenOpened));
+                    return cr == null ? "none" : $"{cr.x} {cr.y}";
+                }
+                case "secrets": // rooms that hide a secret room, and how many of them show its mark on the map
+                {
+                    var mp = UnityEngine.Object.FindObjectOfType<MinimapPanel>();
+                    int rooms = 0, marked = 0;
+                    foreach (var room in dm.dungeonRooms)
+                    {
+                        if (room == null || room.secretRoom == null) continue;
+                        rooms++;
+                        if (mp != null && Traverse.Create(mp).Method("GetRoomIconSprites", room).GetValue<List<Sprite>>().Contains(mp.SecretIcon)) marked++;
+                    }
+                    return $"secret rooms {rooms}, marked {marked}, panel={(mp != null)}";
+                }
                 case "roleinfo": return "role=" + Roles.Mine + " choosing=" + Roles.Choosing + " rules=" + HostSettings.Bits;
                 case "f2page": { var m = CoopMenu.Instance; if (m != null) Traverse.Create(m).Field(p[1]).SetValue(true); return "ok"; }
                 case "summary": Summary.Show(p[1] == "day" ? Summary.Kind.Day : Summary.Kind.Run); return "ok";

@@ -15,7 +15,7 @@ namespace MoonlighterCoop
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "elde_al_lado.moonlighter.coop";
-        public const string Version = "0.8.0";
+        public const string Version = "0.8.1";
 
         public static Plugin Instance;
         public static ManualLogSource Log;
@@ -54,6 +54,8 @@ namespace MoonlighterCoop
         }
         private static BepInEx.Configuration.ConfigEntry<int> _diffCfg;
         public static void SaveDifficulty(int m) { if (_diffCfg != null) _diffCfg.Value = m; }
+        private static BepInEx.Configuration.ConfigEntry<string> _newsCfg;
+        public static void SaveNewsSeen(string v) { if (_newsCfg != null) _newsCfg.Value = v; }
         public static int WinW = 800, WinH = 450;
 
         private void Awake()
@@ -95,6 +97,8 @@ namespace MoonlighterCoop
             if (!string.IsNullOrEmpty(_partsCfg.Value)) { int l = Looks.FromText(_partsCfg.Value); if (l >= 0) Looks.LoadSaved(l); }
             _diffCfg = Config.Bind("Cooperativo", "Dificultad", 1, "0 = como un jugador, 1 = ajustada a los jugadores, 2 = difícil (lo elige el anfitrión en F2)");
             Difficulty.Load(_diffCfg.Value);
+            _newsCfg = Config.Bind("Cooperativo", "NovedadesVistas", "", "Última versión cuyas novedades has visto (F2 → Novedades)");
+            Changelog.Seen = _newsCfg.Value;
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
             // The game turns its own log off; keep errors and the loading/room flow for debugging.
             Debug.unityLogger.logEnabled = true;
