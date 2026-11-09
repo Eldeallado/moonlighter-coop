@@ -408,6 +408,7 @@ namespace MoonlighterCoop
                     return $"secret rooms {rooms}, marked {marked}, panel={(mp != null)}";
                 }
                 case "roleinfo": return "role=" + Roles.Mine + " choosing=" + Roles.Choosing + " rules=" + HostSettings.Bits;
+                case "f2state": { var t = Traverse.Create(CoopMenu.Instance); return $"focus={t.Field("_focus").GetValue<int>()} rects={t.Field("_lastRects").GetValue<List<Rect>>().Count} ach={t.Field("_showAch").GetValue<bool>()} rules={t.Field("_showRules").GetValue<bool>()} give={t.Field("_showGive").GetValue<bool>()} sel={t.Field("_listSel").GetValue<int>()} pad={PadNav.Active}"; }
                 case "f2page": { var m = CoopMenu.Instance; if (m != null) Traverse.Create(m).Field(p[1]).SetValue(true); return "ok"; }
                 case "summary": Summary.Show(p[1] == "day" ? Summary.Kind.Day : Summary.Kind.Run); return "ok";
                 case "chat": Chat.Send(string.Join(" ", p.Skip(1).ToArray())); return "ok";

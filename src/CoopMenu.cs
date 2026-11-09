@@ -1,3 +1,4 @@
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -48,9 +49,51 @@ namespace MoonlighterCoop
             }
         }
 
-        // Gamepad: which button has the focus, how many buttons the last frame drew, A pressed this frame.
-        private int _focus, _btnCount, _lastCount = 1, _slot;
+        // Gamepad: which button has the focus, where the focusable buttons were last drawn, A pressed this frame.
+        // Buttons belong to a group: 0 = the menu itself, 1 = the panel open on top (Reglas, Dar equipo). While a
+        // panel is open the pad only moves inside it; B closes it and puts the focus back on its tab.
+        private int _focus, _btnCount, _slot, _grp, _tabFocus;
         private bool _padA;
+        private readonly List<Rect> _rects = new List<Rect>();
+        private List<Rect> _lastRects = new List<Rect>();
+        private int NavGroup => _showRules || _showGive ? 1 : 0;
+
+        /// Moves the focus to the closest button in that direction (as it looks on screen).
+        private void MoveFocus(float dx, float dy)
+        {
+            if (_lastRects.Count == 0) return;
+            if (_focus >= _lastRects.Count) { _focus = 0; return; }
+            var fr = _lastRects[_focus];
+            Vector2 from = fr.center;
+            int best = -1; float bestScore = float.MaxValue;
+            for (int i = 0; i < _lastRects.Count; i++)
+            {
+                if (i == _focus) continue;
+                var o = _lastRects[i];
+                Vector2 d = o.center - from;
+                float along = d.x * dx + d.y * dy, across = Mathf.Abs(d.x * dy) + Mathf.Abs(d.y * dx);
+                if (along <= 1f) continue;
+                // Buttons in line with this one (sharing some of its width for up/down, of its height for
+                // left/right) come first, the nearest row or column; then anything within 45 degrees.
+                bool inLine = dy != 0 ? o.xMax > fr.xMin && o.xMin < fr.xMax : o.yMax > fr.yMin && o.yMin < fr.yMax;
+                float score;
+                if (inLine) score = along + across * 0.01f;
+                else if (along > across) score = 100000f + along + across * 2f;
+                else continue;
+                if (score < bestScore) { bestScore = score; best = i; }
+            }
+            if (best >= 0) _focus = best;
+        }
+
+        private void OpenPanel(ref bool flag)
+        {
+            bool open = !flag;
+            _showAch = _showRules = _showGive = false;
+            flag = open;
+            if (open) { _tabFocus = _focus; _focus = 0; _listSel = 0; _listSelDrawn = -1; _listScroll = Vector2.zero; }
+        }
+
+        private void ClosePanels() { _showAch = _showRules = _showGive = false; _focus = _tabFocus; }
 
         private void Update()
         {
@@ -66,6 +109,15 @@ namespace MoonlighterCoop
                 _newsScroll.y = Mathf.Max(0f, _newsScroll.y);
                 return;
             }
+            if (_showAch)
+            {
+                // A list without buttons: up/down go through the achievements, B (or A) goes back.
+                if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.A) { ClosePanels(); return; }
+                if (PadNav.Up || Input.GetKeyDown(KeyCode.UpArrow)) _listSel = Mathf.Max(0, _listSel - 1);
+                if (PadNav.Down || Input.GetKeyDown(KeyCode.DownArrow)) _listSel = Mathf.Min(Achievements.All.Length - 1, _listSel + 1);
+                return;
+            }
+            if ((_showRules || _showGive) && (Input.GetKeyDown(KeyCode.Escape) || PadNav.B)) { ClosePanels(); return; }
             if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B) { if (_page != Page.Main) { _page = Page.Main; _focus = 0; } else SetOpen(false); return; }
             if (_page == Page.Code && PadNav.Active)
             {
@@ -82,8 +134,10 @@ namespace MoonlighterCoop
                 if (PadNav.A) JoinCode();
                 return;
             }
-            if (PadNav.Up) _focus = (_focus + _lastCount - 1) % _lastCount;
-            if (PadNav.Down) _focus = (_focus + 1) % _lastCount;
+            if (PadNav.Up) MoveFocus(0, -1);
+            if (PadNav.Down) MoveFocus(0, 1);
+            if (PadNav.Left) MoveFocus(-1, 0);
+            if (PadNav.Right) MoveFocus(1, 0);
             if (PadNav.A) _padA = true;
         }
 
@@ -208,7 +262,7 @@ namespace MoonlighterCoop
             float k = Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
             Styles(k);
             GUI.depth = -1001;
-            _btnCount = 0;
+            _btnCount = 0; _grp = 0; _rects.Clear();
             float w = 640 * k, h = 470 * k;
             var p = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
             Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.4f));
@@ -218,11 +272,12 @@ namespace MoonlighterCoop
             GUI.Label(new Rect(p.x + 24 * k, p.y + 14 * k, w, 36 * k), "Cooperativo", _title);
             GUI.Label(new Rect(p.xMax - 125 * k, p.y + 22 * k, 105 * k, 22 * k), "versión " + Plugin.Version, _small);
             if (Versions.UpdateAvailable && Btn(new Rect(p.x + 180 * k, p.y + 18 * k, 212 * k, 28 * k), "¡Hay versión " + Versions.Latest + "! Descargar")) Application.OpenURL(Versions.ReleasesUrl);
-            if (Btn(new Rect(p.xMax - 240 * k, p.y + 18 * k, 110 * k, 28 * k), _showNews ? "Volver" : "Novedades")) { _showNews = !_showNews; _newsScroll = Vector2.zero; }
+            if (Btn(new Rect(p.xMax - 240 * k, p.y + 18 * k, 110 * k, 28 * k), _showNews || _showAch ? "Volver" : "Novedades")) { if (_showAch) ClosePanels(); else { _showNews = !_showNews; _newsScroll = Vector2.zero; } }
             var inner = new Rect(p.x + 30 * k, p.y + 60 * k, w - 60 * k, h - 110 * k);
 
             bool inGame = Plugin.Role != "" && (Net.Connected || Session.IsHost || SteamCoop.Lobby != Steamworks.CSteamID.Nil);
             if (_showNews) DrawNews(inner, k);
+            else if (_showAch) DrawAchievements(inner, k);
             else if (inGame) DrawInGame(inner, k);
             else if (_page == Page.Code) DrawJoinCode(inner, k);
             else if (_page == Page.Ip) DrawJoinIp(inner, k);
@@ -230,14 +285,19 @@ namespace MoonlighterCoop
 
             if (!string.IsNullOrEmpty(SteamCoop.Status))
                 GUI.Label(new Rect(p.x + 20 * k, p.yMax - 64 * k, w - 40 * k, 26 * k), SteamCoop.Status, _small);
-            GUI.Label(new Rect(p.x + 20 * k, p.yMax - 36 * k, w - 40 * k, 24 * k), PadNav.Active ? "Cruceta: moverse · A: aceptar · B: volver · L3+R3: cerrar" : "F2 o Esc para cerrar este menú", _small);
-            if (Event.current.type == EventType.Repaint) { _lastCount = Mathf.Max(1, _btnCount); if (_focus >= _lastCount) _focus = 0; }
+            string hint = _showAch ? (PadNav.Active ? "↑ ↓: ver los logros · B: volver" : "Rueda o ↑ ↓ para ver los logros · Esc: volver")
+                : PadNav.Active ? "Cruceta: moverse · A: aceptar · B: volver · L3+R3: cerrar" : "F2 o Esc para cerrar este menú";
+            GUI.Label(new Rect(p.x + 20 * k, p.yMax - 36 * k, w - 40 * k, 24 * k), hint, _small);
+            if (Event.current.type == EventType.Repaint) { _lastRects = new List<Rect>(_rects); if (_focus >= _lastRects.Count) _focus = 0; }
         }
 
         private bool Btn(Rect r, string text)
         {
-            int idx = _btnCount++;
-            bool focused = PadNav.Active && idx == _focus;
+            _btnCount++;
+            // Only the buttons of the group the pad is in can take the focus.
+            int idx = -1;
+            if (_grp == NavGroup) { idx = _rects.Count; _rects.Add(r); }
+            bool focused = PadNav.Active && idx >= 0 && idx == _focus && !_showAch && !_showNews;   // those pages scroll instead
             if (focused) Frame(new Rect(r.x - 3, r.y - 3, r.width + 6, r.height + 6), new Color(1f, 0.85f, 0.45f), 3);
             bool pressed = GUI.Button(r, text, _button);
             if (focused && _padA && Event.current.type == EventType.Repaint) { _padA = false; pressed = true; }
@@ -277,6 +337,78 @@ namespace MoonlighterCoop
             GUI.EndScrollView();
         }
         private GUIStyle _newsText, _newsHead;
+
+        /// F2 → Logros: a page of cards, one per achievement, with its progress bar.
+        private static readonly System.Globalization.NumberFormatInfo Es = new System.Globalization.NumberFormatInfo { NumberGroupSeparator = "." };   // 50.000, as in Spain
+        private int _listSel, _listSelDrawn = -1;
+        private Vector2 _listScroll;
+        private GUIStyle _achName, _achText, _achCount, _badge;
+        private void DrawAchievements(Rect r, float k)
+        {
+            if (_achName == null)
+            {
+                _achName = new GUIStyle(_head) { alignment = TextAnchor.MiddleLeft };
+                _achText = new GUIStyle(_small) { alignment = TextAnchor.MiddleLeft, wordWrap = false };
+                _achCount = new GUIStyle(_small) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+                _badge = new GUIStyle(_head) { alignment = TextAnchor.MiddleCenter };
+            }
+            _achName.fontSize = (int)(16 * k); _achText.fontSize = (int)(13 * k); _achCount.fontSize = (int)(11 * k);
+            var gold = new Color(1f, 0.85f, 0.45f);
+            var all = Achievements.All;
+            int got = Achievements.Unlocked;
+
+            // Header: how many, and a bar for the whole set.
+            GUI.Label(new Rect(r.x, r.y - 4 * k, r.width * 0.6f, 26 * k), "Logros del cooperativo", _head);
+            _achCount.normal.textColor = gold; _achCount.fontSize = (int)(15 * k);
+            GUI.Label(new Rect(r.xMax - 120 * k, r.y - 4 * k, 120 * k, 26 * k), $"{got} de {all.Length}", _achCount);
+            _achCount.fontSize = (int)(11 * k);
+            var hb = new Rect(r.x, r.y + 24 * k, r.width, 6 * k);
+            Fill(hb, new Color(0.2f, 0.15f, 0.1f));
+            Fill(new Rect(hb.x, hb.y, hb.width * got / Mathf.Max(1, all.Length), hb.height), gold);
+
+            // The list.
+            float cardH = 54 * k, gap = 6 * k;
+            var view = new Rect(r.x, r.y + 38 * k, r.width, r.height - 54 * k);
+            float iw = view.width - 16 * k, total = all.Length * (cardH + gap);
+            if (_listSel != _listSelDrawn)
+            {
+                // Keep the chosen card in sight.
+                float top = _listSel * (cardH + gap), bottom = top + cardH;
+                if (top < _listScroll.y) _listScroll.y = top;
+                if (bottom > _listScroll.y + view.height) _listScroll.y = bottom - view.height;
+                _listSelDrawn = _listSel;
+            }
+            _listScroll = GUI.BeginScrollView(view, _listScroll, new Rect(0, 0, iw, total));
+            for (int i = 0; i < all.Length; i++)
+            {
+                var a = all[i];
+                bool done = Achievements.Has(a.Id);
+                var c = new Rect(0, i * (cardH + gap), iw, cardH);
+                Fill(c, done ? new Color(0.22f, 0.16f, 0.08f) : new Color(0.12f, 0.1f, 0.08f));
+                bool sel = PadNav.Active && i == _listSel;
+                Frame(c, sel ? gold : done ? new Color(0.62f, 0.45f, 0.22f) : new Color(0.25f, 0.2f, 0.15f), (sel ? 2f : 1f) * k);
+                // Badge: gold with a tick when done, dark with the percentage when not.
+                var b = new Rect(c.x + 9 * k, c.y + 9 * k, cardH - 18 * k, cardH - 18 * k);
+                Fill(b, done ? gold : new Color(0.2f, 0.16f, 0.12f));
+                Frame(b, done ? new Color(0.5f, 0.33f, 0.1f) : new Color(0.35f, 0.28f, 0.2f), 2 * k);
+                _badge.normal.textColor = done ? new Color(0.3f, 0.18f, 0.05f) : new Color(0.6f, 0.53f, 0.45f);
+                _badge.fontSize = (int)((done ? 20 : 11) * k);
+                GUI.Label(b, done ? "✔" : $"{Mathf.FloorToInt(100f * a.Count / a.Goal)}%", _badge);
+                // Name and what to do.
+                float tx = b.xMax + 12 * k, tw = c.xMax - tx - 150 * k;
+                _achName.normal.textColor = done ? gold : new Color(0.85f, 0.82f, 0.78f);
+                _achText.normal.textColor = done ? new Color(0.85f, 0.78f, 0.62f) : new Color(0.6f, 0.57f, 0.53f);
+                GUI.Label(new Rect(tx, c.y + 6 * k, tw, 22 * k), a.Name, _achName);
+                GUI.Label(new Rect(tx, c.y + 27 * k, tw, 20 * k), a.Text, _achText);
+                // Progress on the right.
+                var pb = new Rect(c.xMax - 140 * k, c.y + 14 * k, 128 * k, 8 * k);
+                Fill(pb, new Color(0.07f, 0.06f, 0.05f));
+                Fill(new Rect(pb.x, pb.y, pb.width * a.Count / a.Goal, pb.height), done ? gold : new Color(0.55f, 0.42f, 0.22f));
+                _achCount.normal.textColor = done ? gold : new Color(0.65f, 0.6f, 0.55f);
+                GUI.Label(new Rect(pb.x, pb.yMax + 2 * k, pb.width, 16 * k), done ? "¡Conseguido!" : a.Count.ToString("N0", Es) + " / " + a.Goal.ToString("N0", Es), _achCount);
+            }
+            GUI.EndScrollView();
+        }
 
         private void DrawMain(Rect r, float k)
         {
@@ -347,6 +479,10 @@ namespace MoonlighterCoop
             bool host = Session.IsHost;
             GUI.Label(new Rect(r.x, y, r.width, 26 * k), host ? "Tu partida está abierta" : "Estás en la partida de tu amigo", _head);
             y += 32 * k;
+            // With Reglas or Dar equipo open, the panel takes this space (and the pad stays inside it).
+            bool panel = _showRules || _showGive;
+            if (!panel)
+            {
             if (!string.IsNullOrEmpty(SteamCoop.Code))
             {
                 GUI.Label(new Rect(r.x, y, r.width, 22 * k), "Código para unirse:", _label);
@@ -393,16 +529,21 @@ namespace MoonlighterCoop
                 GUI.Label(new Rect(r.x, y, r.width, 40 * k), $"Mods distintos ({(kv.Key == 0 ? "anfitrión" : "jugador " + (kv.Key + 1))}): {kv.Value}", _small);
                 y += 40 * k;
             }
-            // Options of this player, and the co-op achievements.
+            }
+            // Options of this player, and the co-op achievements: a row of tabs (left/right on the pad).
             float oy = r.yMax - 86 * k, q4 = (r.width - 30 * k) / 4f;
             if (Btn(new Rect(r.x, oy, q4, 30 * k), "Ver vida: " + (EnemyBars.On ? "sí" : "no"))) EnemyBars.Toggle();
-            if (Btn(new Rect(r.x + (q4 + 10 * k), oy, q4, 30 * k), $"Logros ({Achievements.Unlocked}/{Achievements.All.Length})")) { _showAch = !_showAch; _showRules = false; }
-            if (Btn(new Rect(r.x + 2 * (q4 + 10 * k), oy, q4, 30 * k), "Reglas")) { _showRules = !_showRules; _showAch = false; _showGive = false; }
-            if (Btn(new Rect(r.x + 3 * (q4 + 10 * k), oy, q4, 30 * k), "Dar equipo")) { _showGive = !_showGive; _showAch = false; _showRules = false; }
+            if (Btn(new Rect(r.x + (q4 + 10 * k), oy, q4, 30 * k), $"Logros ({Achievements.Unlocked}/{Achievements.All.Length})")) OpenPanel(ref _showAch);
+            if (Btn(new Rect(r.x + 2 * (q4 + 10 * k), oy, q4, 30 * k), "Reglas")) OpenPanel(ref _showRules);
+            if (Btn(new Rect(r.x + 3 * (q4 + 10 * k), oy, q4, 30 * k), "Dar equipo")) OpenPanel(ref _showGive);
+            var gold = new Color(1f, 0.85f, 0.45f);
+            if (_showRules) Fill(new Rect(r.x + 2 * (q4 + 10 * k), oy + 32 * k, q4, 3 * k), gold);
+            if (_showGive) Fill(new Rect(r.x + 3 * (q4 + 10 * k), oy + 32 * k, q4, 3 * k), gold);
+            _grp = 1;
             if (_showGive)
             {
-                var ar = new Rect(r.x, r.y + 40 * k, r.width, oy - r.y - 46 * k);
-                var o = GUI.color; GUI.color = new Color(0.07f, 0.05f, 0.04f, 0.97f); GUI.DrawTexture(ar, Texture2D.whiteTexture); GUI.color = o;
+                var ar = new Rect(r.x, r.y + 34 * k, r.width, oy - r.y - 40 * k);
+                Fill(ar, new Color(0.13f, 0.1f, 0.07f, 0.97f)); Frame(ar, new Color(0.45f, 0.33f, 0.17f), 1 * k);
                 float ay = ar.y + 8 * k;
                 GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 24 * k), "Deja una pieza en la mochila compartida para que la coja otro:", _head);
                 ay += 30 * k;
@@ -417,8 +558,8 @@ namespace MoonlighterCoop
             }
             if (_showRules)
             {
-                var ar = new Rect(r.x, r.y + 40 * k, r.width, oy - r.y - 46 * k);
-                var o = GUI.color; GUI.color = new Color(0.07f, 0.05f, 0.04f, 0.97f); GUI.DrawTexture(ar, Texture2D.whiteTexture); GUI.color = o;
+                var ar = new Rect(r.x, r.y + 34 * k, r.width, oy - r.y - 40 * k);
+                Fill(ar, new Color(0.13f, 0.1f, 0.07f, 0.97f)); Frame(ar, new Color(0.45f, 0.33f, 0.17f), 1 * k);
                 float ay = ar.y + 8 * k;
                 GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 24 * k), host ? "Reglas (las eliges tú, valen para todos):" : "Reglas que ha elegido el anfitrión:", _head);
                 ay += 30 * k;
@@ -432,21 +573,10 @@ namespace MoonlighterCoop
                 if (HostSettings.Roles)
                 {
                     ay += 6 * k;
-                    GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 22 * k), "Tu rol: " + Roles.Names[Roles.Mine] + (Roles.Mine > 0 ? " — " + Roles.Texts[Roles.Mine] : "") + " (se elige al entrar en la mazmorra)", _small);
+                    GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 44 * k), "Tu rol: " + Roles.Names[Roles.Mine] + (Roles.Mine > 0 ? " — " + Roles.Texts[Roles.Mine] : "") + " (se elige al entrar en la mazmorra)", _small);
                 }
             }
-            if (_showAch)
-            {
-                var ar = new Rect(r.x, r.y + 40 * k, r.width, oy - r.y - 46 * k);
-                var o = GUI.color; GUI.color = new Color(0.07f, 0.05f, 0.04f, 0.97f); GUI.DrawTexture(ar, Texture2D.whiteTexture); GUI.color = o;
-                float ay = ar.y + 6 * k;
-                foreach (var a in Achievements.All)
-                {
-                    bool got = Achievements.Has(a.Id);
-                    GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 22 * k), (got ? "✔ " : "· ") + a.Name + " — " + a.Text, got ? _head : _small);
-                    ay += 23 * k;
-                }
-            }
+            _grp = 0;
             if (Btn(new Rect(r.x, r.yMax - 46 * k, 200 * k, 40 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
             if (Btn(new Rect(r.x + 210 * k, r.yMax - 46 * k, 170 * k, 40 * k), "Desatascarme")) { SetOpen(false); Arreglos.Desatascar(); }
             if (Btn(new Rect(r.xMax - 200 * k, r.yMax - 46 * k, 200 * k, 40 * k), host ? "Cerrar la partida" : "Salir de la partida")) LeaveGame();

@@ -1,5 +1,11 @@
 # Novedades de Moonlighter Coop
 
+## 0.8.2 — 9/11/2026
+- **Logros rehechos:** pantalla propia con una tarjeta por logro, barra de progreso (por ejemplo, 7 / 100) y el total arriba.
+- **Mando en el menú F2:** la cruceta va hacia donde apuntas (izquierda y derecha pasan de Ver vida a Logros, Reglas y Dar equipo).
+  - **A** abre la pestaña; dentro, arriba y abajo recorren los logros o las reglas, y **B** vuelve a la pestaña.
+- Con Reglas o Dar equipo abiertos ya no se ve el resto del menú por detrás.
+
 ## 0.8.1 — 9/11/2026
 - **Novedades dentro del juego:** botón «Novedades» arriba en el menú F2, con lo que trae cada versión. Se abre solo la primera vez después de actualizar.
 - **Roles completos:**
