@@ -25,6 +25,7 @@ namespace MoonlighterCoop
             new A { Id = "bossclean", Name = "Sin bajas", Text = "Derrota a un jefe sin que caiga nadie", Key = "clean", Goal = 1 },
             new A { Id = "gold50k", Name = "Socios", Text = "Ganad 50.000 de oro juntos", Key = "k5", Goal = 50000 },
             new A { Id = "days10", Name = "Diez días en Rynoka", Text = "Jugad 10 días juntos", Key = "days", Goal = 10 },
+            new A { Id = "race5", Name = "Veloz", Text = "Llega el primero a la puerta en 5 carreras", Key = "race", Goal = 5 },
         };
 
         public static int Unlocked => Got.Count;
@@ -50,7 +51,7 @@ namespace MoonlighterCoop
                 if (!Got.Contains(a.Id) && a.Done)
                 {
                     Got.Add(a.Id);
-                    Banner.Show("¡Logro! " + a.Name + ": " + a.Text);
+                    AchievementToast.Show(a.Name, a.Text);
                     Plugin.Log.LogInfo("[achievements] " + a.Id);
                 }
             Plugin.SaveAchievements(Save());
@@ -59,6 +60,7 @@ namespace MoonlighterCoop
         public static void Add(int stat, int n) => Bump("k" + stat, n);
         public static void RunDone() => Bump("runs", 1);
         public static void DayDone() => Bump("days", 1);
+        public static void RaceWon() => Bump("race", 1);
         public static void BossDown(bool clean) { if (clean) Bump("clean", 1); }
     }
 }

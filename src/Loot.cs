@@ -24,7 +24,7 @@ namespace MoonlighterCoop
         // Host: an item was dropped; tell the guest where it lands once it has landed.
         public static void HostDropped(ItemStack s)
         {
-            if (!Session.IsHost || !InDungeon || Applying || s == null || s.master == null) return;
+            if (!Session.IsHost || !InDungeon || Race.Separate || Applying || s == null || s.master == null) return;
             int id = _nextId++;
             Track(id, s);
             Plugin.Instance.StartCoroutine(SendWhenLanded(id, s));
@@ -46,7 +46,7 @@ namespace MoonlighterCoop
             var r = new BinaryReader(new MemoryStream(data));
             int id = r.ReadInt32(); string name = r.ReadString(); int qty = r.ReadInt32();
             var pos = new Vector2(r.ReadSingle(), r.ReadSingle());
-            if (!InDungeon) return;
+            if (!InDungeon || Race.Separate) return;
             var master = ItemDatabase.GetItemByName(name, GameManager.Instance.GetCurrentGamePlusLevel());
             if (master == null) { Plugin.Log.LogWarning($"[loot] unknown item {name}"); return; }
             var stack = ItemStack.Create(master, qty);

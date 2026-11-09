@@ -1,17 +1,27 @@
 # Novedades de Moonlighter Coop
 
-## 0.10.0 â€” 9/11/2026
-- **MenÃºs mÃ¡s vivos:** se despliegan al abrirse, como el de pausa, y las espirales verdes se mueven en la opciÃ³n elegida.
-- **Sonidos del juego** al abrir, moverse y pulsar en los menÃºs.
-- **Iconos del juego** en las opciones del F2: cofre en Logros, mochila en Dar equipo, espejo en Aspecto, colgante en Salirâ€¦
-- **Retrato de cada compaÃ±ero** en su vida (su cara con sus colores), y su **nombre encima de su Will** cuando estÃ¡is lejos.
-- **Aviso de conexiÃ³n lenta:** una marca amarilla o roja en el retrato de quien va con retraso.
-- **Teclado en pantalla para el mando:** F2 â†’ Escribir en el chat.
-- **Pedir equipo a un compaÃ±ero:** F2 â†’ Dar o pedir equipo â†’ Pedir. A Ã©l le sale Â«Â¿Se lo das?Â».
-- **Historial:** F2 â†’ Historial, con las Ãºltimas 20 expediciones (mazmorra, piso, oro, enemigos y quiÃ©n cayÃ³).
-- **Regla nueva, Revivir difÃ­cil:** solo se revive con la fuente o con una pociÃ³n, y con menos vida.
-- **Copia de seguridad automÃ¡tica** de tus partidas antes de jugar online, en BepInEx\copias-partidas (se guardan las 5 Ãºltimas).
+## 0.11.0 — 9/11/2026
+- **Modo carrera** (F2 → Reglas → «Carrera»): en los pisos normales cada uno juega su propia copia del mismo piso, con sus enemigos y yendo por las salas que quiera.
+  - Lo que recoge cada uno y el oro se juntan en la mochila compartida.
+  - Al llegar a la bajada, esperas a los demás; cuando estáis todos, bajáis juntos y sale quién llegó primero y con cuánta ventaja.
+  - Si caes, ves a tu compañero como fantasma y revives en el piso siguiente.
+  - El piso del jefe se juega juntos, como siempre.
+- **Logro nuevo:** «Veloz», gana 5 carreras.
+- **Animación de logro:** una medalla verde cae rebotando y se despliega un cartel con el logro.
+- **Forja, bruja y tienda del pueblo:** cuando alguien forja, encanta o compra, los demás reciben un aviso con lo que ha sido y lo que ha costado.
+## 0.10.0 — 9/11/2026
+- **Menús más vivos:** se despliegan al abrirse, como el de pausa, y las espirales verdes se mueven en la opción elegida.
+- **Sonidos del juego** al abrir, moverse y pulsar en los menús.
+- **Iconos del juego** en las opciones del F2: cofre en Logros, mochila en Dar equipo, espejo en Aspecto, colgante en Salir…
+- **Retrato de cada compañero** en su vida (su cara con sus colores), y su **nombre encima de su Will** cuando estáis lejos.
+- **Aviso de conexión lenta:** una marca amarilla o roja en el retrato de quien va con retraso.
+- **Teclado en pantalla para el mando:** F2 → Escribir en el chat.
+- **Pedir equipo a un compañero:** F2 → Dar o pedir equipo → Pedir. A él le sale «¿Se lo das?».
+- **Historial:** F2 → Historial, con las últimas 20 expediciones (mazmorra, piso, oro, enemigos y quién cayó).
+- **Regla nueva, Revivir difícil:** solo se revive con la fuente o con una poción, y con menos vida.
+- **Copia de seguridad automática** de tus partidas antes de jugar online, en BepInEx\copias-partidas (se guardan las 5 últimas).
 - Arreglado: un error un instante al cargar la partida con roles.
+
 ## 0.9.0 — 9/11/2026
 - **Menús con el estilo de los del juego:** fondo gris pardo con el grano del menú de opciones, franjas de triángulos, el ojo y la cola del menú de pausa, texto crema y lo elegido en verde con las espirales del juego. Los dibujos se sacan del propio juego.
   - Los ajustes se cambian con flechas a los lados, como en Opciones, y las barras de progreso son las de cuadraditos verdes.

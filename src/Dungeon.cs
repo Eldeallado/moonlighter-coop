@@ -273,8 +273,11 @@ namespace MoonlighterCoop
     [HarmonyPatch(typeof(HeroMerchant), nameof(HeroMerchant.LoadNextLevelDungeonScene))]
     static class TravelNextLevel
     {
-        static bool Prefix()
+        static bool Prefix(out bool __state)
         {
+            __state = false;   // the postfix only tells the guests about a trip that really happens
+            // Race floor: reaching the way down means waiting there for the others (Race.cs).
+            if (Race.Separate && !Race.Going && !Dungeon.ApplyingRemote) { Race.Arrive(); return false; }
             if (Session.IsGuest && Net.Juego && !Dungeon.ApplyingRemote)
             {
                 Plugin.Log.LogInfo("[dungeon] guest tried to change floor on its own: blocked (the host leads)");
@@ -283,10 +286,12 @@ namespace MoonlighterCoop
             // A new floor: the host picks the dice both sides will generate it with.
             if (Session.IsHost) Dungeon.FloorSeed = Net.Juego ? new System.Random().Next(1, int.MaxValue) : 0;
             Dungeon.InHeroTravel = true;
+            __state = true;
             return true;
         }
-        static void Postfix(HeroMerchant __instance, ItemMaster.Culture culture)
+        static void Postfix(HeroMerchant __instance, ItemMaster.Culture culture, bool __state)
         {
+            if (!__state) return;
             Dungeon.InHeroTravel = false;
             if (Session.IsHost)
                 Dungeon.SendTravel(Dungeon.Travel.NextLevel, culture, Traverse.Create(__instance).Field("_currentDungeonLevel").GetValue<int>());
@@ -332,6 +337,7 @@ namespace MoonlighterCoop
             // A ghost cannot change rooms (it would drag everyone else along).
             if (Downed.Me && Net.Juego && !Dungeon.Following && !Dungeon.Leading) return false;
             if (!Session.IsGuest || !Net.Juego || Dungeon.Following) return true;
+            if (Race.Separate) return true;   // race floor: everyone walks his own copy
             Dungeon.RequestDoor(__instance);
             return false;
         }

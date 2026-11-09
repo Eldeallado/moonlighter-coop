@@ -436,6 +436,7 @@ namespace MoonlighterCoop
                     string tr; try { tr = u1.textureRect.ToString(); } catch (Exception e) { tr = "ERR " + e.Message; }
                     return $"orig={s0.texture?.name} tinted={(t1 != s0)} ui={u1?.texture?.name} {u1?.texture?.width}x{u1?.texture?.height} rect={tr} packed={s0.packed} mode={s0.packingMode}";
                 }
+                case "racestate": return $"separate={Race.Separate} waiting={Race.WaitingMe} rule={HostSettings.Race} zone={Dungeon.RoomZone()} ghost={Downed.Me}";
                 case "ask": Give.Ask(int.Parse(p[1]), int.Parse(p[2])); return "ok";
                 case "lagfake": Lag.Set(int.Parse(p[1]), float.Parse(p[2], CultureInfo.InvariantCulture)); return "ok";
                 case "history": return string.Join(" || ", History.Runs.Select(h => $"{h.When} {h.Dungeon} piso {h.Floor} oro {h.Gold} cayó [{h.Fell}]").ToArray());

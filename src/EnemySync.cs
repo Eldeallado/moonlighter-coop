@@ -88,7 +88,7 @@ namespace MoonlighterCoop
 
         public static void HostTick()
         {
-            if (!Session.IsHost || !Net.Juego) return;
+            if (!Session.IsHost || !Net.Juego || Race.Separate) return;
             float now = Time.unscaledTime;
             if (now < _nextSend) return;
             _nextSend = now + 1f / 15f;
@@ -134,7 +134,7 @@ namespace MoonlighterCoop
         public static void HostDied(Enemy e)
         {
             var id = IdOf(e);
-            if (id == null || !Session.IsHost || !Net.Juego) return;
+            if (id == null || !Session.IsHost || !Net.Juego || Race.Separate) return;
             Dead.Add(id);
             Net.Send(Msg.EnemyDeath, System.Text.Encoding.UTF8.GetBytes(id));
             DeathsSent++;
@@ -279,7 +279,7 @@ namespace MoonlighterCoop
     {
         static bool Prefix(Enemy __instance, float attackStrength, Enemy.EnemyDamageReceivedType enemyDamageReceivedType)
         {
-            if (!Session.IsGuest || !Net.Juego) return true;
+            if (!Session.IsGuest || !Net.Juego || Race.Separate) return true;
             var id = EnemySync.IdOf(__instance);
             if (id == null) return true;   // not a shared enemy (spawned by another enemy): local only
             EnemySync.SendHit(id, attackStrength, enemyDamageReceivedType);
@@ -293,7 +293,7 @@ namespace MoonlighterCoop
     {
         static bool Prefix(EnemyStats __instance)
         {
-            if (!Session.IsGuest || !Net.Juego || EnemySync.ApplyingDeath) return true;
+            if (!Session.IsGuest || !Net.Juego || EnemySync.ApplyingDeath || Race.Separate) return true;
             if (!GameManager.Instance.NotLoadingScene) return true;
             var e = __instance.GetComponent<Enemy>();
             return EnemySync.IdOf(e) == null;

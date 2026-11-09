@@ -4,7 +4,7 @@ namespace MoonlighterCoop
 {
     /// A new achievement, shown big for a few seconds: a green rune medal drops from the top of the screen and
     /// bounces, a panel unfolds under it with the name, and after a while everything rises out again.
-    /// (Preview: the driver's "uishow logro"; not wired to the real achievements until the player approves it.)
+    /// Used for every co-op achievement (Achievements.Bump); the driver's "uishow logro" shows a sample.
     public class AchievementToast : MonoBehaviour
     {
         private static AchievementToast _i;

@@ -159,7 +159,8 @@ namespace MoonlighterCoop
             EnemySync.HostTick();
             DoorSync.HostTick();
             Downed.Tick();
-            if (Net.Juego && IsGuest && Puppet.Instance != null) Dungeon.GuestFollowTick(Puppet.Instance.Zone);
+            if (Net.Juego && IsGuest && Puppet.Instance != null && !Race.Separate) Dungeon.GuestFollowTick(Puppet.Instance.Zone);
+            if (Net.Juego) Race.Tick();
             if (now >= _nextStatus) { _nextStatus = now + 0.5f; WriteStatus(); }
         }
 
@@ -229,7 +230,7 @@ namespace MoonlighterCoop
 
         // Things one player does that every other player must see: the host passes them on.
         private static readonly System.Collections.Generic.HashSet<Msg> Relayed = new System.Collections.Generic.HashSet<Msg>
-        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods, Msg.Revive, Msg.Stats, Msg.Chat, Msg.Call, Msg.CallReply, Msg.Role, Msg.RoleHeal, Msg.ShopOwner, Msg.Give, Msg.AskItem, Msg.AskReply };
+        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods, Msg.Revive, Msg.Stats, Msg.Chat, Msg.Call, Msg.CallReply, Msg.Role, Msg.RoleHeal, Msg.ShopOwner, Msg.Give, Msg.AskItem, Msg.AskReply, Msg.RaceArrive, Msg.Purchase };
 
         private static void Handle(IPeer from, Msg type, byte[] data)
         {
@@ -252,6 +253,9 @@ namespace MoonlighterCoop
                 case Msg.Spectate: if (IsGuest) Downed.OnSpectate(); break;
                 case Msg.Give: Give.OnGive(data); break;
                 case Msg.Lag: if (IsGuest) Lag.OnLag(data); break;
+                case Msg.RaceArrive: Race.OnArrive(data); break;
+                case Msg.Purchase: Purchases.OnPurchase(data); break;
+                case Msg.RaceDone: if (IsGuest) Race.OnDone(data); break;
                 case Msg.AskItem: Give.OnAsk(data); break;
                 case Msg.AskReply: Give.OnAskReply(data); break;
                 case Msg.Role: Roles.OnRole(data); break;

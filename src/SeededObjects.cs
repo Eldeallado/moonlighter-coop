@@ -79,7 +79,7 @@ namespace MoonlighterCoop
         /// when it dies on one PC, the nearest living one with the same name dies on the other.
         public static void Broke(Enemy e)
         {
-            if (Applying || EnemySync.ApplyingDeath || !Net.Juego || e == null) return;
+            if (Applying || EnemySync.ApplyingDeath || !Net.Juego || Race.Separate || e == null) return;
             if (GameManager.Instance == null || !GameManager.Instance.IsDungeonSceneLoaded()) return;
             bool breakable = e.GetComponent<BreakableObjectBehaviour>() != null;
             // Unshared real enemies: only the host decides they die.
@@ -93,7 +93,7 @@ namespace MoonlighterCoop
         // Grass, small pots and other "details" break on touch and are not Enemies.
         public static void DetailBroke(BreakableDetail d)
         {
-            if (Applying || !Net.Juego || d == null) return;
+            if (Applying || !Net.Juego || Race.Separate || d == null) return;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
             w.Write(d.transform.position.x); w.Write(d.transform.position.y);
             Net.Send(Msg.BreakDetailAt, ms.ToArray());

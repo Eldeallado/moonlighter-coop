@@ -229,7 +229,7 @@ namespace MoonlighterCoop
                 // A new floor brings ghosts back, like Isaac.
                 var dmg = DungeonManager.Instance;
                 // (Hard revive rule: not any more — only a fountain or a potion.)
-                if (dmg != null && GameManager.Instance.NotLoadingScene && $"{dmg.culture}:{dmg.level}" != _ghostFloor && !HostSettings.HardRevive) ReviveMe(0.5f);
+                if (dmg != null && GameManager.Instance.NotLoadingScene && $"{dmg.culture}:{dmg.level}" != _ghostFloor && (!HostSettings.HardRevive || HostSettings.Race)) ReviveMe(0.5f);
                 return;
             }
             // No revive by touch: the living player must reach a fountain, or beat the floor.
