@@ -371,6 +371,9 @@ namespace MoonlighterCoop
                 case "pendant":
                     hero.UseMerchantPendant();
                     return "pendant";
+                case "summary": Summary.Show(p[1] == "day" ? Summary.Kind.Day : Summary.Kind.Run); return "ok";
+                case "chat": Chat.Send(string.Join(" ", p.Skip(1).ToArray())); return "ok";
+                case "bars": EnemyBars.On = p[1] == "on"; return "ok";
                 case "dotest":
                     _doTest = 0;
                     DG.Tweening.DOVirtual.DelayedCall(0.3f, () => _doTest = 1);

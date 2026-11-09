@@ -67,10 +67,12 @@ namespace MoonlighterCoop
         private void Changed() { _dirty = true; _dirtyAt = Time.unscaledTime; _grad1 = _grad2 = null; }
         private void Commit() { _dirty = false; Looks.Choose(Looks.Pack(_parts)); }
 
+        private static System.Collections.Generic.List<Looks.Style> StyleList => new System.Collections.Generic.List<Looks.Style>(Looks.AllStyles);
+
         private void ApplyStyle(int i)
         {
             _style = i;
-            _parts = (Looks.Part[])Looks.Styles[i].Parts.Clone();
+            _parts = (Looks.Part[])StyleList[i].Parts.Clone();
             Changed();
         }
 
@@ -126,7 +128,7 @@ namespace MoonlighterCoop
         private void Step(int d)
         {
             if (_row == 0) { _part = (_part + d + Looks.N) % Looks.N; _grad1 = _grad2 = null; }
-            else if (_row == 4) _style = (_style + d + Looks.Styles.Length) % Looks.Styles.Length;
+            else if (_row == 4) { int n = StyleList.Count; _style = (_style + d + n) % n; }
             else SetBar(_row - 1, Get(_parts[_part], _row - 1) + d);
         }
 
@@ -154,6 +156,7 @@ namespace MoonlighterCoop
             else if (accept || Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.Combo) SetOpen(false);
         }
         private float _nextRepeat; private bool _held;
+        private string _note = ""; private float _noteAt = -10f;
 
         // ---------- drawing ----------
 
@@ -231,12 +234,12 @@ namespace MoonlighterCoop
             // Styles
             float sy = Mathf.Max(pv.yMax, by0 + 146 * k) + 10 * k;
             GUI.Label(new Rect(pv.x, sy, 300 * k, 26 * k), (_row == 4 ? "▶ " : "") + "Estilos", _head);
-            int n = Looks.Styles.Length, perRow = 5;
+            var styles = StyleList; int n = styles.Count, perRow = 5;
             float sw = (panel.width - 48 * k - (perRow - 1) * 8 * k) / perRow;
             for (int i = 0; i < n; i++)
             {
                 var r = new Rect(pv.x + (i % perRow) * (sw + 8 * k), sy + 30 * k + (i / perRow) * 36 * k, sw, 30 * k);
-                if (GUI.Button(r, Looks.Styles[i].Name, _row == 4 && _style == i ? _buttonOn : _button)) { _row = 4; ApplyStyle(i); }
+                if (GUI.Button(r, styles[i].Name, _row == 4 && _style == i ? _buttonOn : _button)) { _row = 4; ApplyStyle(i); }
                 if (_row == 4 && _style == i) Frame(r, Gold, 2 * k);
             }
 
@@ -251,6 +254,19 @@ namespace MoonlighterCoop
             }
             if (GUI.Button(new Rect(pv.x + bwid + 10 * k, btY, bwid, 32 * k), "Will original", _button)) { for (int i = 0; i < Looks.N; i++) _parts[i].Own = true; Changed(); }
             if (GUI.Button(new Rect(panel.xMax - 24 * k - bwid, btY, bwid, 32 * k), "Listo", _buttonOn)) SetOpen(false);
+            // Own styles and share codes
+            float sx = pv.x + 2 * (bwid + 10 * k), sbw = 118 * k;
+            if (GUI.Button(new Rect(sx, btY, sbw, 32 * k), "Guardar estilo", _button)) { Looks.SaveStyle(_parts); _note = "Guardado en tus estilos"; _noteAt = Time.unscaledTime; }
+            if (GUI.Button(new Rect(sx + sbw + 8 * k, btY, sbw, 32 * k), "Copiar código", _button)) { GUIUtility.systemCopyBuffer = Looks.ShareCode(Looks.Pack(_parts)); _note = "Copiado: " + GUIUtility.systemCopyBuffer; _noteAt = Time.unscaledTime; }
+            if (GUI.Button(new Rect(sx + 2 * (sbw + 8 * k), btY, sbw, 32 * k), "Pegar código", _button))
+            {
+                int l = Looks.FromShareCode(GUIUtility.systemCopyBuffer);
+                if (l >= 0) { _parts = Looks.Unpack(l); Changed(); _note = "Aspecto pegado"; } else _note = "El portapapeles no tiene un código ML-…";
+                _noteAt = Time.unscaledTime;
+            }
+            int custom = _style - Looks.Styles.Length;
+            if (_row == 4 && custom >= 0 && custom < Looks.Mine2.Count && GUI.Button(new Rect(sx + 3 * (sbw + 8 * k), btY, 80 * k, 32 * k), "Borrar", _button)) { Looks.DeleteStyle(custom); _style = 0; }
+            if (Time.unscaledTime - _noteAt < 4f) GUI.Label(new Rect(pv.x, btY - 26 * k, panel.width - 48 * k, 22 * k), _note, _label);
             GUI.Label(new Rect(panel.x + 20 * k, panel.yMax - 34 * k, w - 40 * k, 24 * k),
                 PadNav.Active ? "Cruceta ↑↓ fila, ←→ cambiar · A aplicar estilo / cerrar · B cerrar" : "Ratón, o ↑↓ fila y ←→ cambiar · Enter aplica el estilo · F3 o Esc para cerrar", _small);
         }

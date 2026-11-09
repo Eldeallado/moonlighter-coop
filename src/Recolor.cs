@@ -138,6 +138,59 @@ namespace MoonlighterCoop
             new Style { Name = "Fantasma", Parts = new[] { P(48, 3, 13), P(48, 1, 15), P(48, 3, 11), P(48, 3, 12), P(48, 3, 10), P(46, 10, 15), P(48, 1, 15), P(48, 1, 15) } },
         };
 
+        // ---------- the player's own styles, and codes to share a look ----------
+
+        /// Styles saved by this player (config "Aspecto/MisEstilos": "name=code|name=code").
+        public static readonly List<Style> Mine2 = new List<Style>();
+        public static IEnumerable<Style> AllStyles { get { foreach (var s in Styles) yield return s; foreach (var s in Mine2) yield return s; } }
+
+        public static void LoadMyStyles(string text)
+        {
+            Mine2.Clear();
+            foreach (var part in (text ?? "").Split('|'))
+            {
+                var kv = part.Split('=');
+                if (kv.Length != 2) continue;
+                int look = FromShareCode(kv[1]);
+                if (look >= 0) Mine2.Add(new Style { Name = kv[0], Parts = Unpack(look) });
+            }
+        }
+        private static string MyStylesText() => string.Join("|", Mine2.ConvertAll(s => s.Name.Replace("|", "").Replace("=", "") + "=" + ShareCode(Pack(s.Parts))).ToArray());
+
+        public static void SaveStyle(Part[] parts)
+        {
+            if (Mine2.Count >= 5) Mine2.RemoveAt(0);   // one more row of buttons at most
+            int n = 1; while (Mine2.Exists(s => s.Name == "Mío " + n)) n++;
+            Mine2.Add(new Style { Name = "Mío " + n, Parts = (Part[])parts.Clone() });
+            Plugin.SaveMyStyles(MyStylesText());
+        }
+        public static void DeleteStyle(int i) { if (i >= 0 && i < Mine2.Count) { Mine2.RemoveAt(i); Plugin.SaveMyStyles(MyStylesText()); } }
+
+        /// "ML-" + each part code in base 36 (3 characters each): short enough to send by chat or WhatsApp.
+        public static string ShareCode(int look)
+        {
+            const string D = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            var sb = new System.Text.StringBuilder("ML-");
+            foreach (var c in Codes(look)) { int x = c; sb.Append(D[x / 1296 % 36]).Append(D[x / 36 % 36]).Append(D[x % 36]); }
+            return sb.ToString();
+        }
+        public static int FromShareCode(string s)
+        {
+            const string D = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            s = (s ?? "").Trim().ToUpperInvariant().Replace(" ", "");
+            if (s.StartsWith("ML-")) s = s.Substring(3);
+            if (s.Length != N * 3) return -1;
+            var c = new int[N];
+            for (int i = 0; i < N; i++)
+            {
+                int a = D.IndexOf(s[i * 3]), b = D.IndexOf(s[i * 3 + 1]), d = D.IndexOf(s[i * 3 + 2]);
+                if (a < 0 || b < 0 || d < 0) return -1;
+                c[i] = a * 1296 + b * 36 + d;
+                if (c[i] > Tones * Steps * Steps) return -1;
+            }
+            return Register(c);
+        }
+
         // Starting colours by player number: host Will's own, then red, yellow, blue, purple, orange, pink... (vest only)
         private static readonly int[,] Preset = { { 0, 14, 8 }, { 10, 15, 13 }, { 44, 14, 8 }, { 56, 13, 8 }, { 5, 15, 10 }, { 65, 10, 12 }, { 5, 11, 4 }, { 42, 1, 15 }, { 46, 3, 1 } };
         public static int Default(int playerId)

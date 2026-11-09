@@ -84,7 +84,8 @@ namespace MoonlighterCoop
     {
         static bool Prefix(ref bool __result)
         {
-            if (!Net.Juego || Vote.Deciding) return true;
+            // Only a run that ended with everyone down is voted; going home with the pendant just goes home.
+            if (!Net.Juego || Vote.Deciding || !Downed.EndingRun) return true;
             Vote.Cast(Vote.Choice.Replay);
             __result = true;
             return false;
@@ -96,7 +97,8 @@ namespace MoonlighterCoop
     {
         static bool Prefix(ref bool __result)
         {
-            if (!Net.Juego || Vote.Deciding) return true;
+            // Only a run that ended with everyone down is voted; going home with the pendant just goes home.
+            if (!Net.Juego || Vote.Deciding || !Downed.EndingRun) return true;
             Vote.Cast(Vote.Choice.Village);
             __result = true;
             return false;

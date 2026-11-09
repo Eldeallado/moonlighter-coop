@@ -38,6 +38,7 @@ namespace MoonlighterCoop
                 return false;
             }
             Me = true;
+            Stats.Count(Stats.Deaths);
             BecomeGhost();
             Net.Send(Msg.Downed, new byte[] { 1, (byte)Session.MyId });
             Plugin.Log.LogInfo("[downed] I am a ghost; my partner can revive me");
@@ -152,9 +153,43 @@ namespace MoonlighterCoop
 
         public static void OnRevive(byte[] data)
         {
-            float frac = new BinaryReader(new MemoryStream(data)).ReadSingle();
+            var r = new BinaryReader(new MemoryStream(data));
+            float frac = r.ReadSingle();
+            if (data.Length >= 5 && r.ReadByte() != Session.MyId) return;   // a revive for someone else
+            bool wasMe = Me;
             ReviveMe(frac);
+            if (data.Length >= 5 && wasMe) Banner.Show("Un compañero te ha revivido con una poción");
         }
+
+        /// The living can bring a ghost back on the spot by spending the potion they carry (R, or L3 on a pad),
+        /// standing next to it: a third of its health, and the potion is gone.
+        public static void TryPotionRevive()
+        {
+            var hero = HeroMerchant.Instance;
+            if (!InDungeon || Me || Ghosts.Count == 0 || hero == null) return;
+            Puppet near = null; float best = 56f;
+            foreach (var p in Puppet.All.Values)
+            {
+                if (p == null || !p.Visible || !IsGhost(p.PlayerId)) continue;
+                float d = ((Vector2)(p.transform.position - hero.transform.position)).magnitude;
+                if (d < best) { best = d; near = p; }
+            }
+            if (near == null) { Banner.Show("Acércate a tu compañero caído para revivirlo"); return; }
+            var inv = hero.heroMerchantInventory;
+            var potion = inv.GetEquippedItemByType(HeroMerchantInventory.EquipmentSlot.Potion);
+            if (potion == null || potion.Quantity <= 0) { Banner.Show("Necesitas una poción equipada para revivirlo"); return; }
+            potion.Quantity -= 1;
+            if (potion.Quantity > 0) HUDManager.Instance.SetPotionQuantity(potion.Quantity);
+            else { HUDManager.Instance.SetEmptyConsumableIcon(); inv.SetEquippedItemByType(null, HeroMerchantInventory.EquipmentSlot.Potion); }
+            var ms = new MemoryStream(); var w = new BinaryWriter(ms); w.Write(0.35f); w.Write((byte)near.PlayerId);
+            Net.Send(Msg.Revive, ms.ToArray());
+            Ghosts.Remove(near.PlayerId);
+            PotionRevives++;
+            Stats.Count(Stats.Revive);
+            Banner.Show("Has gastado una poción para revivir a tu compañero");
+            Plugin.Log.LogInfo($"[downed] revived player {near.PlayerId} with a potion");
+        }
+        public static int PotionRevives;
 
         public static void Tick()
         {
@@ -182,6 +217,7 @@ namespace MoonlighterCoop
             // No revive by touch: the living player must reach a fountain, or beat the floor.
             // The fountain only heals someone hurt, and checked once on entering, so a living player at full health
             // walking in never counted. Watch it instead: while I am in the water and someone is a ghost, revive them.
+            if (Partner && (Input.GetKeyDown(KeyCode.R) || PadNav.L3Down)) TryPotionRevive();
             if (Partner && Time.unscaledTime >= _nextFountainCheck)
             {
                 _nextFountainCheck = Time.unscaledTime + 0.3f;
@@ -193,6 +229,7 @@ namespace MoonlighterCoop
                     var hc = tr.Field("heroMerchantCollider").GetValue<Collider2D>();
                     if (ac != null && hc != null && !ac.IsTouching(hc)) continue;
                     Plugin.Log.LogInfo("[downed] I am in a fountain: ghosts come back");
+                    Stats.Count(Stats.Revive, Ghosts.Count);
                     LocalFountainHealed();
                     break;
                 }
@@ -202,7 +239,7 @@ namespace MoonlighterCoop
         public static string Hint()
         {
             if (Me) return "Eres un fantasma: revives si tu compañero entra en una fuente o pasáis al siguiente piso";
-            if (Partner) return "Tu compañero ha caído: llega a una fuente o pasa al siguiente piso para revivirlo";
+            if (Partner) return "Tu compañero ha caído: llega a una fuente, pasa al siguiente piso o ponte a su lado y pulsa R (L3) para gastar una poción";
             return null;
         }
 

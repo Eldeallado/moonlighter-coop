@@ -26,6 +26,7 @@ namespace MoonlighterCoop
         public static void GoldChanged(int amount)
         {
             if (ApplyingGold || !Net.Juego || amount == 0) return;
+            if (amount > 0) Stats.Count(Stats.Gold, amount);   // gold this player earned
             var ms = new MemoryStream(); new BinaryWriter(ms).Write(amount);
             Net.Send(Msg.Gold, ms.ToArray());
             GoldSent++;

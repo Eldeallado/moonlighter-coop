@@ -10,6 +10,8 @@ namespace MoonlighterCoop
     public static class PadNav
     {
         public static bool Up, Down, Left, Right, A, B, Combo;
+        /// L3 alone (revive a partner with a potion).
+        public static bool L3Down;
         /// The player is using a pad (last menu input came from it): menus show the pad focus.
         public static bool Active;
         private static int _frame = -1;
@@ -23,7 +25,7 @@ namespace MoonlighterCoop
         {
             if (_frame == Time.frameCount) return;
             _frame = Time.frameCount;
-            Up = Down = Left = Right = A = B = Combo = false;
+            Up = Down = Left = Right = A = B = Combo = L3Down = false;
             var d = InputManager.ActiveDevice;
             if (d != null)
             {
@@ -41,6 +43,7 @@ namespace MoonlighterCoop
                 }
                 else _stickRepeat = 0f;
                 A = d.Action1.WasPressed; B = d.Action2.WasPressed;
+                L3Down = d.LeftStickButton.WasPressed && !d.RightStickButton.IsPressed;
                 Combo = (d.LeftStickButton.WasPressed && d.RightStickButton.IsPressed) || (d.RightStickButton.WasPressed && d.LeftStickButton.IsPressed);
             }
             lock (_sim)

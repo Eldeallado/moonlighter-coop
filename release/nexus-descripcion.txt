@@ -1,0 +1,30 @@
+NOMBRE: Moonlighter Coop - Online multiplayer (2-5 players)
+CATEGORÍA: Gameplay
+RESUMEN (corto): Play Moonlighter online with 2 to 5 friends: shared dungeons, shop, loot and day/night, ghosts and revives, colours for every part of Will.
+
+DESCRIPCIÓN (BBCode):
+[size=5][b]Moonlighter Coop[/b][/size]
+Play [b]Moonlighter[/b] online with up to [b]5 players[/b] (Steam invite / 7-letter code, or direct IP).
+
+[b]Features[/b]
+[list]
+[*]Isaac-style rooms: anyone crosses a door and everybody goes. Shop and village too.
+[*]Shared loot and backpack, shared gold. Enemies chase the nearest player; bosses and projectiles are synced.
+[*]Downed players become ghosts; the living revive them in a fountain or on the next floor.
+[*]Shared shop: shelves, customers, thieves, cash and day/night.
+[*]Tutorial together: each player plays it, seeing the others.
+[*]Reconnect after a drop, version check, update notice, difficulty that scales with players, gamepad support.
+[*]F3: colour of every part of your Will (vest, shirt, trousers, backpack, shoes, gem, hair, skin) or a whole style.
+[*]Warns when players run different mods (stack / inventory mods must match: the backpack is shared).
+[/list]
+
+[b]Install[/b]
+Close the game, unzip and run [i]Instalar.bat[/i] (it installs BepInEx 5 and the mod). F2 = co-op menu, F3 = looks.
+
+[b]Requirements[/b]
+Moonlighter (Steam, Windows) 1.15.8. Every player needs the same version of this mod.
+
+Source code and updates: https://github.com/Eldeallado/moonlighter-coop
+Built on top of the Co-op Anything idea. Author: elde_al_lado.
+
+ARCHIVO A SUBIR: E:\CoopAnything\MoonlighterCoop\release\MoonlighterCoop-0.6.1.zip

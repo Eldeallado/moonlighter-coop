@@ -132,7 +132,7 @@ namespace MoonlighterCoop
             bool inBag = __state.s != null && hero != null && __state.s.transform.IsChildOf(hero.transform);
             int left = (__state.s == null || inBag) ? 0 : __state.s.Quantity;
             int picked = __state.qty - left;
-            if (picked > 0) Loot.PickedUp(__state.id, __state.m, picked);
+            if (picked > 0) { Loot.PickedUp(__state.id, __state.m, picked); Stats.Picked(__state.m, picked); }
         }
     }
 }

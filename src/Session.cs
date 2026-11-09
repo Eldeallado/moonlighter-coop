@@ -146,6 +146,8 @@ namespace MoonlighterCoop
             Shared.Tick();
             ShopSync.Tick();
             Projectiles.Tick();
+            Stats.Tick();
+            Call.Tick();
             Reconnect.GuestTick(now);
             Reconnect.HostTick();
             if (IsGuest) EnemySync.GuestTick();
@@ -223,7 +225,7 @@ namespace MoonlighterCoop
 
         // Things one player does that every other player must see: the host passes them on.
         private static readonly System.Collections.Generic.HashSet<Msg> Relayed = new System.Collections.Generic.HashSet<Msg>
-        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods };
+        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods, Msg.Revive, Msg.Stats, Msg.Chat };
 
         private static void Handle(IPeer from, Msg type, byte[] data)
         {
@@ -238,6 +240,11 @@ namespace MoonlighterCoop
                     if (data.Length > 1) Difficulty.Mode = data[1];
                     _hostEnTutorial = data.Length > 2 && data[2] == 1;
                     break;
+                case Msg.Stats: Stats.OnStats(data); break;
+                case Msg.Chat: Chat.OnChat(data); break;
+                case Msg.Call: if (IsGuest) Call.OnCall(data); break;
+                case Msg.CallReply: if (IsHost) Call.OnReply(from, data); break;
+                case Msg.PendantRequest: if (IsHost) GuestPendant.OnRequest(from); break;
                 case Msg.LookData:
                     Looks.Learn(data);
                     break;

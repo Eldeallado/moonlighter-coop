@@ -10,6 +10,7 @@ namespace MoonlighterCoop
     /// and lets you leave.
     public class CoopMenu : MonoBehaviour
     {
+        private bool _showAch;
         public static bool Open;
         public static CoopMenu Instance;
         private enum Page { Main, Code, Ip }
@@ -344,6 +345,22 @@ namespace MoonlighterCoop
                 y += 6 * k;
                 GUI.Label(new Rect(r.x, y, r.width, 40 * k), $"Mods distintos ({(kv.Key == 0 ? "anfitrión" : "jugador " + (kv.Key + 1))}): {kv.Value}", _small);
                 y += 40 * k;
+            }
+            // Options of this player, and the co-op achievements.
+            float oy = r.yMax - 86 * k;
+            if (Btn(new Rect(r.x, oy, 240 * k, 30 * k), "Vida de enemigos con números: " + (EnemyBars.On ? "sí" : "no"))) EnemyBars.Toggle();
+            if (Btn(new Rect(r.x + 250 * k, oy, 200 * k, 30 * k), $"Logros ({Achievements.Unlocked}/{Achievements.All.Length})")) _showAch = !_showAch;
+            if (_showAch)
+            {
+                var ar = new Rect(r.x, r.y + 70 * k, r.width, oy - r.y - 78 * k);
+                var o = GUI.color; GUI.color = new Color(0.07f, 0.05f, 0.04f, 0.97f); GUI.DrawTexture(ar, Texture2D.whiteTexture); GUI.color = o;
+                float ay = ar.y + 6 * k;
+                foreach (var a in Achievements.All)
+                {
+                    bool got = Achievements.Has(a.Id);
+                    GUI.Label(new Rect(ar.x + 10 * k, ay, ar.width - 20 * k, 22 * k), (got ? "✔ " : "· ") + a.Name + " — " + a.Text, got ? _head : _small);
+                    ay += 23 * k;
+                }
             }
             if (Btn(new Rect(r.x, r.yMax - 46 * k, 200 * k, 40 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
             if (Btn(new Rect(r.x + 210 * k, r.yMax - 46 * k, 170 * k, 40 * k), "Desatascarme")) { SetOpen(false); Arreglos.Desatascar(); }

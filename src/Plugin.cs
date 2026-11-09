@@ -38,7 +38,11 @@ namespace MoonlighterCoop
         private bool _dumped;
 
         private static BepInEx.Configuration.ConfigEntry<int> _lookCfg;
-        private static BepInEx.Configuration.ConfigEntry<string> _partsCfg;
+        private static BepInEx.Configuration.ConfigEntry<string> _partsCfg, _achCfg, _stylesCfg;
+        public static void SaveMyStyles(string s) { if (_stylesCfg != null) _stylesCfg.Value = s; }
+        private static BepInEx.Configuration.ConfigEntry<bool> _barsCfg;
+        public static void SaveEnemyBars(bool on) { if (_barsCfg != null) _barsCfg.Value = on; }
+        public static void SaveAchievements(string s) { if (_achCfg != null) _achCfg.Value = s; }
         public static void SaveLook(int look)
         {
             // Old-style looks fit the int; looks with every part go as text (the int is just an id).
@@ -65,9 +69,19 @@ namespace MoonlighterCoop
             gameObject.AddComponent<CoopMenu>();
             gameObject.AddComponent<PartyHud>();
             gameObject.AddComponent<Banner>();
+            gameObject.AddComponent<Summary>();
+            gameObject.AddComponent<CallPanel>();
+            gameObject.AddComponent<Chat>();
+            gameObject.AddComponent<EnemyBars>();
             Versions.StartCheck(this);
             _lookCfg = Config.Bind("Aspecto", "Colores", -1, "Cuerpo y pelo (lo elige el menú F3). -1 = según el número de jugador");
             if (_lookCfg.Value >= 0) Looks.LoadSaved(_lookCfg.Value);
+            _barsCfg = Config.Bind("Cooperativo", "VidaEnemigos", false, "Mostrar la vida de los enemigos con números (se cambia en F2)");
+            EnemyBars.On = _barsCfg.Value;
+            _stylesCfg = Config.Bind("Aspecto", "MisEstilos", "", "Tus estilos guardados (nombre=código|...); los gestiona el menú F3");
+            Looks.LoadMyStyles(_stylesCfg.Value);
+            _achCfg = Config.Bind("Cooperativo", "Logros", "", "Totales y logros del cooperativo (los lleva el mod)");
+            Achievements.Load(_achCfg.Value);
             _partsCfg = Config.Bind("Aspecto", "Partes", "", "Color de cada parte (chaleco, camiseta, pantalón, mochila, zapatos, gema, pelo, piel); lo elige el menú F3");
             if (!string.IsNullOrEmpty(_partsCfg.Value)) { int l = Looks.FromText(_partsCfg.Value); if (l >= 0) Looks.LoadSaved(l); }
             _diffCfg = Config.Bind("Cooperativo", "Dificultad", 1, "0 = como un jugador, 1 = ajustada a los jugadores, 2 = difícil (lo elige el anfitrión en F2)");

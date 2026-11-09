@@ -140,6 +140,8 @@ namespace MoonlighterCoop
             DeathsSent++;
         }
 
+        public static bool ApplyingRemoteHit;
+
         public static void OnHit(byte[] data)
         {
             var r = new BinaryReader(new MemoryStream(data));
@@ -147,7 +149,9 @@ namespace MoonlighterCoop
             var e = Find(id);
             if (e == null) { Plugin.Log.LogInfo($"[enemy] guest hit unknown {id}"); return; }
             HitsApplied++;
-            e.DealDamageToEnemy(strength, null, (Enemy.EnemyDamageReceivedType)type);
+            ApplyingRemoteHit = true;   // a guest's hit: not the host's (statistics)
+            try { e.DealDamageToEnemy(strength, null, (Enemy.EnemyDamageReceivedType)type); }
+            finally { ApplyingRemoteHit = false; }
         }
 
         // ---------- guest ----------
