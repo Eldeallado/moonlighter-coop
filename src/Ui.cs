@@ -98,6 +98,32 @@ namespace MoonlighterCoop
             for (int i = 0; i < n; i++) Draw(t, new Rect(start + i * w, r.y, w, h), tint, false, flipY);
         }
 
+        // ---------- sounds (the game's own menu sounds) ----------
+
+        public const string SndOpen = "gui_inventory_open", SndMove = "gui_selector_movement", SndPress = "gui_press_button", SndError = "gui_selector_error";
+        public static void Sound(string name)
+        {
+            try { DarkTonic.MasterAudio.MasterAudio.PlaySoundAndForget(name); } catch { }
+        }
+
+        // ---------- opening animation ----------
+
+        private static Matrix4x4 _openOld;
+        private static Color _openColor;
+        /// Starts drawing a window that opened at openedAt: it unfolds from a thin strip (like the pause menu)
+        /// and fades in, in about a fifth of a second. Pair with EndOpen.
+        public static void BeginOpen(float openedAt, Rect r)
+        {
+            _openOld = GUI.matrix; _openColor = GUI.color;
+            float t = Mathf.Clamp01((Time.unscaledTime - openedAt) / 0.2f);
+            if (t >= 1f) return;
+            float e = 1f - Mathf.Pow(1f - t, 3f);                       // ease out
+            float sy = Mathf.Lerp(0.08f, 1f, e) + Mathf.Sin(t * Mathf.PI) * 0.04f, sx = Mathf.Lerp(0.92f, 1f, e);
+            GUIUtility.ScaleAroundPivot(new Vector2(sx, sy), r.center);
+            GUI.color = new Color(_openColor.r, _openColor.g, _openColor.b, _openColor.a * Mathf.Clamp01(t * 2.5f));
+        }
+        public static void EndOpen() { GUI.matrix = _openOld; GUI.color = _openColor; }
+
         // ---------- shapes ----------
 
         public static void Box(Rect r, Color c) { var o = GUI.color; GUI.color = new Color(c.r, c.g, c.b, c.a * o.a); GUI.DrawTexture(r, Px); GUI.color = o; }
@@ -235,8 +261,10 @@ namespace MoonlighterCoop
             float w = sw0 * s, h = sh0 * s;
             float half = textWidth > 0f ? Mathf.Min(r.width / 2f - w, textWidth / 2f + 3 * s) : r.width / 2f - w;
             float cy = r.center.y - h / 2f;
-            var lr = new Rect(r.center.x - half - w, cy, w, h);
-            var rr = new Rect(r.center.x + half, cy, w, h);
+            // They breathe in and out a little, like the game's selector.
+            float wob = Mathf.Round(Mathf.Sin(Time.unscaledTime * 5f) * 1.5f) * Mathf.Max(1f, s * 0.5f);
+            var lr = new Rect(r.center.x - half - w - wob, cy, w, h);
+            var rr = new Rect(r.center.x + half + wob, cy, w, h);
             if (t != null) { Draw(t, lr, c); Draw(t, rr, c, true); }
             else { Box(lr, c); Box(rr, c); }
         }
@@ -260,11 +288,12 @@ namespace MoonlighterCoop
 
         /// A progress bar. Tall ones (≥ 10 points) are the options' step bar: green squares between brackets;
         /// thin ones are a plain line (health).
-        public static void Bar(Rect r, float frac, Color fill)
+        public static void Bar(Rect r, float frac, Color fill) => Bar(r, frac, fill, r.height >= 10 * K);
+        public static void Bar(Rect r, float frac, Color fill, bool steps)
         {
             float u = U;
             frac = Mathf.Clamp01(frac);
-            if (r.height < 10 * K)
+            if (!steps)
             {
                 Round(r, Outline, r.height >= 4 * u ? u * 0.5f : 0f);
                 var inner = Shrink(r, Mathf.Max(1f, u * 0.5f));
@@ -381,7 +410,7 @@ namespace MoonlighterCoop
 
         /// An option as the game draws them: just its text. With the pointer on it or the pad focus, the game's
         /// green spirals appear on both sides; on = chosen/toggled (green text); a faint plate shows where to click.
-        public static bool Button(Rect r, string text, bool focused = false, bool on = false, bool enabled = true, float size = 16f, Tone tone = Tone.Wood)
+        public static bool Button(Rect r, string text, bool focused = false, bool on = false, bool enabled = true, float size = 16f, Tone tone = Tone.Wood, string icon = null)
         {
             float u = U;
             bool hover = enabled && r.Contains(Event.current.mousePosition);
@@ -391,10 +420,28 @@ namespace MoonlighterCoop
             if (on) Box(new Rect(r.x + 3 * u, r.yMax - u, r.width - 6 * u, u), Green);
             Color c = !enabled ? InkFaint : tone == Tone.Red ? Bad : tone == Tone.Gold || on ? (lit ? GreenLight : Green) : Ink;
             float s = tone == Tone.Gold ? size + 2f : size;
-            var tr = new Rect(r.x + 4 * u, r.y, r.width - 8 * u, r.height);
+            // An icon from the game's art on the left, as tall as the text allows.
+            float left = 0f;
+            Texture2D ic = null;
+            try { ic = icon != null ? Sprite(icon) : null; } catch { }
+            if (ic != null && ic.width > 0 && ic.height > 0)
+            {
+                float ih = Mathf.Min(r.height - 6 * u, 13 * u), iw = ih * ic.width / ic.height;
+                if (iw > ih * 1.6f) { iw = ih * 1.6f; ih = iw * ic.height / ic.width; }
+                try { Draw(ic, new Rect(r.x + 6 * u, r.center.y - ih / 2f, iw, ih), enabled ? Color.white : new Color(1f, 1f, 1f, 0.5f)); left = iw + 4 * u; } catch { }
+            }
+            var tr = new Rect(r.x + 4 * u + left, r.y, r.width - 8 * u - left * 2f, r.height);
             Shadowed(tr, text, s, c, new Color(0f, 0f, 0f, 0.45f));
-            if (lit && enabled) Spirals(r, string.IsNullOrEmpty(text) ? 0f : Width(text, s), tone == Tone.Red ? Bad : Green);
-            return enabled && GUI.Button(r, GUIContent.none, GUIStyle.none);
+            if (lit && enabled)
+            {
+                float tw = string.IsNullOrEmpty(text) ? 0f : Width(text, s);
+                // Small keys (the on-screen keyboard): a green ring instead of spirals, which would hide the letter.
+                if (tw > 0f && tw + 24 * u > tr.width) { Frame(r, Green, Mathf.Max(1f, u)); }
+                else Spirals(tr, tw, tone == Tone.Red ? Bad : Green);
+            }
+            bool pressed = enabled && GUI.Button(r, GUIContent.none, GUIStyle.none);
+            if (pressed) Sound(SndPress);
+            return pressed;
         }
 
         /// A setting shown as ◂ value ▸ (like the game's options); clicking (or A) moves to the next value.
@@ -411,7 +458,9 @@ namespace MoonlighterCoop
                 Arrow(new Rect(r.xMax - 14 * k, r.y, 10 * k, r.height), 1, ac);
             }
             Label(new Rect(r.x + 16 * k, r.y, r.width - 32 * k, r.height), value, 16f, lit ? Green : Ink, TextAnchor.MiddleCenter);
-            return enabled && GUI.Button(r, GUIContent.none, GUIStyle.none);
+            bool pressed = enabled && GUI.Button(r, GUIContent.none, GUIStyle.none);
+            if (pressed) Sound(SndMove);
+            return pressed;
         }
 
         private static GUIStyle _field;

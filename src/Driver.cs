@@ -419,12 +419,34 @@ namespace MoonlighterCoop
                     return $"secret rooms {rooms}, marked {marked}, panel={(mp != null)}";
                 }
                 case "roleinfo": return "role=" + Roles.Mine + " choosing=" + Roles.Choosing + " rules=" + HostSettings.Bits;
+                case "rec": // rec <dir> <frames>: one screenshot every frame (for a short video of an animation)
+                {
+                    string dir = p[1]; int frames = int.Parse(p[2]);
+                    Directory.CreateDirectory(dir);
+                    Plugin.Instance.StartCoroutine(Record(dir, frames));
+                    return "recording";
+                }
+                case "herosprites": { var sb2 = new StringBuilder(); foreach (var sr in hero.GetComponentsInChildren<SpriteRenderer>(true)) if (sr.sprite != null) sb2.Append($"{sr.name}={sr.sprite.name}[{sr.sprite.rect.width}x{sr.sprite.rect.height} piv={sr.sprite.pivot}] "); return sb2.ToString(); }
+                case "findsprites": { var sb3 = new StringBuilder(); foreach (var s in Resources.FindObjectsOfTypeAll<Sprite>().Where(s => s.name.IndexOf(p[1], StringComparison.OrdinalIgnoreCase) >= 0).Take(40)) sb3.Append($"{s.name}[{s.rect.width}x{s.rect.height}] "); return sb3.ToString(); }
+                case "facetest":
+                {
+                    var s0 = SpriteCache.Get(p[1]);
+                    if (s0 == null) return "no sprite";
+                    var t1 = Recolor.Tint(s0, Looks.Mine); var u1 = Recolor.UiSprite(t1);
+                    string tr; try { tr = u1.textureRect.ToString(); } catch (Exception e) { tr = "ERR " + e.Message; }
+                    return $"orig={s0.texture?.name} tinted={(t1 != s0)} ui={u1?.texture?.name} {u1?.texture?.width}x{u1?.texture?.height} rect={tr} packed={s0.packed} mode={s0.packingMode}";
+                }
+                case "ask": Give.Ask(int.Parse(p[1]), int.Parse(p[2])); return "ok";
+                case "lagfake": Lag.Set(int.Parse(p[1]), float.Parse(p[2], CultureInfo.InvariantCulture)); return "ok";
+                case "history": return string.Join(" || ", History.Runs.Select(h => $"{h.When} {h.Dungeon} piso {h.Floor} oro {h.Gold} cayó [{h.Fell}]").ToArray());
                 case "uishow": // open one of the mod's windows to look at it: roles | call | summary | chat | off
                 {
                     Roles.Choosing = false; Call.ShownUntil = 0f; Summary.Close(); Chat.Preview = false; Chat.Typing = false;
                     if (p[1] == "roles") { Roles.Choosing = true; Roles.ChooseUntil = Time.unscaledTime + 60f; }
                     else if (p[1] == "call") { Call.ShownFrom = 0; Call.ShownKind = Call.Kind.Dungeon; Call.ShownCulture = ItemMaster.Culture.Golem; Call.Answered = false; Call.ShownUntil = Time.unscaledTime + 60f; }
                     else if (p[1] == "summary") Summary.Show(Summary.Kind.Run);
+                    else if (p[1] == "pedir") AskPanel.Open(1, "Jugador 2", 0);
+                    else if (p[1] == "logro") AchievementToast.Show("Compañeros de mazmorra", "25 expediciones juntos");
                     else if (p[1] == "chat") { Chat.Preview = true; Chat.Instance?.DemoLines(); Chat.Typing = true; }
                     return "ok";
                 }
@@ -535,6 +557,15 @@ namespace MoonlighterCoop
 
         private static string V(Vector3 v) => $"{v.x:F0},{v.y:F0}";
 
+        private static System.Collections.IEnumerator Record(string dir, int frames)
+        {
+            for (int i = 0; i < frames; i++)
+            {
+                yield return new WaitForEndOfFrame();
+                ScreenCapture.CaptureScreenshot(Path.Combine(dir, $"f{i:000}.png"));
+                yield return new WaitForSecondsRealtime(0.04f);
+            }
+        }
         private static string Info()
         {
             var hero = HeroMerchant.Instance; var dm = DungeonManager.Instance; var gm = GameManager.Instance;

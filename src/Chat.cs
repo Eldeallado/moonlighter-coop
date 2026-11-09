@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
@@ -63,12 +63,87 @@ namespace MoonlighterCoop
         {
             if (!Net.Connected && !Preview) { if (Typing) Close(); return; }
             bool menus = ColorMenu.Open || CoopMenu.Open || (GUIManager.Instance != null && GUIManager.Instance.currentInventory != null);
-            if (!Typing && !menus && Input.GetKeyDown(KeyCode.T) && HeroMerchant.Instance != null)
+            if (!Typing && !menus && Input.GetKeyDown(KeyCode.T) && HeroMerchant.Instance != null) OpenTyping();
+            if (Typing && PadNav.Active) PadKeys();
+        }
+
+        /// Start writing (T, or F2 → Escribir en el chat). With a pad, an on-screen keyboard comes up.
+        public static void OpenTyping()
+        {
+            if (Instance == null || HeroMerchant.Instance == null) return;
+            Typing = true; Instance._text = ""; Instance._focus = true; Instance._kx = 0; Instance._ky = 1; Instance._openedAt = Time.unscaledTime;
+            var c = HeroMerchant.Instance.heroMerchantController; c.DisableMoveInput(); c.DisableAttackInput();
+            if (GUIManager.Instance != null) GUIManager.Instance.input.Enabled = false;
+            Ui.Sound(Ui.SndOpen);
+        }
+
+        // ---------- on-screen keyboard (pad) ----------
+
+        private static readonly string[] Rows = { "1234567890", "qwertyuiop", "asdfghjklñ", "zxcvbnm,.?", "áéíóú¡!¿:)" };
+        private static readonly string[] Specials = { "Mayús", "Espacio", "Borrar", "Enviar" };
+        private int _kx, _ky; private bool _caps; private float _openedAt;
+
+        private void PadKeys()
+        {
+            PadNav.Poll();
+            int rows = Rows.Length + 1;
+            if (PadNav.Up) { _ky = (_ky + rows - 1) % rows; Ui.Sound(Ui.SndMove); }
+            if (PadNav.Down) { _ky = (_ky + 1) % rows; Ui.Sound(Ui.SndMove); }
+            int cols = _ky < Rows.Length ? 10 : Specials.Length;
+            if (_ky == Rows.Length && _kx >= cols) _kx = cols - 1;
+            if (PadNav.Left) { _kx = (_kx + cols - 1) % cols; Ui.Sound(Ui.SndMove); }
+            if (PadNav.Right) { _kx = (_kx + 1) % cols; Ui.Sound(Ui.SndMove); }
+            if (PadNav.B) { if (_text.Length > 0) _text = _text.Substring(0, _text.Length - 1); else Close(); Ui.Sound(Ui.SndPress); }
+            if (PadNav.A) { Ui.Sound(Ui.SndPress); PressKey(_kx, _ky); }
+        }
+
+        private void PressKey(int x, int y)
+        {
+            if (y < Rows.Length)
             {
-                Typing = true; _text = ""; _focus = true;
-                var c = HeroMerchant.Instance.heroMerchantController; c.DisableMoveInput(); c.DisableAttackInput();
-                if (GUIManager.Instance != null) GUIManager.Instance.input.Enabled = false;
+                if (_text.Length >= 120) return;
+                char c = Rows[y][x];
+                _text += _caps ? char.ToUpperInvariant(c) : c;
+                if (_caps && char.IsLetter(c)) _caps = false;   // one capital, like a phone
+                return;
             }
+            switch (x)
+            {
+                case 0: _caps = !_caps; break;
+                case 1: if (_text.Length < 120) _text += " "; break;
+                case 2: if (_text.Length > 0) _text = _text.Substring(0, _text.Length - 1); break;
+                case 3: Send(_text); Close(); break;
+            }
+        }
+
+        private void DrawKeyboard(float k)
+        {
+            float kw = 44 * k, kh = 36 * k, gap = 6 * k;
+            float w = 10 * kw + 9 * gap + 40 * k, h = (Rows.Length + 1) * (kh + gap) + 70 * k;
+            var r = new Rect((Screen.width - w) / 2f, Screen.height - h - 150 * k, w, h);
+            Ui.BeginOpen(_openedAt, r);
+            Ui.Scroll(r);
+            float x0 = r.x + 20 * k, y0 = r.y + 28 * k;
+            for (int y = 0; y < Rows.Length; y++)
+                for (int x = 0; x < 10; x++)
+                {
+                    var kr = new Rect(x0 + x * (kw + gap), y0 + y * (kh + gap), kw, kh);
+                    char c = Rows[y][x];
+                    if (Ui.Button(kr, (_caps ? char.ToUpperInvariant(c) : c).ToString(), x == _kx && y == _ky, false, true, 18f)) PressKey(x, y);
+                }
+            float sy = y0 + Rows.Length * (kh + gap), total = 10 * kw + 9 * gap;
+            float[] widths = { 0.2f, 0.4f, 0.2f, 0.2f };
+            float sx = x0;
+            for (int i = 0; i < Specials.Length; i++)
+            {
+                float sw = total * widths[i] - (i < Specials.Length - 1 ? gap : 0f);
+                var kr = new Rect(sx, sy, sw, kh);
+                bool on = i == 0 && _caps;
+                if (Ui.Button(kr, Specials[i], i == _kx && _ky == Rows.Length, on, true, 16f, i == 3 ? Ui.Tone.Gold : Ui.Tone.Wood)) PressKey(i, Rows.Length);
+                sx += sw + gap;
+            }
+            Ui.Label(new Rect(r.x, r.yMax - 32 * k, r.width, 20 * k), "Cruceta: tecla  ·  A: escribir  ·  B: borrar (o cerrar si está vacío)", 14f, Ui.InkFaint, TextAnchor.MiddleCenter);
+            Ui.EndOpen();
         }
 
         private void Close()
@@ -94,7 +169,8 @@ namespace MoonlighterCoop
                 Ui.Scroll(sr);
                 _text = Ui.TextField(new Rect(x + 22 * k, y + 42 * k, w - 44 * k, 28 * k), _text, 120, 17f, TextAnchor.MiddleLeft, "coopchat");
                 if (_focus) { GUI.FocusControl("coopchat"); _focus = false; }
-                Ui.Label(new Rect(x + 22 * k, y + 72 * k, w - 44 * k, 20 * k), "Enter: enviar  ·  Esc: cancelar", 14f, Ui.InkSoft, TextAnchor.MiddleCenter);
+                Ui.Label(new Rect(x + 22 * k, y + 72 * k, w - 44 * k, 20 * k), PadNav.Active ? "Escribe con el teclado de la pantalla" : "Enter: enviar  ·  Esc: cancelar", 14f, Ui.InkSoft, TextAnchor.MiddleCenter);
+                if (PadNav.Active) DrawKeyboard(k);
             }
             float now = Time.unscaledTime;
             float ly = y + 28 * k;

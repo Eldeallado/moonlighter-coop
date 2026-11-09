@@ -43,6 +43,10 @@ namespace MoonlighterCoop
         private static HeroMerchant _healthHero;
         private static void TickHealth()
         {
+            try { TickHealthNow(); } catch { }   // stats can be missing for a moment while a scene loads
+        }
+        private static void TickHealthNow()
+        {
             var hero = HeroMerchant.Instance;
             if (hero != _healthHero) { _healthHero = hero; _healthAdded = 0f; }   // a new Will starts clean
             if (hero == null || GameManager.Instance == null || !GameManager.Instance.NotLoadingScene || Downed.Me) return;
@@ -238,13 +242,16 @@ namespace MoonlighterCoop
             if (PadNav.A) Roles.Pick(_sel);
         }
 
+        private float _openedAt; private bool _was;
         private void OnGUI()
         {
-            if (!Roles.Choosing) return;
+            if (!Roles.Choosing) { _was = false; return; }
+            if (!_was) { _was = true; _openedAt = Time.unscaledTime; Ui.Sound(Ui.SndOpen); }
             Ui.Load();
             float k = Ui.K;
             float w = 840 * k, h = 290 * k;
             var r = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f - 40 * k, w, h);   // above the notices at the bottom
+            Ui.BeginOpen(_openedAt, r);
             Ui.Sheet(r);
             Ui.Label(new Rect(r.x, r.y + 38 * k, r.width, 30 * k), $"Elige tu rol para esta expedición  ({Mathf.CeilToInt(Roles.ChooseUntil - Time.unscaledTime)} s)", 22f, Ui.Title, TextAnchor.MiddleCenter);
             float bw = (w - 70 * k) / 4f;
@@ -266,6 +273,7 @@ namespace MoonlighterCoop
                 if (!taken && GUI.Button(br, GUIContent.none, GUIStyle.none)) Roles.Pick(i);
             }
             Ui.Label(new Rect(r.x, r.yMax - 58 * k, r.width, 22 * k), PadNav.Active ? "Cruceta izquierda y derecha, y A para elegir" : "Pulsa 1, 2, 3 o 4, o haz clic", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
+            Ui.EndOpen();
         }
     }
 }

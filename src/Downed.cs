@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using HarmonyLib;
 using UnityEngine;
 
@@ -195,7 +195,7 @@ namespace MoonlighterCoop
             potion.Quantity -= 1;
             if (potion.Quantity > 0) HUDManager.Instance.SetPotionQuantity(potion.Quantity);
             else { HUDManager.Instance.SetEmptyConsumableIcon(); inv.SetEquippedItemByType(null, HeroMerchantInventory.EquipmentSlot.Potion); }
-            var ms = new MemoryStream(); var w = new BinaryWriter(ms); w.Write(healer ? 0.7f : 0.35f); w.Write((byte)near.PlayerId);
+            var ms = new MemoryStream(); var w = new BinaryWriter(ms); w.Write((healer ? 0.7f : 0.35f) * (HostSettings.HardRevive ? 0.6f : 1f)); w.Write((byte)near.PlayerId);
             Net.Send(Msg.Revive, ms.ToArray());
             Ghosts.Remove(near.PlayerId);
             PotionRevives++;
@@ -228,7 +228,8 @@ namespace MoonlighterCoop
                 SetGhost(hero, true);   // see-through while a ghost (the partner's copy shows it too)
                 // A new floor brings ghosts back, like Isaac.
                 var dmg = DungeonManager.Instance;
-                if (dmg != null && GameManager.Instance.NotLoadingScene && $"{dmg.culture}:{dmg.level}" != _ghostFloor) ReviveMe(0.5f);
+                // (Hard revive rule: not any more — only a fountain or a potion.)
+                if (dmg != null && GameManager.Instance.NotLoadingScene && $"{dmg.culture}:{dmg.level}" != _ghostFloor && !HostSettings.HardRevive) ReviveMe(0.5f);
                 return;
             }
             // No revive by touch: the living player must reach a fountain, or beat the floor.
@@ -255,7 +256,7 @@ namespace MoonlighterCoop
 
         public static string Hint()
         {
-            if (Me) return "Eres un fantasma: revives si tu compañero entra en una fuente o pasáis al siguiente piso";
+            if (Me) return HostSettings.HardRevive ? "Eres un fantasma: solo revives si tu compañero entra en una fuente o gasta una poción a tu lado" : "Eres un fantasma: revives si tu compañero entra en una fuente o pasáis al siguiente piso";
             if (Partner) return "Tu compañero ha caído: llega a una fuente, pasa al siguiente piso o ponte a su lado y pulsa R (L3) para gastar una poción";
             return null;
         }
@@ -273,7 +274,7 @@ namespace MoonlighterCoop
             var hero = HeroMerchant.Instance;
             if (hero == null) return;
             // The partner used a fountain: a ghost comes back. (The one in the fountain heals as usual.)
-            if (Me) ReviveMe(0.5f);
+            if (Me) ReviveMe(HostSettings.HardRevive ? 0.25f : 0.5f);
         }
     }
 

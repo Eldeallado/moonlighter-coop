@@ -94,10 +94,11 @@ namespace MoonlighterCoop
             bool wasDungeon = _lastZone.StartsWith("dungeon"), isTown = zone.StartsWith("town");
             if (zone != "" && zone != _lastZone)
             {
-                if (wasDungeon && isTown && !Session.TutorialActivo) { Summary.Show(Summary.Kind.Run); Achievements.RunDone(); }
-                if (!wasDungeon && zone.StartsWith("dungeon")) { for (int i = 0; i < N; i++) _run[i] = 0; RunItems.Clear(); _dirty = true; }
+                if (wasDungeon && isTown && !Session.TutorialActivo) { Summary.Show(Summary.Kind.Run); Achievements.RunDone(); History.End(_run); }
+                if (!wasDungeon && zone.StartsWith("dungeon")) { for (int i = 0; i < N; i++) _run[i] = 0; RunItems.Clear(); _dirty = true; History.Begin(); }
                 _lastZone = zone;
             }
+            if (zone.StartsWith("dungeon") && !Session.TutorialActivo) History.Track();
             int day = gm.currentGameSlot.daysPassed;
             if (_lastDay >= 0 && day > _lastDay && !Session.TutorialActivo) { Summary.Show(Summary.Kind.Day); Achievements.DayDone(); }
             if (day != _lastDay && _lastDay >= 0) { Summary.KeepDay(); for (int i = 0; i < N; i++) _day[i] = 0; _dirty = true; }
@@ -141,7 +142,7 @@ namespace MoonlighterCoop
     {
         public enum Kind { Run, Day }
         private static Summary _i;
-        private Kind _kind; private float _until;
+        private Kind _kind; private float _until, _openedAt;
         private int[] _mine; private Dictionary<string, int> _myItems; private Dictionary<int, Stats.Of> _others;
         private static int[] _dayKept; private static Dictionary<int, Stats.Of> _othersDayKept;
         private GUIStyle _t, _h, _l, _s;
@@ -158,7 +159,7 @@ namespace MoonlighterCoop
         public static void Show(Kind k)
         {
             if (_i == null) return;
-            _i._kind = k; _i._until = Time.unscaledTime + 14f;
+            _i._kind = k; _i._until = Time.unscaledTime + 14f; _i._openedAt = Time.unscaledTime; Ui.Sound(Ui.SndOpen);
             _i._mine = k == Kind.Run ? (int[])Stats.MyRun.Clone() : (_dayKept ?? (int[])Stats.MyDay.Clone());
             _i._myItems = new Dictionary<string, int>(Stats.RunItems);
             _i._others = k == Kind.Run ? Stats.Others.ToDictionary(kv => kv.Key, kv => kv.Value) : (_othersDayKept ?? Stats.Others.ToDictionary(kv => kv.Key, kv => kv.Value));
@@ -189,6 +190,7 @@ namespace MoonlighterCoop
             float colW = 170 * k, w = Mathf.Min(Screen.width - 20, Mathf.Max(560 * k, 190 * k + colW * cols.Count)), h = (items ? 470 : 370) * k;
             var r = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
             Ui.Dim(0.3f);
+            Ui.BeginOpen(_openedAt, r);
             Ui.Sheet(r);
             Ui.Label(new Rect(r.x, r.y + 38 * k, r.width, 36 * k), _kind == Kind.Run ? "Resumen de la expedición" : "Resumen del día", 28f, Ui.Title, TextAnchor.MiddleCenter);
             Ui.Divider(r.x + 30 * k, r.y + 78 * k, r.width - 60 * k);
@@ -220,6 +222,7 @@ namespace MoonlighterCoop
                 }
             }
             Ui.Label(new Rect(r.x, r.yMax - 60 * k, r.width, 20 * k), $"Enter o B para cerrar  ·  se cierra solo en {Mathf.CeilToInt(_until - Time.unscaledTime)} s", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
+            Ui.EndOpen();
         }
     }
 }

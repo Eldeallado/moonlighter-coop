@@ -39,6 +39,7 @@ namespace MoonlighterCoop
                 _parts = Looks.Unpack(Looks.Mine);
                 _dragBar = -1; _wantFocus = KPart * 100 + _part;
                 _cursorWas = Cursor.visible; Cursor.visible = true;
+                _openedAt = Time.unscaledTime; Ui.Sound(Ui.SndOpen);
                 hero.heroMerchantController.DisableMoveInput();
                 hero.heroMerchantController.DisableAttackInput();
                 StartPreview();
@@ -134,6 +135,7 @@ namespace MoonlighterCoop
         private System.Collections.Generic.List<Rect> _lastRects = new System.Collections.Generic.List<Rect>();
         private System.Collections.Generic.List<int> _lastIds = new System.Collections.Generic.List<int>();
         private int _focus, _wantFocus = -1;
+        private float _openedAt;
         private bool _padA;
         private int FocusedId => _focus >= 0 && _focus < _lastIds.Count ? _lastIds[_focus] : -1;
         private bool OnBar => FocusedId / 100 == KBar;
@@ -147,6 +149,7 @@ namespace MoonlighterCoop
             _padA = false;
             bool up = Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) || PadNav.Up;
             bool down = Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S) || PadNav.Down;
+            int was = _focus;
             if (up) _focus = Ui.Nearest(_lastRects, _focus, 0, -1);
             if (down) _focus = Ui.Nearest(_lastRects, _focus, 0, 1);
             if (OnBar)
@@ -167,6 +170,7 @@ namespace MoonlighterCoop
                 if (PadNav.Left || Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)) _focus = Ui.Nearest(_lastRects, _focus, -1, 0);
                 if (PadNav.Right || Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)) _focus = Ui.Nearest(_lastRects, _focus, 1, 0);
             }
+            if (_focus != was) Ui.Sound(Ui.SndMove);
             if (_dirty && Time.unscaledTime - _dirtyAt > 0.15f) Commit();
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || PadNav.A) _padA = true;   // pressed on the focused control while drawing
             if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.Combo) SetOpen(false);
@@ -187,6 +191,7 @@ namespace MoonlighterCoop
         {
             if (!focused || !_padA || Event.current.type != EventType.Repaint) return false;
             _padA = false;
+            Ui.Sound(Ui.SndPress);
             return true;
         }
 
@@ -214,6 +219,7 @@ namespace MoonlighterCoop
             float w = Mathf.Min(920 * k, Screen.width - 20), h = Mathf.Min((545 + rows * 58) * k, Screen.height - 24);
             var panel = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
             Ui.Dim(0.5f);
+            Ui.BeginOpen(_openedAt, panel);
             Ui.Sheet(panel);
             Ui.Label(new Rect(panel.x + 30 * k, panel.y + 24 * k, w, 36 * k), "Aspecto de tu Will", 30f, Ui.Ink);
             Ui.Label(new Rect(panel.xMax - 330 * k, panel.y + 30 * k, 300 * k, 26 * k), "Lo ven todos los jugadores", 15f, Ui.InkFaint, TextAnchor.MiddleRight);
@@ -294,6 +300,7 @@ namespace MoonlighterCoop
                     : "Ratón, o flechas para moverse (en una barra cambian el color)  ·  Enter: elegir  ·  F3 o Esc: cerrar",
                 14.5f, note ? Ui.Green : Ui.InkFaint, TextAnchor.MiddleCenter);
 
+            Ui.EndOpen();
             if (Event.current.type == EventType.Repaint)
             {
                 // Keep the focus on the same control when the layout changes (a style added or deleted).

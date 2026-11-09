@@ -11,7 +11,7 @@ namespace MoonlighterCoop
     /// and lets you leave.
     public class CoopMenu : MonoBehaviour
     {
-        private bool _showAch, _showRules, _showGive, _showNews;
+        private bool _showAch, _showRules, _showGive, _showNews, _showHist;
         private Vector2 _newsScroll;
         public static bool Open;
         public static CoopMenu Instance;
@@ -33,6 +33,7 @@ namespace MoonlighterCoop
             if (open)
             {
                 _page = Page.Main;
+                _openedAt = Time.unscaledTime; Ui.Sound(Ui.SndOpen);
                 // First time after updating: start on what is new.
                 if (Changelog.Unseen) { _showNews = true; _newsScroll = Vector2.zero; Changelog.MarkSeen(); }
                 _cursorWas = Cursor.visible; Cursor.visible = true;
@@ -54,23 +55,26 @@ namespace MoonlighterCoop
         private bool _padA;
         private readonly List<Rect> _rects = new List<Rect>();
         private List<Rect> _lastRects = new List<Rect>();
+        private float _openedAt;
         private int NavGroup => _showRules || _showGive ? 1 : 0;
 
         /// Moves the focus to the closest button in that direction (as it looks on screen).
         private void MoveFocus(float dx, float dy)
         {
+            int was = _focus;
             _focus = Ui.Nearest(_lastRects, _focus, dx, dy);
+            if (_focus != was) Ui.Sound(Ui.SndMove);
         }
 
         private void OpenPanel(ref bool flag)
         {
             bool open = !flag;
-            _showAch = _showRules = _showGive = false;
+            _showAch = _showRules = _showGive = _showHist = false;
             flag = open;
             if (open) { _tabFocus = _focus; _focus = 0; _listSel = 0; _listSelDrawn = -1; _listScroll = Vector2.zero; }
         }
 
-        private void ClosePanels() { _showAch = _showRules = _showGive = false; _focus = _tabFocus; }
+        private void ClosePanels() { _showAch = _showRules = _showGive = _showHist = false; _focus = _tabFocus; }
 
         private void Update()
         {
@@ -86,12 +90,12 @@ namespace MoonlighterCoop
                 _newsScroll.y = Mathf.Max(0f, _newsScroll.y);
                 return;
             }
-            if (_showAch)
+            if (_showAch || _showHist)
             {
                 // A list without buttons: up/down go through the achievements, B (or A) goes back.
                 if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.A) { ClosePanels(); return; }
                 if (PadNav.Up || Input.GetKeyDown(KeyCode.UpArrow)) _listSel = Mathf.Max(0, _listSel - 1);
-                if (PadNav.Down || Input.GetKeyDown(KeyCode.DownArrow)) _listSel = Mathf.Min(Achievements.All.Length - 1, _listSel + 1);
+                if (PadNav.Down || Input.GetKeyDown(KeyCode.DownArrow)) _listSel = Mathf.Min((_showHist ? History.Runs.Count : Achievements.All.Length) - 1, _listSel + 1);
                 return;
             }
             if ((_showRules || _showGive) && (Input.GetKeyDown(KeyCode.Escape) || PadNav.B)) { ClosePanels(); return; }
@@ -147,6 +151,7 @@ namespace MoonlighterCoop
 
         private void CreateGame()
         {
+            Backup.Now("al crear partida");
             Plugin.Role = "host";
             // Steam only by default: opening a port for joining by IP is the host's choice (menu button).
             if (SteamCoop.Available) SteamCoop.Host();
@@ -156,6 +161,7 @@ namespace MoonlighterCoop
 
         private void JoinIp()
         {
+            Backup.Now("al unirte por IP");
             Plugin.Role = "join";
             Plugin.TcpMode = true;
             Plugin.JoinAddress = _ip.Trim();
@@ -166,6 +172,7 @@ namespace MoonlighterCoop
 
         private void JoinCode()
         {
+            Backup.Now("al unirte con código");
             SteamCoop.JoinByCode(_code);
             Plugin.Log.LogInfo("[menu] join by code " + _code);
         }
@@ -224,17 +231,19 @@ namespace MoonlighterCoop
             float w = 760 * k, h = 540 * k;
             var p = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
             Ui.Dim();
+            Ui.BeginOpen(_openedAt, p);
             Ui.Sheet(p);
             L(new Rect(p.x + 34 * k, p.y + 22 * k, w, 38 * k), "Cooperativo", STitle, Ui.Ink);
             L(new Rect(p.xMax - 140 * k, p.y + 26 * k, 106 * k, 26 * k), "versión " + Plugin.Version, SSmall, Ui.InkSoft, TextAnchor.MiddleRight);
             if (Versions.UpdateAvailable && Btn(new Rect(p.x + 200 * k, p.y + 24 * k, 220 * k, 30 * k), "¡Hay versión " + Versions.Latest + "! Descargar")) Application.OpenURL(Versions.ReleasesUrl);
-            if (Btn(new Rect(p.xMax - 262 * k, p.y + 24 * k, 116 * k, 30 * k), _showNews || _showAch ? "Volver" : "Novedades")) { if (_showAch) ClosePanels(); else { _showNews = !_showNews; _newsScroll = Vector2.zero; } }
+            if (Btn(new Rect(p.xMax - 262 * k, p.y + 24 * k, 116 * k, 30 * k), _showNews || _showAch || _showHist ? "Volver" : "Novedades")) { if (_showAch || _showHist) ClosePanels(); else { _showNews = !_showNews; _newsScroll = Vector2.zero; } }
             Ui.Divider(p.x + 34 * k, p.y + 64 * k, w - 68 * k);
             var inner = new Rect(p.x + 34 * k, p.y + 76 * k, w - 68 * k, h - 152 * k);
 
             bool inGame = Plugin.Role != "" && (Net.Connected || Session.IsHost || SteamCoop.Lobby != Steamworks.CSteamID.Nil);
             if (_showNews) DrawNews(inner, k);
             else if (_showAch) DrawAchievements(inner, k);
+            else if (_showHist) DrawHistory(inner, k);
             else if (inGame) DrawInGame(inner, k);
             else if (_page == Page.Code) DrawJoinCode(inner, k);
             else if (_page == Page.Ip) DrawJoinIp(inner, k);
@@ -242,21 +251,22 @@ namespace MoonlighterCoop
 
             if (!string.IsNullOrEmpty(SteamCoop.Status))
                 L(new Rect(p.x + 24 * k, p.yMax - 72 * k, w - 48 * k, 22 * k), SteamCoop.Status, SSmall, Ui.Ink, TextAnchor.MiddleCenter);
-            string hint = _showAch ? (PadNav.Active ? "Arriba y abajo: ver los logros  ·  B: volver" : "Rueda o flechas para ver los logros  ·  Esc: volver")
+            string hint = _showAch || _showHist ? (PadNav.Active ? "Arriba y abajo: ver la lista  ·  B: volver" : "Rueda o flechas para ver la lista  ·  Esc: volver")
                 : PadNav.Active ? "Cruceta: moverse  ·  A: aceptar  ·  B: volver  ·  L3+R3: cerrar" : "F2 o Esc para cerrar este menú";
             L(new Rect(p.x + 24 * k, p.yMax - 50 * k, w - 48 * k, 20 * k), hint, SSmall, Ui.InkSoft, TextAnchor.MiddleCenter);
+            Ui.EndOpen();
             if (Event.current.type == EventType.Repaint) { _lastRects = new List<Rect>(_rects); if (_focus >= _lastRects.Count) _focus = 0; }
         }
 
-        private bool Btn(Rect r, string text, bool on = false, float size = 16f, Ui.Tone tone = Ui.Tone.Wood)
+        private bool Btn(Rect r, string text, bool on = false, float size = 16f, Ui.Tone tone = Ui.Tone.Wood, string icon = null)
         {
             _btnCount++;
             // Only the buttons of the group the pad is in can take the focus.
             int idx = -1;
             if (_grp == NavGroup) { idx = _rects.Count; _rects.Add(r); }
-            bool focused = PadNav.Active && idx >= 0 && idx == _focus && !_showAch && !_showNews;   // those pages scroll instead
-            bool pressed = Ui.Button(r, text, focused, on, GUI.enabled, size, tone);
-            if (focused && _padA && Event.current.type == EventType.Repaint) { _padA = false; pressed = true; }
+            bool focused = PadNav.Active && idx >= 0 && idx == _focus && !_showAch && !_showNews && !_showHist;   // those pages scroll instead
+            bool pressed = Ui.Button(r, text, focused, on, GUI.enabled, size, tone, icon);
+            if (focused && _padA && Event.current.type == EventType.Repaint) { _padA = false; pressed = true; Ui.Sound(Ui.SndPress); }
             return pressed;
         }
 
@@ -341,6 +351,43 @@ namespace MoonlighterCoop
             Ui.EndScroll();
         }
 
+        /// F2 → Historial: the last runs, newest first.
+        private void DrawHistory(Rect r, float k)
+        {
+            var runs = History.Runs;
+            L(new Rect(r.x, r.y - 4 * k, r.width * 0.6f, 26 * k), "Últimas expediciones", SHead, Ui.Ink);
+            L(new Rect(r.xMax - 200 * k, r.y - 4 * k, 200 * k, 26 * k), runs.Count == 0 ? "" : $"{runs.Count} guardadas", SSmall, Ui.InkFaint, TextAnchor.MiddleRight);
+            if (runs.Count == 0) { L(new Rect(r.x, r.y + 40 * k, r.width, 40 * k), "Aún no hay ninguna. Cuando volváis de una mazmorra aparecerá aquí.", SBody, Ui.InkSoft, TextAnchor.UpperLeft, true); return; }
+            float cardH = 58 * k, gap = 7 * k;
+            var view = new Rect(r.x, r.y + 30 * k, r.width, r.height - 30 * k);
+            float iw = view.width - 14 * k, total = runs.Count * (cardH + gap);
+            if (_listSel != _listSelDrawn)
+            {
+                float top = _listSel * (cardH + gap), bottom = top + cardH;
+                if (top < _listScroll.y) _listScroll.y = top;
+                if (bottom > _listScroll.y + view.height) _listScroll.y = bottom - view.height;
+                _listSelDrawn = _listSel;
+            }
+            _listScroll = Ui.BeginScroll(view, _listScroll, new Rect(0, 0, iw, total));
+            for (int i = 0; i < runs.Count; i++)
+            {
+                var run = runs[i];
+                var c = new Rect(0, i * (cardH + gap), iw, cardH);
+                Ui.Card(c, i == 0, PadNav.Active && i == _listSel);
+                // The floor reached, big, on the left (like the game's floor numbers).
+                var fl = new Rect(c.x + 8 * k, c.y + 8 * k, 64 * k, cardH - 16 * k);
+                Ui.Slot(fl);
+                L(new Rect(fl.x, fl.y + 2 * k, fl.width, 16 * k), "piso", 12f, Ui.InkFaint, TextAnchor.MiddleCenter);
+                L(new Rect(fl.x, fl.y + 14 * k, fl.width, fl.height - 14 * k), run.Floor.ToString(), 22f, Ui.Green, TextAnchor.MiddleCenter);
+                float tx = fl.xMax + 12 * k;
+                L(new Rect(tx, c.y + 6 * k, iw - tx - 150 * k, 22 * k), "Mazmorra de " + run.Dungeon, SBody, Ui.Ink);
+                L(new Rect(c.xMax - 160 * k, c.y + 6 * k, 150 * k, 22 * k), run.When, SSmall, Ui.InkFaint, TextAnchor.MiddleRight);
+                string fell = string.IsNullOrEmpty(run.Fell) ? "nadie cayó" : "cayó: " + run.Fell;
+                L(new Rect(tx, c.y + 30 * k, iw - tx - 10 * k, 20 * k), $"{run.Gold.ToString("N0", Es)} de oro  ·  {run.Kills} enemigos  ·  {run.Players} jugadores  ·  {fell}", SSmall, Ui.InkSoft);
+            }
+            Ui.EndScroll();
+        }
+
         private void DrawMain(Rect r, float k)
         {
             float bh = 50 * k, gap = 14 * k, y = r.y + 4 * k;
@@ -413,21 +460,25 @@ namespace MoonlighterCoop
             Ui.Box(new Rect(r.x + lw + gap / 2f, r.y + 4 * k, Mathf.Max(1f, Ui.U * 0.5f), r.height - 8 * k), Ui.InkFaint);
 
             // ----- right: options -----
-            float y = right.y, bh = 34 * k, step = 41 * k;
+            float y = right.y, bh = 32 * k, step = 37 * k;
             Ui.Section(new Rect(right.x, y, right.width, 20 * k), "Opciones");
             y += 28 * k;
-            if (Btn(new Rect(right.x, y, right.width, bh), $"Logros   {Achievements.Unlocked}/{Achievements.All.Length}")) OpenPanel(ref _showAch);
+            if (Btn(new Rect(right.x, y, right.width, bh), $"Logros   {Achievements.Unlocked}/{Achievements.All.Length}", false, 16f, Ui.Tone.Wood, "gold_chest_opening_1")) OpenPanel(ref _showAch);
             y += step;
-            if (Btn(new Rect(right.x, y, right.width, bh), "Reglas de la partida", _showRules)) OpenPanel(ref _showRules);
+            if (Btn(new Rect(right.x, y, right.width, bh), "Historial", false, 16f, Ui.Tone.Wood, "MiniCalendar")) OpenPanel(ref _showHist);
             y += step;
-            if (Btn(new Rect(right.x, y, right.width, bh), "Dar equipo", _showGive)) OpenPanel(ref _showGive);
+            if (Btn(new Rect(right.x, y, right.width, bh), "Reglas de la partida", _showRules, 16f, Ui.Tone.Wood, "Calendar_CompletedIcon")) OpenPanel(ref _showRules);
             y += step;
-            if (Btn(new Rect(right.x, y, right.width, bh), "Aspecto de tu Will")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
+            if (Btn(new Rect(right.x, y, right.width, bh), "Dar o pedir equipo", _showGive, 16f, Ui.Tone.Wood, "Bag_Emblem")) OpenPanel(ref _showGive);
             y += step;
-            if (Btn(new Rect(right.x, y, right.width, bh), "Vida de enemigos: " + (EnemyBars.On ? "sí" : "no"), EnemyBars.On)) EnemyBars.Toggle();
+            if (Btn(new Rect(right.x, y, right.width, bh), "Aspecto de tu Will", false, 16f, Ui.Tone.Wood, "Bag_Mirror")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
             y += step;
-            if (Btn(new Rect(right.x, y, right.width, bh), "Desatascarme")) { SetOpen(false); Arreglos.Desatascar(); }
-            if (Btn(new Rect(right.x, right.yMax - 38 * k, right.width, 38 * k), host ? "Cerrar la partida" : "Salir de la partida", false, 17f, Ui.Tone.Red)) LeaveGame();
+            if (Btn(new Rect(right.x, y, right.width, bh), "Vida de enemigos: " + (EnemyBars.On ? "sí" : "no"), EnemyBars.On, 16f, Ui.Tone.Wood, "HealthBar_Heart")) EnemyBars.Toggle();
+            y += step;
+            if (Net.Connected && Btn(new Rect(right.x, y, right.width, bh), "Escribir en el chat", false, 16f, Ui.Tone.Wood, "talk")) { SetOpen(false); Chat.OpenTyping(); }
+            if (Net.Connected) y += step;
+            if (Btn(new Rect(right.x, y, right.width, bh), "Desatascarme", false, 16f, Ui.Tone.Wood, "GUI_Effect_Icon_Confuse")) { SetOpen(false); Arreglos.Desatascar(); }
+            if (Btn(new Rect(right.x, right.yMax - 38 * k, right.width, 38 * k), host ? "Cerrar la partida" : "Salir de la partida", false, 15f, Ui.Tone.Red, "Bag_Pendant")) LeaveGame();
 
             // ----- left: the open panel, or the game -----
             _grp = 1;
@@ -544,22 +595,43 @@ namespace MoonlighterCoop
                 L(new Rect(r.x, y + 4 * k, r.width, 54 * k), "Tu rol: " + Roles.Names[Roles.Mine] + (Roles.Mine > 0 ? " — " + Roles.Texts[Roles.Mine] : "") + " (se elige al entrar en la mazmorra)", SSmall, Ui.InkSoft, TextAnchor.UpperLeft, true);
         }
 
+        private bool _asking; private int _askTo = -1;
+
+        /// Dar equipo: leave a piece of yours in the shared bag, or (Pedir) ask a partner for one of theirs.
         private void DrawGive(Rect r, float k)
         {
-            L(new Rect(r.x, r.y, r.width, 26 * k), "Dar equipo", SHead, Ui.Ink);
-            L(new Rect(r.x, r.y + 26 * k, r.width, 20 * k), "Deja una pieza en la mochila compartida para que la coja otro.", SSmall, Ui.InkSoft);
-            float y = r.y + 54 * k;
+            L(new Rect(r.x, r.y, 160 * k, 26 * k), "Equipo", SHead, Ui.Ink);
+            if (Choose(new Rect(r.xMax - 230 * k, r.y, 230 * k, 26 * k), _asking ? "Pedir a un compañero" : "Dar lo mío")) _asking = !_asking;
+            var ids = new List<int>(Puppet.All.Keys); ids.Sort();
+            if (!_asking)
+            {
+                L(new Rect(r.x, r.y + 28 * k, r.width, 20 * k), "Deja una pieza en la mochila compartida para que la coja otro.", SSmall, Ui.InkSoft);
+                float y = r.y + 54 * k;
+                for (int i = 0; i < Give.Slots.Length; i++)
+                {
+                    var st = Give.Equipped(i);
+                    var row = new Rect(r.x, y, r.width, 30 * k);
+                    var o = GUI.color; if (st == null) GUI.color = new Color(1f, 1f, 1f, 0.55f);
+                    if (Row(row, false, st != null)) Give.ToBag(i);
+                    L(new Rect(row.x + 10 * k, row.y, 100 * k, row.height), Give.SlotNames[i], SSmall, Ui.InkSoft);
+                    L(new Rect(row.x + 110 * k, row.y, row.width - 180 * k, row.height), st != null ? Stats.ItemName(st.master) : "—", 15.5f, Ui.Ink);
+                    if (st != null) L(new Rect(row.xMax - 70 * k, row.y, 62 * k, row.height), "Dejar", SSmall, Ui.Title, TextAnchor.MiddleRight);
+                    GUI.color = o;
+                    y += 33 * k;
+                }
+                return;
+            }
+            if (ids.Count == 0) { L(new Rect(r.x, r.y + 40 * k, r.width, 22 * k), "No hay nadie más en la partida.", SBody, Ui.InkSoft); return; }
+            if (!ids.Contains(_askTo)) _askTo = ids[0];
+            L(new Rect(r.x, r.y + 30 * k, 110 * k, 26 * k), "A quién:", SBody, Ui.Ink);
+            if (Choose(new Rect(r.x + 110 * k, r.y + 30 * k, r.width - 110 * k, 26 * k), Give.PlayerName(_askTo))) _askTo = ids[(ids.IndexOf(_askTo) + 1) % ids.Count];
+            L(new Rect(r.x, r.y + 58 * k, r.width, 20 * k), "Le saldrá una pregunta y, si dice que sí, lo deja en la mochila compartida.", SSmall, Ui.InkSoft);
+            float ay = r.y + 82 * k;
             for (int i = 0; i < Give.Slots.Length; i++)
             {
-                var st = Give.Equipped(i);
-                var row = new Rect(r.x, y, r.width, 30 * k);
-                var o = GUI.color; if (st == null) GUI.color = new Color(1f, 1f, 1f, 0.55f);
-                if (Row(row, false, st != null)) Give.ToBag(i);
-                L(new Rect(row.x + 10 * k, row.y, 100 * k, row.height), Give.SlotNames[i], SSmall, Ui.InkSoft);
-                L(new Rect(row.x + 110 * k, row.y, row.width - 180 * k, row.height), st != null ? Stats.ItemName(st.master) : "—", 15.5f, Ui.Ink);
-                if (st != null) L(new Rect(row.xMax - 70 * k, row.y, 62 * k, row.height), "Dejar", SSmall, Ui.Title, TextAnchor.MiddleRight);
-                GUI.color = o;
-                y += 33 * k;
+                var row = new Rect(r.x + (i % 2) * (r.width / 2f + 3 * k), ay + (i / 2) * 33 * k, r.width / 2f - 3 * k, 30 * k);
+                if (Row(row, false)) Give.Ask(_askTo, i);
+                L(new Rect(row.x + 10 * k, row.y, row.width - 20 * k, row.height), "Pedir " + Give.SlotNames[i].ToLowerInvariant(), 15f, Ui.Ink);
             }
         }
     }

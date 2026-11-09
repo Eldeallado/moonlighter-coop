@@ -1,5 +1,17 @@
 # Novedades de Moonlighter Coop
 
+## 0.10.0 â€” 9/11/2026
+- **MenÃºs mÃ¡s vivos:** se despliegan al abrirse, como el de pausa, y las espirales verdes se mueven en la opciÃ³n elegida.
+- **Sonidos del juego** al abrir, moverse y pulsar en los menÃºs.
+- **Iconos del juego** en las opciones del F2: cofre en Logros, mochila en Dar equipo, espejo en Aspecto, colgante en Salirâ€¦
+- **Retrato de cada compaÃ±ero** en su vida (su cara con sus colores), y su **nombre encima de su Will** cuando estÃ¡is lejos.
+- **Aviso de conexiÃ³n lenta:** una marca amarilla o roja en el retrato de quien va con retraso.
+- **Teclado en pantalla para el mando:** F2 â†’ Escribir en el chat.
+- **Pedir equipo a un compaÃ±ero:** F2 â†’ Dar o pedir equipo â†’ Pedir. A Ã©l le sale Â«Â¿Se lo das?Â».
+- **Historial:** F2 â†’ Historial, con las Ãºltimas 20 expediciones (mazmorra, piso, oro, enemigos y quiÃ©n cayÃ³).
+- **Regla nueva, Revivir difÃ­cil:** solo se revive con la fuente o con una pociÃ³n, y con menos vida.
+- **Copia de seguridad automÃ¡tica** de tus partidas antes de jugar online, en BepInEx\copias-partidas (se guardan las 5 Ãºltimas).
+- Arreglado: un error un instante al cargar la partida con roles.
 ## 0.9.0 — 9/11/2026
 - **Menús con el estilo de los del juego:** fondo gris pardo con el grano del menú de opciones, franjas de triángulos, el ojo y la cola del menú de pausa, texto crema y lo elegido en verde con las espirales del juego. Los dibujos se sacan del propio juego.
   - Los ajustes se cambian con flechas a los lados, como en Opciones, y las barras de progreso son las de cuadraditos verdes.

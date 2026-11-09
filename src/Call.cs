@@ -155,13 +155,16 @@ namespace MoonlighterCoop
             if (Input.GetKeyDown(KeyCode.G) || PadNav.Down) Call.Reply(false);
         }
 
+        private float _openedAt; private bool _was;
         private void OnGUI()
         {
-            if (!Showing) return;
+            if (!Showing) { _was = false; return; }
+            if (!_was) { _was = true; _openedAt = Time.unscaledTime; Ui.Sound(Ui.SndOpen); }
             Ui.Load();
             float k = Ui.K;
             float w = 620 * k, h = 118 * k;
             var r = new Rect((Screen.width - w) / 2f, 60 * k, w, h);
+            Ui.BeginOpen(_openedAt, r);
             Ui.Scroll(r);
             int left = Mathf.CeilToInt(Call.ShownUntil - Time.unscaledTime);
             string who = Call.ShownFrom == 0 ? "El anfitrión" : "El jugador " + (Call.ShownFrom + 1);
@@ -172,6 +175,7 @@ namespace MoonlighterCoop
             Ui.Divider(r.x + 120 * k, r.y + 74 * k, r.width - 240 * k);
             Ui.Label(new Rect(r.x + 40 * k, r.y + 82 * k, r.width - 80 * k, 26 * k),
                 Call.Answered ? "Respuesta enviada" : (PadNav.Active ? "Cruceta arriba: ¡Listo!  ·  abajo: ¡Espera! (15 s más)" : "H: ¡Listo! ¡Voy!   ·   G: ¡Espera! (15 s más)"), 15.5f, Ui.Ink, TextAnchor.MiddleCenter);
+            Ui.EndOpen();
         }
     }
 }

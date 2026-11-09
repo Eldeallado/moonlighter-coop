@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using Steamworks;
 using UnityEngine;
@@ -74,7 +74,7 @@ namespace MoonlighterCoop
             _inited = true;
             Available = true;
             _created = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
-            _joinRequested = Callback<GameLobbyJoinRequested_t>.Create(r => Join(r.m_steamIDLobby));
+            _joinRequested = Callback<GameLobbyJoinRequested_t>.Create(r => { Backup.Now("al aceptar una invitación"); Join(r.m_steamIDLobby); });
             _entered = Callback<LobbyEnter_t>.Create(OnLobbyEnter);
             _sessionRequest = Callback<P2PSessionRequest_t>.Create(OnSessionRequest);
             // Someone left the lobby (closed the game, lost connection): drop them.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,7 +15,7 @@ namespace MoonlighterCoop
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "elde_al_lado.moonlighter.coop";
-        public const string Version = "0.9.0";
+        public const string Version = "0.10.0";
 
         public static Plugin Instance;
         public static ManualLogSource Log;
@@ -54,7 +54,8 @@ namespace MoonlighterCoop
         }
         private static BepInEx.Configuration.ConfigEntry<int> _diffCfg;
         public static void SaveDifficulty(int m) { if (_diffCfg != null) _diffCfg.Value = m; }
-        private static BepInEx.Configuration.ConfigEntry<string> _newsCfg;
+        private static BepInEx.Configuration.ConfigEntry<string> _newsCfg, _histCfg;
+        public static void SaveHistory(string s) { if (_histCfg != null) _histCfg.Value = s; }
         public static void SaveNewsSeen(string v) { if (_newsCfg != null) _newsCfg.Value = v; }
         public static int WinW = 800, WinH = 450;
 
@@ -79,6 +80,8 @@ namespace MoonlighterCoop
             gameObject.AddComponent<Chat>();
             gameObject.AddComponent<EnemyBars>();
             gameObject.AddComponent<RolePanel>();
+            gameObject.AddComponent<AchievementToast>();
+            gameObject.AddComponent<AskPanel>();
             ShopContest.Init();
             Versions.StartCheck(this);
             _lookCfg = Config.Bind("Aspecto", "Colores", -1, "Cuerpo y pelo (lo elige el menú F3). -1 = según el número de jugador");
@@ -97,6 +100,8 @@ namespace MoonlighterCoop
             if (!string.IsNullOrEmpty(_partsCfg.Value)) { int l = Looks.FromText(_partsCfg.Value); if (l >= 0) Looks.LoadSaved(l); }
             _diffCfg = Config.Bind("Cooperativo", "Dificultad", 1, "0 = como un jugador, 1 = ajustada a los jugadores, 2 = difícil (lo elige el anfitrión en F2)");
             Difficulty.Load(_diffCfg.Value);
+            _histCfg = Config.Bind("Cooperativo", "Historial", "", "Las últimas expediciones en cooperativo (las lleva el mod)");
+            History.Load(_histCfg.Value);
             _newsCfg = Config.Bind("Cooperativo", "NovedadesVistas", "", "Última versión cuyas novedades has visto (F2 → Novedades)");
             Changelog.Seen = _newsCfg.Value;
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");

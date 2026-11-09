@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -73,7 +73,7 @@ namespace MoonlighterCoop
             else if (inGame && hintAge > 0f && (GUIManager.Instance == null || GUIManager.Instance.currentInventory == null)) KeyHints(Mathf.Clamp01(hintAge / 0.8f));
 
             string vote = Net.Connected ? Vote.Hint() : null;
-            string fixedText = vote ?? (Net.Connected && Downed.Me ? "Eres un fantasma — revives si un compañero entra en una fuente o bajáis de piso" : null);
+            string fixedText = vote ?? (Net.Connected && Downed.Me ? (HostSettings.HardRevive ? "Eres un fantasma — solo revives si un compañero entra en una fuente o gasta una poción a tu lado" : "Eres un fantasma — revives si un compañero entra en una fuente o bajáis de piso") : null);
             float age = Time.unscaledTime - _popupAt;
             bool popup = _popup != null && age < PopupTime && !Downed.Me && vote == null;
             if (fixedText == null && !popup) return;

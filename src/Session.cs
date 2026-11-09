@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using FullSerializer;
@@ -129,6 +129,7 @@ namespace MoonlighterCoop
                     if (Looks.IsNew(Looks.Mine)) Net.Send(Msg.LookData, Looks.DataBytes(Looks.Mine));
                     if (now >= _nextMods) { _nextMods = now + 30f; Net.Send(Msg.Mods, Mods.ListBytes()); }
                     Net.Send(Msg.Ping, BitConverter.GetBytes(now));
+                    if (IsHost) Lag.Broadcast();
                 }
             }
             // The guest keeps the host's save until its own main menu is up (it can arrive before).
@@ -228,7 +229,7 @@ namespace MoonlighterCoop
 
         // Things one player does that every other player must see: the host passes them on.
         private static readonly System.Collections.Generic.HashSet<Msg> Relayed = new System.Collections.Generic.HashSet<Msg>
-        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods, Msg.Revive, Msg.Stats, Msg.Chat, Msg.Call, Msg.CallReply, Msg.Role, Msg.RoleHeal, Msg.ShopOwner, Msg.Give };
+        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods, Msg.Revive, Msg.Stats, Msg.Chat, Msg.Call, Msg.CallReply, Msg.Role, Msg.RoleHeal, Msg.ShopOwner, Msg.Give, Msg.AskItem, Msg.AskReply };
 
         private static void Handle(IPeer from, Msg type, byte[] data)
         {
@@ -250,6 +251,9 @@ namespace MoonlighterCoop
                 case Msg.Settings: HostSettings.OnSettings(data); break;
                 case Msg.Spectate: if (IsGuest) Downed.OnSpectate(); break;
                 case Msg.Give: Give.OnGive(data); break;
+                case Msg.Lag: if (IsGuest) Lag.OnLag(data); break;
+                case Msg.AskItem: Give.OnAsk(data); break;
+                case Msg.AskReply: Give.OnAskReply(data); break;
                 case Msg.Role: Roles.OnRole(data); break;
                 case Msg.RoleHeal: Roles.OnHeal(data); break;
                 case Msg.ShopOwner: ShopContest.OnOwner(data); break;
@@ -352,6 +356,7 @@ namespace MoonlighterCoop
                     break;
                 case Msg.Pong:
                     LastPing = (Time.unscaledTime - BitConverter.ToSingle(data, 0)) * 1000f;
+                    Lag.Set(IsHost ? from.Id : 0, LastPing);
                     break;
             }
         }

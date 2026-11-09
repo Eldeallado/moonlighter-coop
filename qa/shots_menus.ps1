@@ -1,4 +1,4 @@
-param([string]$Out = "$env:TEMP\coop_menus", [switch]$KeepOpen)
+﻿param([string]$Out = "$env:TEMP\coop_menus", [switch]$KeepOpen)
 # Screenshots of the mod's windows on the hidden desktop (one host copy): F2 and its pages, F3, and the
 # panels that can be shown on demand (roles, call, summary, chat). For checking the look after a change.
 $q = $PSScriptRoot
@@ -26,6 +26,12 @@ D "uishow roles" | Out-Null; Shot "08_roles"
 D "uishow call" | Out-Null; Shot "09_aviso"
 D "uishow summary" | Out-Null; Shot "10_resumen"
 D "uishow chat" | Out-Null; Shot "11_chat"
+D "coop pad right" | Out-Null; D "coop pad right" | Out-Null; Shot "12_teclado"
+D "uishow pedir" | Out-Null; Shot "13_pedir"
+D "uishow off" | Out-Null
+D "f2 on" | Out-Null; D "f2page _showHist" | Out-Null; Shot "14_historial"
+D "coop pad b" | Out-Null; D "f2page _showGive" | Out-Null; D "f2page _asking" | Out-Null; Shot "15_pedir_f2"
+D "coop pad b" | Out-Null; D "f2 off" | Out-Null
 D "uishow off" | Out-Null
 if (-not $KeepOpen) { Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force }
 Get-ChildItem $Out -Filter *.png | Select-Object Name, Length
