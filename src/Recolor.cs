@@ -207,16 +207,73 @@ namespace MoonlighterCoop
             return r;
         }
 
+        private static readonly Dictionary<Sprite, Sprite> _ui = new Dictionary<Sprite, Sprite>();
+        private static readonly Dictionary<Texture2D, Color32[]> _pixels = new Dictionary<Texture2D, Color32[]>();
+
+        /// The game's menus (the inventory's Will preview) draw a sprite into a box using its full frame, padding
+        /// included. A tinted sprite only covers the drawn part, so it came out stretched (a giant Will): give the
+        /// menu a copy with the original frame, cut out of the tinted sheet triangle by triangle.
+        public static Sprite UiSprite(Sprite tinted)
+        {
+            if (tinted == null || !IsTinted(tinted)) return tinted;
+            if (_ui.TryGetValue(tinted, out var u) && u != null) return u;
+            var orig = Original(tinted);
+            try
+            {
+                var src = tinted.texture;
+                int fw = Mathf.Max(1, Mathf.RoundToInt(orig.rect.width)), fh = Mathf.Max(1, Mathf.RoundToInt(orig.rect.height));
+                var outPx = new Color32[fw * fh];
+                if (!_pixels.TryGetValue(src, out var srcPx)) _pixels[src] = srcPx = src.GetPixels32();
+                int W = src.width, H = src.height;
+                var verts = orig.vertices; var uvs = orig.uv; var tris = orig.triangles;
+                float ppu = orig.pixelsPerUnit;
+                var fp = new Vector2[verts.Length];
+                for (int i = 0; i < verts.Length; i++) fp[i] = verts[i] * ppu + orig.pivot;
+                for (int t = 0; t + 2 < tris.Length; t += 3)
+                {
+                    Vector2 a = fp[tris[t]], b = fp[tris[t + 1]], c = fp[tris[t + 2]];
+                    Vector2 ua = uvs[tris[t]], ub = uvs[tris[t + 1]], uc = uvs[tris[t + 2]];
+                    float den = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+                    if (Mathf.Abs(den) < 1e-6f) continue;
+                    int x0 = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.x, Mathf.Min(b.x, c.x)))), x1 = Mathf.Min(fw - 1, Mathf.CeilToInt(Mathf.Max(a.x, Mathf.Max(b.x, c.x))));
+                    int y0 = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.y, Mathf.Min(b.y, c.y)))), y1 = Mathf.Min(fh - 1, Mathf.CeilToInt(Mathf.Max(a.y, Mathf.Max(b.y, c.y))));
+                    for (int y = y0; y <= y1; y++)
+                        for (int x = x0; x <= x1; x++)
+                        {
+                            float px = x + 0.5f, py = y + 0.5f;
+                            float l1 = ((b.y - c.y) * (px - c.x) + (c.x - b.x) * (py - c.y)) / den;
+                            float l2 = ((c.y - a.y) * (px - c.x) + (a.x - c.x) * (py - c.y)) / den;
+                            float l3 = 1f - l1 - l2;
+                            if (l1 < -0.001f || l2 < -0.001f || l3 < -0.001f) continue;
+                            var uv = ua * l1 + ub * l2 + uc * l3;
+                            int sx = Mathf.Clamp((int)(uv.x * W), 0, W - 1), sy = Mathf.Clamp((int)(uv.y * H), 0, H - 1);
+                            outPx[y * fw + x] = srcPx[sy * W + sx];
+                        }
+                }
+                var tex = new Texture2D(fw, fh, TextureFormat.RGBA32, false) { filterMode = src.filterMode, wrapMode = TextureWrapMode.Clamp };
+                tex.SetPixels32(outPx);
+                tex.Apply(false, true);
+                u = Sprite.Create(tex, new Rect(0, 0, fw, fh), new Vector2(orig.pivot.x / fw, orig.pivot.y / fh), ppu, 0, SpriteMeshType.FullRect);
+                u.name = orig.name + " (coop ui)";
+            }
+            catch (System.Exception e) { Plugin.Log.LogWarning($"[recolor] ui copy of {orig.name}: {e.Message}"); u = orig; }
+            _ui[tinted] = u;
+            return u;
+        }
+
+        private static bool IsUiCopy(Sprite s) => s.name.EndsWith(" (coop ui)");
+
         /// Drop the recoloured copies of looks nobody wears any more (dragging the bars makes many).
         public static void Prune(HashSet<int> keep)
         {
             foreach (var k in new List<(Texture2D, int)>(_tex.Keys))
-                if (!keep.Contains(k.Item2)) { if (_tex[k] != null) Object.Destroy(_tex[k]); _tex.Remove(k); }
+                if (!keep.Contains(k.Item2)) { if (_tex[k] != null) { _pixels.Remove(_tex[k]); Object.Destroy(_tex[k]); } _tex.Remove(k); }
             foreach (var k in new List<(Sprite, int)>(_tinted.Keys))
                 if (!keep.Contains(k.Item2))
                 {
                     var r = _tinted[k];
                     _tinted.Remove(k);
+                    if (r != null && _ui.TryGetValue(r, out var ui)) { _ui.Remove(r); if (ui != null && IsUiCopy(ui)) { Object.Destroy(ui.texture); Object.Destroy(ui); } }
                     if (r != null) { _original.Remove(r); _lookOf.Remove(r); Object.Destroy(r); }
                 }
         }
@@ -258,7 +315,7 @@ namespace MoonlighterCoop
                 copy.SetPixels32(px);
                 copy.filterMode = src.filterMode;
                 copy.wrapMode = src.wrapMode;
-                copy.Apply(false, true);
+                copy.Apply(false, false);   // stays readable: the inventory preview copies frames out of it (UiSprite)
                 copy.name = src.name + " (coop " + look + ")";
                 t = copy;
                 Plugin.Log.LogInfo($"[recolor] look {look} copy of {src.name} ({src.width}x{src.height})");
@@ -356,6 +413,22 @@ namespace MoonlighterCoop
                 if (Recolor.LookOf(sr.sprite) == look) continue;
                 sr.sprite = Recolor.Tint(sr.sprite, look);
             }
+        }
+    }
+}
+
+namespace MoonlighterCoop
+{
+    // The inventory's Will preview copies Will's current sprites into menu images: give them frame-sized copies
+    // of the recoloured ones (see Recolor.UiSprite), or Will shows up giant over the right page.
+    [HarmonyLib.HarmonyPatch(typeof(HeroInventoryPanel), "UpdateWillPreview")]
+    static class InventoryPreviewSize
+    {
+        static void Postfix(HeroInventoryPanel __instance)
+        {
+            foreach (var img in new[] { __instance.imageBasePreview, __instance.imageHeadPreview, __instance.imageChestPreview, __instance.imageBootsPreview,
+                                        __instance.imageExtraHeadPreview, __instance.imageExtraChestPreview, __instance.imageExtraBootsPreview })
+                if (img != null && img.overrideSprite != null && Recolor.IsTinted(img.overrideSprite)) img.overrideSprite = Recolor.UiSprite(img.overrideSprite);
         }
     }
 }
