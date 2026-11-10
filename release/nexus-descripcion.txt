@@ -15,6 +15,7 @@ DESCRIPCIÓN (BBCode):
 Play [b]Moonlighter[/b] online with up to [b]5 players[/b] (Steam invite / 7-letter code, or direct IP). Menus in Spanish, drawn in the game's own style.
 
 [b]New in 0.12.0: cross-play with phones.[/b] An Android build carrying this same mod can join your PC game (or host it). Open F2 → «Unirse por IP» and give your friend the code that starts with [b]IP[/b]. On the phone every prompt becomes an on-screen button.
+[i]Coming soon: a converter that turns your own Steam copy of Moonlighter into an Android build with the mod inside. Until then the phone side is not available for download.[/i]
 
 [b]Playing together[/b]
 [list]

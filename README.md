@@ -6,6 +6,8 @@
 
 **Novedad en la 0.12.0: juego cruzado con el móvil.** Una versión de Android que lleve este mismo mod dentro puede unirse a tu partida del PC (o hacer de anfitriona), con botones en pantalla para todo lo del cooperativo.
 
+> **Próximamente:** un convertidor para pasar tu propio Moonlighter de Steam a tu móvil Android con el mod dentro. Hasta entonces, la parte del móvil no está disponible para descargar.
+
 *English: unofficial online co-op mod for Moonlighter (Steam, Windows), up to 5 players, with cross-play against an Android build that carries the same mod. Download the zip from Releases, run `Instalar.bat`, press F2 in game to host or join with a code.*
 
 ---

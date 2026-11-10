@@ -6,6 +6,8 @@
 - **En el móvil:** botones en pantalla para cada aviso («¡Voy!», «¡Espera!», «Revivir», «Dárselo», «Cerrar», «Chat»), la votación del final con dos botones claros, menús más grandes y textos que nombran los botones táctiles en vez de las teclas.
 - El menú de colores se ajusta solo si no cabe en la pantalla.
 
+**Próximamente:** un convertidor para pasar tu propio Moonlighter de Steam a tu móvil Android con el mod dentro. Hasta entonces, la parte del móvil no está disponible para descargar.
+
 Es compatible con la 0.11.0: podéis jugar juntos aunque uno no haya actualizado.
 
 ## Instalar
