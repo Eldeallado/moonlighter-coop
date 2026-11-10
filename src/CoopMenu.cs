@@ -80,11 +80,11 @@ namespace MoonlighterCoop
         {
             PadNav.Poll();
             _padA = false;
-            if (Input.GetKeyDown(KeyCode.F2) || PadNav.Combo && !ColorMenu.Open) { SetOpen(!Open); _focus = 0; return; }
+            if (Teclas.Abajo(KeyCode.F2) || PadNav.Combo && !ColorMenu.Open) { SetOpen(!Open); _focus = 0; return; }
             if (!Open) return;
             if (_showNews)
             {
-                if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.A) _showNews = false;
+                if (Teclas.Abajo(KeyCode.Escape) || PadNav.B || PadNav.A) _showNews = false;
                 if (PadNav.Up) _newsScroll.y -= 80f;
                 if (PadNav.Down) _newsScroll.y += 80f;
                 _newsScroll.y = Mathf.Max(0f, _newsScroll.y);
@@ -93,13 +93,13 @@ namespace MoonlighterCoop
             if (_showAch || _showHist)
             {
                 // A list without buttons: up/down go through the achievements, B (or A) goes back.
-                if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.A) { ClosePanels(); return; }
-                if (PadNav.Up || Input.GetKeyDown(KeyCode.UpArrow)) _listSel = Mathf.Max(0, _listSel - 1);
-                if (PadNav.Down || Input.GetKeyDown(KeyCode.DownArrow)) _listSel = Mathf.Min((_showHist ? History.Runs.Count : Achievements.All.Length) - 1, _listSel + 1);
+                if (Teclas.Abajo(KeyCode.Escape) || PadNav.B || PadNav.A) { ClosePanels(); return; }
+                if (PadNav.Up || Teclas.Abajo(KeyCode.UpArrow)) _listSel = Mathf.Max(0, _listSel - 1);
+                if (PadNav.Down || Teclas.Abajo(KeyCode.DownArrow)) _listSel = Mathf.Min((_showHist ? History.Runs.Count : Achievements.All.Length) - 1, _listSel + 1);
                 return;
             }
-            if ((_showRules || _showGive) && (Input.GetKeyDown(KeyCode.Escape) || PadNav.B)) { ClosePanels(); return; }
-            if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B) { if (_page != Page.Main) { _page = Page.Main; _focus = 0; } else SetOpen(false); return; }
+            if ((_showRules || _showGive) && (Teclas.Abajo(KeyCode.Escape) || PadNav.B)) { ClosePanels(); return; }
+            if (Teclas.Abajo(KeyCode.Escape) || PadNav.B) { if (_page != Page.Main) { _page = Page.Main; _focus = 0; } else SetOpen(false); return; }
             if (_page == Page.Code && PadNav.Active)
             {
                 // Pick the code with the D-pad: left/right choose the letter, up/down change it, A joins.
@@ -122,16 +122,7 @@ namespace MoonlighterCoop
             if (PadNav.A) _padA = true;
         }
 
-        private static string LocalIp()
-        {
-            try
-            {
-                foreach (var a in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
-                    if (a.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a)) return a.ToString();
-            }
-            catch { }
-            return "?";
-        }
+        private static string LocalIp() => CodigoIp.IpLocal();
 
         // ---------- actions ----------
 
@@ -172,6 +163,14 @@ namespace MoonlighterCoop
 
         private void JoinCode()
         {
+            // Código con la IP dentro (sin Steam, p. ej. desde el móvil): es como unirse por IP
+            if (CodigoIp.Leer(_code, out var ip, out var port))
+            {
+                _ip = ip;
+                Plugin.Port = port;
+                JoinIp();
+                return;
+            }
             Backup.Now("al unirte con código");
             SteamCoop.JoinByCode(_code);
             Plugin.Log.LogInfo("[menu] join by code " + _code);
@@ -234,7 +233,9 @@ namespace MoonlighterCoop
             Ui.BeginOpen(_openedAt, p);
             Ui.Sheet(p);
             L(new Rect(p.x + 34 * k, p.y + 22 * k, w, 38 * k), "Cooperativo", STitle, Ui.Ink);
-            L(new Rect(p.xMax - 140 * k, p.y + 26 * k, 106 * k, 26 * k), "versión " + Plugin.Version, SSmall, Ui.InkSoft, TextAnchor.MiddleRight);
+            // En el móvil, botón de cerrar a la vista (en el PC se cierra con F2 o Esc)
+            if (Teclas.Movil) { if (Btn(new Rect(p.xMax - 140 * k, p.y + 24 * k, 106 * k, 30 * k), "Cerrar")) { SetOpen(false); return; } }
+            else L(new Rect(p.xMax - 140 * k, p.y + 26 * k, 106 * k, 26 * k), "versión " + Plugin.Version, SSmall, Ui.InkSoft, TextAnchor.MiddleRight);
             if (Versions.UpdateAvailable && Btn(new Rect(p.x + 200 * k, p.y + 24 * k, 220 * k, 30 * k), "¡Hay versión " + Versions.Latest + "! Descargar")) Application.OpenURL(Versions.ReleasesUrl);
             if (Btn(new Rect(p.xMax - 262 * k, p.y + 24 * k, 116 * k, 30 * k), _showNews || _showAch || _showHist ? "Volver" : "Novedades")) { if (_showAch || _showHist) ClosePanels(); else { _showNews = !_showNews; _newsScroll = Vector2.zero; } }
             Ui.Divider(p.x + 34 * k, p.y + 64 * k, w - 68 * k);
@@ -251,8 +252,8 @@ namespace MoonlighterCoop
 
             if (!string.IsNullOrEmpty(SteamCoop.Status))
                 L(new Rect(p.x + 24 * k, p.yMax - 72 * k, w - 48 * k, 22 * k), SteamCoop.Status, SSmall, Ui.Ink, TextAnchor.MiddleCenter);
-            string hint = _showAch || _showHist ? (PadNav.Active ? "Arriba y abajo: ver la lista  ·  B: volver" : "Rueda o flechas para ver la lista  ·  Esc: volver")
-                : PadNav.Active ? "Cruceta: moverse  ·  A: aceptar  ·  B: volver  ·  L3+R3: cerrar" : "F2 o Esc para cerrar este menú";
+            string hint = _showAch || _showHist ? (PadNav.Active ? "Arriba y abajo: ver la lista  ·  B: volver" : Teclas.Nombre("Rueda o flechas para ver la lista  ·  Esc: volver", "Desliza el dedo para ver la lista  ·  toca la pestaña para volver"))
+                : PadNav.Active ? "Cruceta: moverse  ·  A: aceptar  ·  B: volver  ·  L3+R3: cerrar" : Teclas.Nombre("F2 o Esc para cerrar este menú", "Toca un botón para elegir  ·  Cerrar (arriba) o el botón Coop para salir");
             L(new Rect(p.x + 24 * k, p.yMax - 50 * k, w - 48 * k, 20 * k), hint, SSmall, Ui.InkSoft, TextAnchor.MiddleCenter);
             Ui.EndOpen();
             if (Event.current.type == EventType.Repaint) { _lastRects = new List<Rect>(_rects); if (_focus >= _lastRects.Count) _focus = 0; }
@@ -391,18 +392,22 @@ namespace MoonlighterCoop
         private void DrawMain(Rect r, float k)
         {
             float bh = 50 * k, gap = 14 * k, y = r.y + 4 * k;
-            L(new Rect(r.x, y, r.width, 26 * k), SteamCoop.Available ? $"Steam: {SteamCoop.MyName}" : "Steam no está abierto: solo se puede jugar por IP", SBody, Ui.Ink, TextAnchor.MiddleCenter);
-            y += 36 * k;
+            // Tu nombre: el que ven los demás (si lo dejas vacío, el de Steam o "Jugador N")
+            L(new Rect(r.x, y, r.width * 0.32f, 30 * k), "Tu nombre:", SBody, Ui.Ink, TextAnchor.MiddleRight);
+            string nombre = Ui.TextField(new Rect(r.x + r.width * 0.34f, y, r.width * 0.46f, 30 * k), Nombres.Propio ?? "", 20, 17f, TextAnchor.MiddleLeft, "nombre");
+            if (nombre != (Nombres.Propio ?? "")) Nombres.Cambiar(nombre);
+            y += 32 * k;
+            L(new Rect(r.x, y, r.width, 20 * k), SteamCoop.Available ? $"Steam: {SteamCoop.MyName}" : Teclas.Nombre("Steam no está abierto: solo se puede jugar por IP", "En el móvil se juega por IP o con el código del anfitrión"), SSmall, Ui.InkSoft, TextAnchor.MiddleCenter);
+            y += 24 * k;
             if (Btn(new Rect(r.x + r.width * 0.1f, y, r.width * 0.8f, bh), "Crear partida", false, 20f, Ui.Tone.Gold)) CreateGame();
             L(new Rect(r.x, y + bh + 2 * k, r.width, 22 * k), "Te da un código para que tus amigos se unan (hasta 5 jugadores).", SSmall, Ui.InkSoft, TextAnchor.MiddleCenter);
             y += bh + gap + 24 * k;
-            GUI.enabled = SteamCoop.Available;
+            // Sin Steam también vale: los códigos que empiezan por "IP" llevan la IP del anfitrión
             if (Btn(new Rect(r.x + r.width * 0.1f, y, r.width * 0.8f, bh), "Unirse con un código", false, 20f)) { _page = Page.Code; _code = ""; }
-            GUI.enabled = true;
             y += bh + gap;
             if (Btn(new Rect(r.x + r.width * 0.1f, y, r.width * 0.8f, bh), "Unirse por IP (misma red)", false, 20f)) _page = Page.Ip;
             y += bh + gap + 6 * k;
-            if (Btn(new Rect(r.x + r.width * 0.25f, y, r.width * 0.5f, 38 * k), "Color de tu Will (F3)")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
+            if (Btn(new Rect(r.x + r.width * 0.25f, y, r.width * 0.5f, 38 * k), Teclas.Nombre("Color de tu Will (F3)", "Color de tu Will"))) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
         }
 
         private void DrawJoinCode(Rect r, float k)
@@ -424,7 +429,7 @@ namespace MoonlighterCoop
             }
             else
             {
-                _code = Ui.TextField(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 58 * k), _code.ToUpperInvariant(), 8, 30f, TextAnchor.MiddleCenter, "code");
+                _code = Ui.TextField(new Rect(r.x + r.width * 0.2f, y, r.width * 0.6f, 58 * k), _code.ToUpperInvariant(), 12, 30f, TextAnchor.MiddleCenter, "code");
                 GUI.FocusControl("code");
             }
             y += 88 * k;
@@ -438,7 +443,7 @@ namespace MoonlighterCoop
         private void DrawJoinIp(Rect r, float k)
         {
             float y = r.y + 6 * k;
-            L(new Rect(r.x, y, r.width, 26 * k), "IP del anfitrión (la ve en su menú F2):", SHead, Ui.Ink, TextAnchor.MiddleCenter);
+            L(new Rect(r.x, y, r.width, 26 * k), Teclas.Nombre("IP del anfitrión (la ve en su menú F2):", "IP del anfitrión (la ve en su menú del cooperativo):"), SHead, Ui.Ink, TextAnchor.MiddleCenter);
             y += 44 * k;
             _ip = Ui.TextField(new Rect(r.x + r.width * 0.15f, y, r.width * 0.7f, 58 * k), _ip, 40, 28f, TextAnchor.MiddleCenter, "ip");
             GUI.FocusControl("ip");
@@ -489,17 +494,19 @@ namespace MoonlighterCoop
             y = left.y;
             L(new Rect(left.x, y, left.width, 26 * k), host ? "Tu partida está abierta" : "Estás en la partida de tu amigo", SHead, Ui.Ink);
             y += 32 * k;
-            if (!string.IsNullOrEmpty(SteamCoop.Code))
+            // Sin Steam (p. ej. el móvil de anfitrión) el código lleva la IP dentro
+            string codigo = !string.IsNullOrEmpty(SteamCoop.Code) ? SteamCoop.Code : (host && Net.Listening ? CodigoIp.Crear(LocalIp(), Plugin.Port) : null);
+            if (!string.IsNullOrEmpty(codigo))
             {
                 Ui.Section(new Rect(left.x, y, left.width, 20 * k), "Código para unirse");
                 y += 24 * k;
                 var cr = new Rect(left.x, y, 236 * k, 60 * k);
                 Ui.Slot(cr);
-                Ui.Shadowed(cr, SteamCoop.Code, 38f, Ui.Gold, new Color(0f, 0f, 0f, 0.6f));
+                Ui.Shadowed(cr, codigo, codigo.Length > 8 ? 26f : 38f, Ui.Gold, new Color(0f, 0f, 0f, 0.6f));
                 float bx = cr.xMax + 12 * k, bw = left.xMax - bx;
-                if (Btn(new Rect(bx, y, bw, 28 * k), _copied == SteamCoop.Code && Time.unscaledTime - _copiedAt < 2f ? "¡Copiado!" : "Copiar código", false, 15f))
-                { GUIUtility.systemCopyBuffer = SteamCoop.Code; _copied = SteamCoop.Code; _copiedAt = Time.unscaledTime; }
-                if (Btn(new Rect(bx, y + 32 * k, bw, 28 * k), "Invitar de Steam", false, 15f)) SteamCoop.Invite();
+                if (Btn(new Rect(bx, y, bw, 28 * k), _copied == codigo && Time.unscaledTime - _copiedAt < 2f ? "¡Copiado!" : "Copiar código", false, 15f))
+                { GUIUtility.systemCopyBuffer = codigo; _copied = codigo; _copiedAt = Time.unscaledTime; }
+                if (SteamCoop.Available && Btn(new Rect(bx, y + 32 * k, bw, 28 * k), "Invitar de Steam", false, 15f)) SteamCoop.Invite();
                 y += 70 * k;
             }
             Ui.Section(new Rect(left.x, y, left.width, 20 * k), "Ajustes");
@@ -515,11 +522,17 @@ namespace MoonlighterCoop
                 L(new Rect(left.x, y, cx - left.x, 28 * k), "Unirse por IP", SBody, Ui.Ink);
                 if (Choose(new Rect(cx, y, cw, 28 * k), Net.Listening ? "Abierto: " + LocalIp() : "Cerrado")) { if (Net.Listening) Net.StopHost(); else Net.StartHost(Plugin.Port); }
                 y += 34 * k;
+                // Con Steam el código grande es el de Steam: el del móvil (con la IP) va aquí debajo
+                if (Net.Listening && SteamCoop.Available)
+                {
+                    L(new Rect(left.x, y, left.width, 22 * k), "Código para el móvil (misma wifi): " + CodigoIp.Crear(LocalIp(), Plugin.Port), SBody, Ui.Gold);
+                    y += 28 * k;
+                }
             }
             y += 4 * k;
             Ui.Section(new Rect(left.x, y, left.width, 20 * k), $"Jugadores  {Session.Players}/5");
             y += 26 * k;
-            string me = SteamCoop.Available ? SteamCoop.MyName : "Tú";
+            string me = Nombres.Mio("Tú");
             PlayerRow(left, ref y, me, host ? "anfitrión · tú" : "tú", Looks.Mine, k);
             if (host)
                 foreach (var peer in Net.Live)

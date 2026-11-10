@@ -1,5 +1,12 @@
 # Novedades de Moonlighter Coop
 
+## 0.12.0 — 10/11/2026
+- **Juego cruzado con el móvil:** ya se puede jugar con la versión de Android de Moonlighter (en el PC de anfitrión, F2 → «Unirse por IP: Abierto»).
+- **Unirse con código sin Steam:** al abrir la partida por IP sale un código que lleva la IP dentro (en casa, «IP» y 4 letras). Vale en «Unirse con un código» aunque no haya Steam.
+- **Tu nombre:** arriba del F2 puedes escribir el nombre que verán los demás. Si lo dejas vacío, se usa el de Steam.
+- **En el móvil:** botones en pantalla para cada aviso («¡Voy!», «¡Espera!», «Revivir», «Dárselo», «Cerrar», «Chat»), la votación del final con dos botones claros, menús más grandes y textos que nombran los botones táctiles en vez de las teclas.
+- El menú de colores se ajusta solo si no cabe en la pantalla.
+
 ## 0.11.0 — 9/11/2026
 - **Modo carrera** (F2 → Reglas → «Carrera»): en los pisos normales cada uno juega su propia copia del mismo piso, con sus enemigos y yendo por las salas que quiera.
   - Lo que recoge cada uno y el oro se juntan en la mochila compartida.

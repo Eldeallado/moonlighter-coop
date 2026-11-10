@@ -99,7 +99,9 @@ namespace MoonlighterCoop
                 string before = _known[k];
                 _known[k] = key;
                 ShopContest.SlotChanged(k, before, key);
-                (changed ??= new List<(int, string, ItemStack)>()).Add((k, key, st));
+                // (sin ??= : el port de Android compila con C# 7.3)
+                if (changed == null) changed = new List<(int, string, ItemStack)>();
+                changed.Add((k, key, st));
             }
             if (changed == null) return;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);

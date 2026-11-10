@@ -50,7 +50,7 @@ namespace MoonlighterCoop
             int gold = mine[Stats.Gold], kills = mine[Stats.Kills];
             foreach (var o in others) { gold += o.Run[Stats.Gold]; kills += o.Run[Stats.Kills]; }
             var fell = new List<string>();
-            if (mine[Stats.Deaths] > 0) fell.Add((SteamCoop.Available ? SteamCoop.MyName : "Tú") + (mine[Stats.Deaths] > 1 ? $" ({mine[Stats.Deaths]})" : ""));
+            if (mine[Stats.Deaths] > 0) fell.Add(Nombres.Mio("Tú") + (mine[Stats.Deaths] > 1 ? $" ({mine[Stats.Deaths]})" : ""));
             foreach (var o in others) if (o.Run[Stats.Deaths] > 0) fell.Add(o.Name + (o.Run[Stats.Deaths] > 1 ? $" ({o.Run[Stats.Deaths]})" : ""));
             Runs.Insert(0, new Run { When = When(DateTime.Now), Dungeon = _dungeon, Floor = _floor, Gold = gold, Kills = kills, Fell = string.Join(", ", fell.ToArray()), Players = 1 + others.Count });
             while (Runs.Count > 20) Runs.RemoveAt(Runs.Count - 1);

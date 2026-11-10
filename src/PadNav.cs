@@ -55,7 +55,7 @@ namespace MoonlighterCoop
                         case "a": A = true; break; case "b": B = true; break; case "combo": Combo = true; break;
                     }
             if (Up || Down || Left || Right || A || B || Combo) Active = true;
-            if (Input.anyKeyDown && !(Up || Down || Left || Right || A || B || Combo) && !Input.GetKeyDown(KeyCode.F2) && !Input.GetKeyDown(KeyCode.F3)) Active = Active && !Input.GetMouseButtonDown(0);
+            if (Input.anyKeyDown && !(Up || Down || Left || Right || A || B || Combo) && !Teclas.Abajo(KeyCode.F2) && !Teclas.Abajo(KeyCode.F3)) Active = Active && !Input.GetMouseButtonDown(0);
         }
     }
 }

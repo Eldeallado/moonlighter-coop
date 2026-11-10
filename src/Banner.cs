@@ -84,6 +84,8 @@ namespace MoonlighterCoop
         /// Bottom right: small scroll with the mod's two keys, drawn like key caps.
         private void KeyHints(float a)
         {
+            // En el móvil ya están los botones táctiles Coop y Colores
+            if (Teclas.Movil) return;
             float k = Screen.height / 531f;
             if (_keyStyle == null)
             {

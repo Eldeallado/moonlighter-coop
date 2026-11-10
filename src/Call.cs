@@ -151,8 +151,9 @@ namespace MoonlighterCoop
         {
             if (!Showing) return;
             PadNav.Poll();
-            if (Input.GetKeyDown(KeyCode.H) || PadNav.Up) Call.Reply(true);
-            if (Input.GetKeyDown(KeyCode.G) || PadNav.Down) Call.Reply(false);
+            if (Teclas.Movil) { Teclas.Ofrecer(KeyCode.H, "¡Voy!"); Teclas.Ofrecer(KeyCode.G, "¡Espera!"); }
+            if (Teclas.Abajo(KeyCode.H) || PadNav.Up) Call.Reply(true);
+            if (Teclas.Abajo(KeyCode.G) || PadNav.Down) Call.Reply(false);
         }
 
         private float _openedAt; private bool _was;
@@ -174,7 +175,7 @@ namespace MoonlighterCoop
             Ui.Label(new Rect(r.x + 40 * k, r.y + 24 * k, r.width - 80 * k, 46 * k), text, 19f, Ui.Ink, TextAnchor.MiddleCenter, true);
             Ui.Divider(r.x + 120 * k, r.y + 74 * k, r.width - 240 * k);
             Ui.Label(new Rect(r.x + 40 * k, r.y + 82 * k, r.width - 80 * k, 26 * k),
-                Call.Answered ? "Respuesta enviada" : (PadNav.Active ? "Cruceta arriba: ¡Listo!  ·  abajo: ¡Espera! (15 s más)" : "H: ¡Listo! ¡Voy!   ·   G: ¡Espera! (15 s más)"), 15.5f, Ui.Ink, TextAnchor.MiddleCenter);
+                Call.Answered ? "Respuesta enviada" : (PadNav.Active ? "Cruceta arriba: ¡Listo!  ·  abajo: ¡Espera! (15 s más)" : Teclas.Nombre("H: ¡Listo! ¡Voy!   ·   G: ¡Espera! (15 s más)", "Toca ¡Voy! o ¡Espera! (15 s más) abajo")), 15.5f, Ui.Ink, TextAnchor.MiddleCenter);
             Ui.EndOpen();
         }
     }

@@ -83,8 +83,8 @@ namespace MoonlighterCoop
             bool risky = bagDiffers || onlyThem.Concat(onlyMe).Concat(otherVersion).Any(s => BagWords.Any(w => s.ToLowerInvariant().Contains(w)));
             string who = id == 0 ? "El anfitrión" : "El jugador " + (id + 1);   // (relayed lists come through the host)
             Banner.Show(risky
-                ? $"{who} tiene otros mods de objetos o mochila: usad los mismos o la mochila compartida puede perder cosas (mira F2)"
-                : $"{who} usa otros mods (mira F2)");
+                ? $"{who} tiene otros mods de objetos o mochila: usad los mismos o la mochila compartida puede perder cosas (mira " + Teclas.Nombre("F2", "el menú Coop") + ")"
+                : $"{who} usa otros mods (mira " + Teclas.Nombre("F2", "el menú Coop") + ")");
             Plugin.Log.LogWarning($"[mods] player {id}: {text}");
         }
     }

@@ -235,7 +235,8 @@ namespace MoonlighterCoop
             // No revive by touch: the living player must reach a fountain, or beat the floor.
             // The fountain only heals someone hurt, and checked once on entering, so a living player at full health
             // walking in never counted. Watch it instead: while I am in the water and someone is a ghost, revive them.
-            if (Partner && (Input.GetKeyDown(KeyCode.R) || PadNav.L3Down)) TryPotionRevive();
+            if (Partner && Teclas.Movil) Teclas.Ofrecer(KeyCode.R, "Revivir (poción)");
+            if (Partner && (Teclas.Abajo(KeyCode.R) || PadNav.L3Down)) TryPotionRevive();
             if (Partner && Time.unscaledTime >= _nextFountainCheck)
             {
                 _nextFountainCheck = Time.unscaledTime + 0.3f;
@@ -257,7 +258,7 @@ namespace MoonlighterCoop
         public static string Hint()
         {
             if (Me) return HostSettings.HardRevive ? "Eres un fantasma: solo revives si tu compañero entra en una fuente o gasta una poción a tu lado" : "Eres un fantasma: revives si tu compañero entra en una fuente o pasáis al siguiente piso";
-            if (Partner) return "Tu compañero ha caído: llega a una fuente, pasa al siguiente piso o ponte a su lado y pulsa R (L3) para gastar una poción";
+            if (Partner) return "Tu compañero ha caído: llega a una fuente, pasa al siguiente piso o ponte a su lado y " + Teclas.Nombre("pulsa R (L3)", "toca Revivir") + " para gastar una poción";
             return null;
         }
 

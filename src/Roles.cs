@@ -236,7 +236,7 @@ namespace MoonlighterCoop
         {
             if (!Roles.Choosing) return;
             PadNav.Poll();
-            for (int r = 1; r <= 4; r++) if (Input.GetKeyDown(KeyCode.Alpha0 + r)) Roles.Pick(r);
+            for (int r = 1; r <= 4; r++) if (Teclas.Abajo(KeyCode.Alpha0 + r)) Roles.Pick(r);
             if (PadNav.Left) _sel = _sel <= 1 ? 4 : _sel - 1;
             if (PadNav.Right) _sel = _sel >= 4 ? 1 : _sel + 1;
             if (PadNav.A) Roles.Pick(_sel);
@@ -272,7 +272,7 @@ namespace MoonlighterCoop
                 GUI.color = o;
                 if (!taken && GUI.Button(br, GUIContent.none, GUIStyle.none)) Roles.Pick(i);
             }
-            Ui.Label(new Rect(r.x, r.yMax - 58 * k, r.width, 22 * k), PadNav.Active ? "Cruceta izquierda y derecha, y A para elegir" : "Pulsa 1, 2, 3 o 4, o haz clic", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
+            Ui.Label(new Rect(r.x, r.yMax - 58 * k, r.width, 22 * k), PadNav.Active ? "Cruceta izquierda y derecha, y A para elegir" : Teclas.Nombre("Pulsa 1, 2, 3 o 4, o haz clic", "Toca el rol que quieras"), 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
             Ui.EndOpen();
         }
     }

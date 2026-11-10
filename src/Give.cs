@@ -34,7 +34,7 @@ namespace MoonlighterCoop
                 return;
             }
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
-            w.Write(SteamCoop.Available ? SteamCoop.MyName : "Tu compañero"); w.Write(name);
+            w.Write(Nombres.Mio("Tu compañero")); w.Write(name);
             Net.Send(Msg.Give, ms.ToArray());
             Banner.Show("Has dejado " + name + " en la mochila compartida");
             Plugin.Log.LogInfo("[give] " + name + " to the shared bag");
@@ -48,7 +48,7 @@ namespace MoonlighterCoop
 
         // ---------- asking a partner for a piece (F2 → Dar equipo → Pedir) ----------
 
-        private static string MyName => SteamCoop.Available ? SteamCoop.MyName : "Jugador " + (Session.MyId + 1);
+        private static string MyName => Nombres.Mio("Jugador " + (Session.MyId + 1));
 
         public static void Ask(int to, int slot)
         {
@@ -119,8 +119,9 @@ namespace MoonlighterCoop
             if (!Showing) return;
             if (Time.unscaledTime >= _until) { Answer(0); return; }   // no answer in time: keep it
             PadNav.Poll();
-            if (Input.GetKeyDown(KeyCode.H) || PadNav.Up) Answer(1);
-            else if (Input.GetKeyDown(KeyCode.G) || PadNav.Down) Answer(0);
+            if (Teclas.Movil) { Teclas.Ofrecer(KeyCode.H, "Dárselo"); Teclas.Ofrecer(KeyCode.G, "No"); }
+            if (Teclas.Abajo(KeyCode.H) || PadNav.Up) Answer(1);
+            else if (Teclas.Abajo(KeyCode.G) || PadNav.Down) Answer(0);
         }
 
         private void Answer(int a) { _pending = false; Give.Reply(_from, _slot, a); Ui.Sound(Ui.SndPress); }
@@ -141,8 +142,8 @@ namespace MoonlighterCoop
             var yes = new Rect(r.x + 90 * k, r.y + 80 * k, 190 * k, 28 * k);
             var no = new Rect(r.xMax - 280 * k, r.y + 80 * k, 190 * k, 28 * k);
             bool pad = PadNav.Active;
-            if (Ui.Button(yes, pad ? "Arriba: dárselo" : "H: dárselo", false, false, true, 15f, Ui.Tone.Gold)) Answer(1);
-            if (Ui.Button(no, pad ? "Abajo: no" : "G: no", false, false, true, 15f)) Answer(0);
+            if (Ui.Button(yes, pad ? "Arriba: dárselo" : Teclas.Nombre("H: dárselo", "Dárselo"), false, false, true, 15f, Ui.Tone.Gold)) Answer(1);
+            if (Ui.Button(no, pad ? "Abajo: no" : Teclas.Nombre("G: no", "No"), false, false, true, 15f)) Answer(0);
             Ui.Label(new Rect(r.xMax - 60 * k, r.y + 4 * k, 50 * k, 20 * k), Mathf.CeilToInt(_until - Time.unscaledTime) + " s", 13f, Ui.InkFaint, TextAnchor.MiddleRight);
             Ui.EndOpen();
         }

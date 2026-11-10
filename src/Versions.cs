@@ -55,7 +55,7 @@ namespace MoonlighterCoop
                 Latest = m.Groups[1].Value;
                 UpdateAvailable = Newer(Latest, Plugin.Version);
                 Plugin.Log.LogInfo($"[update] latest {Latest}, mine {Plugin.Version}, update={UpdateAvailable}");
-                if (UpdateAvailable) Banner.Show($"Hay una versión nueva del mod ({Latest}). Pulsa F2 para descargarla.");
+                if (UpdateAvailable) Banner.Show($"Hay una versión nueva del mod ({Latest}). " + Teclas.Nombre("Pulsa F2 para descargarla.", "Actualiza el juego del móvil para tenerla."));
             }
         }
 

@@ -21,7 +21,7 @@ namespace MoonlighterCoop
         {
             text = Clean(text);
             if (text == "" || !Net.Connected) return;
-            var name = SteamCoop.Available ? SteamCoop.MyName : (Session.IsHost ? "Anfitrión" : "Jugador " + (Session.MyId + 1));
+            var name = Nombres.Mio(Session.IsHost ? "Anfitrión" : "Jugador " + (Session.MyId + 1));
             var ms = new System.IO.MemoryStream(); var w = new System.IO.BinaryWriter(ms);
             w.Write((byte)Session.MyId); w.Write(Clean(name)); w.Write(text);
             Net.Send(Msg.Chat, ms.ToArray());
@@ -63,7 +63,8 @@ namespace MoonlighterCoop
         {
             if (!Net.Connected && !Preview) { if (Typing) Close(); return; }
             bool menus = ColorMenu.Open || CoopMenu.Open || (GUIManager.Instance != null && GUIManager.Instance.currentInventory != null);
-            if (!Typing && !menus && Input.GetKeyDown(KeyCode.T) && HeroMerchant.Instance != null) OpenTyping();
+            if (!Typing && !menus && HeroMerchant.Instance != null && Net.Connected && Teclas.Movil) Teclas.Ofrecer(KeyCode.T, "Chat");
+            if (!Typing && !menus && Teclas.Abajo(KeyCode.T) && HeroMerchant.Instance != null) OpenTyping();
             if (Typing && PadNav.Active) PadKeys();
         }
 

@@ -54,7 +54,7 @@ namespace MoonlighterCoop
             var gui = GUIManager.Instance;
             if (gui == null || !Purchases.Describe(gui.currentInventory, out var what, out var where)) return;
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
-            w.Write(SteamCoop.Available ? SteamCoop.MyName : "Jugador " + (Session.MyId + 1)); w.Write(what); w.Write(where); w.Write(-amount);
+            w.Write(Nombres.Mio("Jugador " + (Session.MyId + 1))); w.Write(what); w.Write(where); w.Write(-amount);
             Net.Send(Msg.Purchase, ms.ToArray());
         }
     }

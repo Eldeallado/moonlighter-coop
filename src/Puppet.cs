@@ -17,7 +17,7 @@ namespace MoonlighterCoop
             var w = new BinaryWriter(ms);
             w.Write((byte)playerId);
             w.Write(Looks.Mine);
-            w.Write(SteamCoop.Available ? SteamCoop.MyName : "Jugador " + (playerId + 1));
+            w.Write(Nombres.Mio("Jugador " + (playerId + 1)));
             var stt = hero != null ? hero.heroMerchantStats : null;
             w.Write(stt != null ? (float)stt.currentHealth.Value : 0f);
             w.Write(stt != null ? (float)stt.currentHealth.maxValue : 0f);

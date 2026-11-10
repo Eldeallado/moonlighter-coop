@@ -142,13 +142,13 @@ namespace MoonlighterCoop
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F3)) Toggle();
+            if (Teclas.Abajo(KeyCode.F3)) Toggle();
             if (!Open) return;
             if (HeroMerchant.Instance == null || (GUIManager.Instance != null && GUIManager.Instance.currentInventory != null)) { SetOpen(false); return; }
             PadNav.Poll();
             _padA = false;
-            bool up = Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.W) || PadNav.Up;
-            bool down = Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.S) || PadNav.Down;
+            bool up = Teclas.Abajo(KeyCode.UpArrow) || Teclas.Abajo(KeyCode.W) || PadNav.Up;
+            bool down = Teclas.Abajo(KeyCode.DownArrow) || Teclas.Abajo(KeyCode.S) || PadNav.Down;
             int was = _focus;
             if (up) _focus = Ui.Nearest(_lastRects, _focus, 0, -1);
             if (down) _focus = Ui.Nearest(_lastRects, _focus, 0, 1);
@@ -167,13 +167,13 @@ namespace MoonlighterCoop
             }
             else
             {
-                if (PadNav.Left || Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)) _focus = Ui.Nearest(_lastRects, _focus, -1, 0);
-                if (PadNav.Right || Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)) _focus = Ui.Nearest(_lastRects, _focus, 1, 0);
+                if (PadNav.Left || Teclas.Abajo(KeyCode.LeftArrow) || Teclas.Abajo(KeyCode.A)) _focus = Ui.Nearest(_lastRects, _focus, -1, 0);
+                if (PadNav.Right || Teclas.Abajo(KeyCode.RightArrow) || Teclas.Abajo(KeyCode.D)) _focus = Ui.Nearest(_lastRects, _focus, 1, 0);
             }
             if (_focus != was) Ui.Sound(Ui.SndMove);
             if (_dirty && Time.unscaledTime - _dirtyAt > 0.15f) Commit();
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || PadNav.A) _padA = true;   // pressed on the focused control while drawing
-            if (Input.GetKeyDown(KeyCode.Escape) || PadNav.B || PadNav.Combo) SetOpen(false);
+            if (Teclas.Abajo(KeyCode.Return) || Teclas.Abajo(KeyCode.KeypadEnter) || PadNav.A) _padA = true;   // pressed on the focused control while drawing
+            if (Teclas.Abajo(KeyCode.Escape) || PadNav.B || PadNav.Combo) SetOpen(false);
         }
         private float _nextRepeat; private bool _held;
         private string _note = ""; private float _noteAt = -10f;
@@ -215,8 +215,11 @@ namespace MoonlighterCoop
             _rects.Clear(); _ids.Clear();
             bool pad = PadNav.Active;
 
-            var styles = StyleList; int n = styles.Count, perRow = 5, rows = (n + perRow - 1) / perRow;
-            float w = Mathf.Min(920 * k, Screen.width - 20), h = Mathf.Min((545 + rows * 58) * k, Screen.height - 24);
+            // En el móvil (pantalla más ancha) caben más estilos por fila
+            var styles = StyleList; int n = styles.Count, perRow = Teclas.Movil ? 7 : 5, rows = (n + perRow - 1) / perRow;
+            // Si no cabe en alto, se reduce todo a la vez (antes se cortaba el panel y lo de abajo quedaba fuera)
+            k = Mathf.Min(k, (Screen.height - 24f) / (545 + rows * 58), (Screen.width - 20f) / 920f);
+            float w = 920 * k, h = (545 + rows * 58) * k;
             var panel = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
             Ui.Dim(0.5f);
             Ui.BeginOpen(_openedAt, panel);
@@ -297,7 +300,8 @@ namespace MoonlighterCoop
             bool note = Time.unscaledTime - _noteAt < 4f;   // a fresh note takes the hint line for a moment
             Ui.Label(new Rect(panel.x + 24 * k, panel.yMax - 62 * k, w - 48 * k, 20 * k),
                 note ? _note : pad ? "Cruceta: moverse  ·  en una barra, izquierda y derecha cambian el color  ·  A: elegir  ·  B: cerrar"
-                    : "Ratón, o flechas para moverse (en una barra cambian el color)  ·  Enter: elegir  ·  F3 o Esc: cerrar",
+                    : Teclas.Nombre("Ratón, o flechas para moverse (en una barra cambian el color)  ·  Enter: elegir  ·  F3 o Esc: cerrar",
+                                "Toca una parte o un estilo  ·  en las barras, desliza el dedo  ·  botón Colores: cerrar"),
                 14.5f, note ? Ui.Green : Ui.InkFaint, TextAnchor.MiddleCenter);
 
             Ui.EndOpen();

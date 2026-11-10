@@ -288,7 +288,7 @@ namespace MoonlighterCoop
                         }
                         else
                         {
-                            SteamCoop.Status = $"El anfitrión tiene la versión {theirVersion} y tú la {Plugin.Version}: usad la misma (F2 → descargar)";
+                            SteamCoop.Status = $"El anfitrión tiene la versión {theirVersion} y tú la {Plugin.Version}: usad la misma " + Teclas.Nombre("(F2 → descargar)", "(actualiza el juego del PC o del móvil)");
                             CoopMenu.HostClosed();
                         }
                         break;

@@ -50,7 +50,7 @@ namespace MoonlighterCoop
         {
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
             w.Write((byte)Session.MyId);
-            w.Write(SteamCoop.Available ? SteamCoop.MyName : (Session.IsHost ? "Anfitrión" : "Jugador " + (Session.MyId + 1)));
+            w.Write(Nombres.Mio(Session.IsHost ? "Anfitrión" : "Jugador " + (Session.MyId + 1)));
             foreach (var x in _run) w.Write(x);
             foreach (var x in _day) w.Write(x);
             var top = RunItems.OrderByDescending(kv => kv.Value).Take(6).ToList();
@@ -173,7 +173,8 @@ namespace MoonlighterCoop
         {
             if (!Open) return;
             PadNav.Poll();
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Tab) || PadNav.B) _until = 0f;
+            if (Teclas.Movil) Teclas.Ofrecer(KeyCode.Escape, "Cerrar");
+            if (Teclas.Abajo(KeyCode.Return) || Teclas.Abajo(KeyCode.Escape) || Teclas.Abajo(KeyCode.Tab) || PadNav.B) _until = 0f;
         }
 
         private void OnGUI()
@@ -221,7 +222,7 @@ namespace MoonlighterCoop
                     Ui.Label(new Rect(x0 + c * colW + 6 * k, y + 2 * k, colW - 12 * k, 140 * k), txt == "" ? "—" : txt, 14f, Ui.Ink, TextAnchor.UpperCenter, true);
                 }
             }
-            Ui.Label(new Rect(r.x, r.yMax - 60 * k, r.width, 20 * k), $"Enter o B para cerrar  ·  se cierra solo en {Mathf.CeilToInt(_until - Time.unscaledTime)} s", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
+            Ui.Label(new Rect(r.x, r.yMax - 60 * k, r.width, 20 * k), Teclas.Nombre("Enter o B para cerrar", "Toca Cerrar") + $"  ·  se cierra solo en {Mathf.CeilToInt(_until - Time.unscaledTime)} s", 14.5f, Ui.InkSoft, TextAnchor.MiddleCenter);
             Ui.EndOpen();
         }
     }

@@ -15,7 +15,7 @@ namespace MoonlighterCoop
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "elde_al_lado.moonlighter.coop";
-        public const string Version = "0.11.0";
+        public const string Version = "0.12.0";
 
         public static Plugin Instance;
         public static ManualLogSource Log;
@@ -23,7 +23,8 @@ namespace MoonlighterCoop
         // Command line: -coop host | -coop join <ip>  ; -coopbot (auto-load save, for QA)
         public static string Role = "";
         public static string JoinAddress = "127.0.0.1";
-        public static int Port = 7795;
+        public const int DefaultPort = 7795;
+        public static int Port = DefaultPort;
         public static bool Bot;
         public static bool Windowed;
         public static bool Drive;
@@ -57,6 +58,8 @@ namespace MoonlighterCoop
         private static BepInEx.Configuration.ConfigEntry<string> _newsCfg, _histCfg;
         public static void SaveHistory(string s) { if (_histCfg != null) _histCfg.Value = s; }
         public static void SaveNewsSeen(string v) { if (_newsCfg != null) _newsCfg.Value = v; }
+        private static BepInEx.Configuration.ConfigEntry<string> _nameCfg;
+        public static void SaveName(string v) { if (_nameCfg != null) _nameCfg.Value = v; }
         public static int WinW = 800, WinH = 450;
 
         private void Awake()
@@ -104,6 +107,8 @@ namespace MoonlighterCoop
             History.Load(_histCfg.Value);
             _newsCfg = Config.Bind("Cooperativo", "NovedadesVistas", "", "Última versión cuyas novedades has visto (F2 → Novedades)");
             Changelog.Seen = _newsCfg.Value;
+            _nameCfg = Config.Bind("Cooperativo", "Nombre", "", "Tu nombre en el cooperativo (se cambia en F2). Vacío = el de Steam");
+            Nombres.Propio = _nameCfg.Value ?? "";
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
             // The game turns its own log off; keep errors and the loading/room flow for debugging.
             Debug.unityLogger.logEnabled = true;
@@ -172,7 +177,7 @@ namespace MoonlighterCoop
                 _windowed = true;
                 Screen.SetResolution(WinW, WinH, FullScreenMode.Windowed);
             }
-            if (Input.GetKeyDown(KeyCode.F8)) Dump();
+            if (Teclas.Abajo(KeyCode.F8)) Dump();
             Session.Tick();
             if (Bot) BotTick();
         }

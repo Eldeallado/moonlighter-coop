@@ -35,7 +35,8 @@ namespace MoonlighterCoop
         public static readonly Color Paper = Ink, PaperDark = BgLight, PaperShade = InkSoft;
         public static readonly Color Wood = Tan, WoodLight = new Color32(0x9A, 0x8B, 0x70, 0xFF), WoodDark = BgDark;
 
-        public static float K => Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
+        // En el móvil la pantalla es pequeña: los menús ocupan casi todo el alto (el del Coop mide 540 de alto)
+        public static float K => Teclas.Movil ? Mathf.Clamp(Screen.height / 560f, 0.5f, 3f) : Mathf.Clamp(Screen.height / 720f, 0.5f, 2f);
         public static float U => Mathf.Max(1f, Mathf.Round(Screen.height / 360f));
 
         private static Texture2D _px;

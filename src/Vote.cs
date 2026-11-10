@@ -73,6 +73,8 @@ namespace MoonlighterCoop
         public static string Hint()
         {
             if (!Net.Juego || !(GUIManager.Instance != null && GUIManager.Instance.currentInventory is DungeonResultsPanel)) return null;
+            // En el móvil, dos botones grandes con el texto de cada voto (el panel del juego solo dice A y B)
+            if (Teclas.Movil) { Teclas.OfrecerBoton("A", "Jugar de nuevo"); Teclas.OfrecerBoton("B", "Ir a la villa"); }
             string Name(Choice c) => c == Choice.Replay ? "jugar de nuevo" : c == Choice.Village ? "ir a la villa" : "…";
             int votes = (Mine != Choice.None ? 1 : 0) + Others.Count;
             return $"Votación — tú: {Name(Mine)}   ({votes}/{Players} han votado; gana la mayoría, empate: anfitrión)";
