@@ -65,7 +65,25 @@ namespace MoonlighterCoop
             bool menus = ColorMenu.Open || CoopMenu.Open || (GUIManager.Instance != null && GUIManager.Instance.currentInventory != null);
             if (!Typing && !menus && HeroMerchant.Instance != null && Net.Connected && Teclas.Movil) Teclas.Ofrecer(KeyCode.T, "Chat");
             if (!Typing && !menus && Teclas.Abajo(KeyCode.T) && HeroMerchant.Instance != null) OpenTyping();
+            if (Typing && Teclas.Movil) { TecladoMovil(); return; }
             if (Typing && PadNav.Active) PadKeys();
+        }
+
+        // ---------- phone: the system keyboard (Samsung, Gboard...) ----------
+        private TouchScreenKeyboard _kb;
+
+        /// Text comes straight from the phone's keyboard; its send/enter key sends the message.
+        private void TecladoMovil()
+        {
+            if (_kb == null) return;
+            _text = _kb.text ?? "";
+            if (_text.Length > 120) _text = _text.Substring(0, 120);
+            switch (_kb.status)
+            {
+                case TouchScreenKeyboard.Status.Done: string t = _text; _kb = null; Send(t); Close(); break;
+                case TouchScreenKeyboard.Status.Canceled:
+                case TouchScreenKeyboard.Status.LostFocus: _kb = null; Close(); break;
+            }
         }
 
         /// Start writing (T, or F2 → Escribir en el chat). With a pad, an on-screen keyboard comes up.
@@ -75,6 +93,11 @@ namespace MoonlighterCoop
             Typing = true; Instance._text = ""; Instance._focus = true; Instance._kx = 0; Instance._ky = 1; Instance._openedAt = Time.unscaledTime;
             var c = HeroMerchant.Instance.heroMerchantController; c.DisableMoveInput(); c.DisableAttackInput();
             if (GUIManager.Instance != null) GUIManager.Instance.input.Enabled = false;
+            if (Teclas.Movil)
+            {
+                TouchScreenKeyboard.hideInput = true; // the line is drawn by the game, not over the keyboard
+                Instance._kb = TouchScreenKeyboard.Open("", TouchScreenKeyboardType.Default, true, false, false, false, "Mensaje");
+            }
             Ui.Sound(Ui.SndOpen);
         }
 
@@ -150,6 +173,7 @@ namespace MoonlighterCoop
         private void Close()
         {
             Typing = false;
+            if (_kb != null) { _kb.active = false; _kb = null; }
             var hero = HeroMerchant.Instance;
             if (hero != null) { hero.heroMerchantController.EnableMoveInput(); if (!Downed.Me) hero.heroMerchantController.EnableAttackInput(); }
             if (GUIManager.Instance != null) GUIManager.Instance.input.Enabled = true;
@@ -168,10 +192,19 @@ namespace MoonlighterCoop
                 // A small scroll with the box to write in.
                 var sr = new Rect(x - 10 * k, y + 34 * k, w + 20 * k, 66 * k);
                 Ui.Scroll(sr);
-                _text = Ui.TextField(new Rect(x + 22 * k, y + 42 * k, w - 44 * k, 28 * k), _text, 120, 17f, TextAnchor.MiddleLeft, "coopchat");
-                if (_focus) { GUI.FocusControl("coopchat"); _focus = false; }
-                Ui.Label(new Rect(x + 22 * k, y + 72 * k, w - 44 * k, 20 * k), PadNav.Active ? "Escribe con el teclado de la pantalla" : "Enter: enviar  ·  Esc: cancelar", 14f, Ui.InkSoft, TextAnchor.MiddleCenter);
-                if (PadNav.Active) DrawKeyboard(k);
+                if (Teclas.Movil)
+                {
+                    // Phone: only show what is being written; the system keyboard does the typing
+                    Ui.Label(new Rect(x + 22 * k, y + 42 * k, w - 44 * k, 28 * k), _text + "|", 17f, Ui.Ink, TextAnchor.MiddleLeft);
+                    Ui.Label(new Rect(x + 22 * k, y + 72 * k, w - 44 * k, 20 * k), "Escribe y pulsa enviar en el teclado", 14f, Ui.InkSoft, TextAnchor.MiddleCenter);
+                }
+                else
+                {
+                    _text = Ui.TextField(new Rect(x + 22 * k, y + 42 * k, w - 44 * k, 28 * k), _text, 120, 17f, TextAnchor.MiddleLeft, "coopchat");
+                    if (_focus) { GUI.FocusControl("coopchat"); _focus = false; }
+                    Ui.Label(new Rect(x + 22 * k, y + 72 * k, w - 44 * k, 20 * k), PadNav.Active ? "Escribe con el teclado de la pantalla" : "Enter: enviar  ·  Esc: cancelar", 14f, Ui.InkSoft, TextAnchor.MiddleCenter);
+                    if (PadNav.Active) DrawKeyboard(k);
+                }
             }
             float now = Time.unscaledTime;
             float ly = y + 28 * k;

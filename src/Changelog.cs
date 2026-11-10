@@ -22,7 +22,14 @@ namespace MoonlighterCoop
             var list = new List<Entry>();
             try
             {
-                using (var s = typeof(Changelog).Assembly.GetManifestResourceStream("CHANGELOG.md"))
+                // Android port: the mod is compiled into the game, so the changelog travels as Resources/CoopChangelog.txt
+                var s = typeof(Changelog).Assembly.GetManifestResourceStream("CHANGELOG.md");
+                if (s == null)
+                {
+                    var ta = UnityEngine.Resources.Load<UnityEngine.TextAsset>("CoopChangelog");
+                    if (ta != null) s = new MemoryStream(ta.bytes);
+                }
+                using (s)
                 using (var r = new StreamReader(s))
                 {
                     string line;
