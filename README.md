@@ -4,7 +4,9 @@
 
 > Mod hecho por fans, sin relación con Digital Sun ni 11 bit studios. Necesitas tener **Moonlighter** comprado en Steam. Este repositorio no contiene ningún archivo del juego.
 
-*English: unofficial online co-op mod for Moonlighter (Steam, Windows), up to 5 players. Download the zip from Releases, run `Instalar.bat`, press F2 in game to host or join with a code.*
+**Novedad en la 0.12.0: juego cruzado con el móvil.** Una versión de Android que lleve este mismo mod dentro puede unirse a tu partida del PC (o hacer de anfitriona), con botones en pantalla para todo lo del cooperativo.
+
+*English: unofficial online co-op mod for Moonlighter (Steam, Windows), up to 5 players, with cross-play against an Android build that carries the same mod. Download the zip from Releases, run `Instalar.bat`, press F2 in game to host or join with a code.*
 
 ---
 
@@ -32,7 +34,16 @@ Todos los jugadores necesitan el mod instalado (la misma versión).
 
 1. **Quien hace de anfitrión** carga su partida, pulsa **F2 → Crear partida** y le sale un **código de 7 letras** (también puede invitar a amigos de Steam desde ahí).
 2. **Los demás** pulsan **F2 → Unirse con un código** y lo escriben. Entran solos en la partida del anfitrión.
-3. ¿Misma casa o red? El anfitrión puede activar **Permitir unirse por IP** y los demás usan **Unirse por IP**.
+3. ¿Misma casa o red? El anfitrión pone **Unirse por IP** en **Abierto** y le sale también un **código que empieza por IP** (en casa, «IP» y 4 letras). Ese código vale en **Unirse con un código** aunque no haya Steam, y es el que usa el móvil.
+4. Arriba del F2 puedes escribir **tu nombre**; si lo dejas vacío, se usa el de Steam.
+
+### Con el móvil
+
+1. En el PC, crea la partida y pon **Unirse por IP** en **Abierto**.
+2. En el móvil, toca el botón **Coop** → **Unirse con un código** y escribe el código IP (o la IP del PC en **Unirse por IP**).
+3. En el móvil, los avisos salen como botones en pantalla: **¡Voy!** / **¡Espera!**, **Revivir**, **Dárselo**, **Chat**, y la votación del final con **Jugar de nuevo** / **Ir a la villa**. El botón **Colores** abre el aspecto de Will.
+
+PC y móvil tienen que llevar versiones compatibles del mod (se comprueba solo al conectar).
 
 Se juega con la partida del anfitrión; la de cada invitado no se modifica.
 
