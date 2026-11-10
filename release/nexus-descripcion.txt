@@ -1,11 +1,20 @@
 NOMBRE: Moonlighter Coop - Online multiplayer (2-5 players)
 CATEGORÍA: Gameplay
-VERSIÓN: 0.11.0
-RESUMEN (corto): Play Moonlighter online with 2 to 5 friends: shared dungeons, shop, loot and gold, ghosts and revives, roles, a race mode, and colours for every part of Will.
+VERSIÓN: 0.12.0
+RESUMEN (corto): Play Moonlighter online with 2 to 5 friends, now with cross-play against an Android build: shared dungeons, shop, loot and gold, ghosts and revives, roles, a race mode, and colours for every part of Will.
+
+CAMBIOS 0.12.0 (para la pestaña de cambios de Nexus):
+- Cross-play with an Android build that carries the same mod (join by IP or with an "IP" code).
+- Join with a code without Steam: codes starting with "IP" carry the host's address.
+- Your own name in the F2 menu (empty = your Steam name).
+- On phones: on-screen buttons for every prompt, bigger menus, end-of-run vote with two clear buttons.
+- The colour menu now shrinks to fit small screens.
 
 DESCRIPCIÓN (BBCode):
 [size=5][b]Moonlighter Coop[/b][/size]
 Play [b]Moonlighter[/b] online with up to [b]5 players[/b] (Steam invite / 7-letter code, or direct IP). Menus in Spanish, drawn in the game's own style.
+
+[b]New in 0.12.0: cross-play with phones.[/b] An Android build carrying this same mod can join your PC game (or host it). Open F2 → «Unirse por IP» and give your friend the code that starts with [b]IP[/b]. On the phone every prompt becomes an on-screen button.
 
 [b]Playing together[/b]
 [list]
