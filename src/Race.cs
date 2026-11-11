@@ -9,7 +9,8 @@ namespace MoonlighterCoop
     /// (same rooms and things, his own enemies), going through doors on his own. What anyone picks up still goes
     /// to the shared bag, and gold is shared. Reaching the way down, a player waits there until everyone alive
     /// has arrived; then all go down together and the order of arrival is shown. A player who falls watches a
-    /// partner as a ghost and comes back on the next floor. The boss floor is played together, as always.
+    /// partner as a ghost (moving freely; taken to his room when he changes room) and comes back on the next floor.
+    /// The boss floor is played together, as always.
     public static class Race
     {
         /// The current floor is played separately.
@@ -148,7 +149,8 @@ namespace MoonlighterCoop
             // Same room as the partner (in my copy of the floor).
             if (Time.unscaledTime >= _nextFollow && target.Zone != Dungeon.RoomZone())
             {
-                _nextFollow = Time.unscaledTime + 0.5f;
+                // El cambio de sala dura 1,5 s (fundido): no volver a intentarlo a mitad, que lo deja enganchado
+                _nextFollow = Time.unscaledTime + 2.5f;
                 var parts = target.Zone.Split(':');
                 if (parts.Length >= 4)
                 {
@@ -172,8 +174,9 @@ namespace MoonlighterCoop
                     }
                 }
             }
-            // Float along with him, and keep this copy's enemies out of the picture.
-            hero.transform.position = Vector3.Lerp(hero.transform.position, target.transform.position + new Vector3(10f, 6f, 0f), 0.2f);
+            // El fantasma se mueve libre por la sala (antes iba pegado al compañero y no se podía mover).
+            // Solo se le lleva a la sala del compañero cuando este cambia de sala, para seguir viéndole.
+            // Y los enemigos de esta copia del piso, fuera de la vista.
             foreach (var e in dm.currentDungeonRoom.roomEnemies)
                 if (e != null && e.gameObject.activeSelf) { e.gameObject.SetActive(false); _hidden.Add(e.gameObject); }
         }

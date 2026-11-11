@@ -27,7 +27,11 @@ namespace MoonlighterCoop
             buf[0] = (byte)type;
             Buffer.BlockCopy(data, 0, buf, 1, data.Length);
             // Poses and enemy states can go unreliable (newest wins); everything else must arrive.
-            var mode = type == Msg.Pose || type == Msg.Enemies ? EP2PSend.k_EP2PSendUnreliableNoDelay : EP2PSend.k_EP2PSendReliable;
+            // Steam no manda paquetes "rápidos" de más de 1200 bytes (los tira sin más): una pose grande (muriendo,
+            // de fantasma, con muchos efectos a la vez) va por el canal seguro, que no tiene límite. Antes se perdían
+            // todas y el otro veía tu Will congelado donde cayó en vez de tu fantasma.
+            bool rapido = (type == Msg.Pose || type == Msg.Enemies) && buf.Length <= 1200;
+            var mode = rapido ? EP2PSend.k_EP2PSendUnreliableNoDelay : EP2PSend.k_EP2PSendReliable;
             if (!SteamNetworking.SendP2PPacket(SteamId, buf, (uint)buf.Length, mode, 0))
                 Plugin.Log.LogWarning($"[steam] send {type} ({buf.Length} bytes) failed");
         }

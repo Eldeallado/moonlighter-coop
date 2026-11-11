@@ -437,6 +437,7 @@ namespace MoonlighterCoop
                     return $"orig={s0.texture?.name} tinted={(t1 != s0)} ui={u1?.texture?.name} {u1?.texture?.width}x{u1?.texture?.height} rect={tr} packed={s0.packed} mode={s0.packingMode}";
                 }
                 case "racestate": return $"separate={Race.Separate} waiting={Race.WaitingMe} rule={HostSettings.Race} zone={Dungeon.RoomZone()} ghost={Downed.Me}";
+                case "posesize": return "bytes=" + (PoseCapture.Capture(Session.LocalZone(), Session.MyId).Length + 1) + " fantasma=" + Downed.Me + " fantasmas=" + string.Join(",", Downed.Ghosts);
                 case "puente":
                     return $"activo={Puente.Activo} estado={Puente.Estado} publica={Puente.Publica} fuera={Puente.CodigoFuera} respuesta={Puente.CodigoRespuesta} env={Puente.Enviados} rec={Puente.Recibidos} reenv={Puente.Reenviados}";
                 case "puenteprueba":
