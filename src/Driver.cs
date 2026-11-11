@@ -437,6 +437,27 @@ namespace MoonlighterCoop
                     return $"orig={s0.texture?.name} tinted={(t1 != s0)} ui={u1?.texture?.name} {u1?.texture?.width}x{u1?.texture?.height} rect={tr} packed={s0.packed} mode={s0.packingMode}";
                 }
                 case "racestate": return $"separate={Race.Separate} waiting={Race.WaitingMe} rule={HostSettings.Race} zone={Dungeon.RoomZone()} ghost={Downed.Me}";
+                case "errante":
+                {
+                    // Anfitrión: hace que el juego saque al Errante ya (como si se hubiera acabado su tiempo)
+                    var dmE = DungeonManager.Instance;
+                    if (dmE == null) return "sin mazmorra";
+                    Traverse.Create(dmE).Field("loadWanderer").SetValue(true);
+                    if (dmE.wandererPrefab == null) dmE.wandererPrefab = EnemiesPrefabRegister.GetPrefabByName("Wanderer");
+                    if (dmE.wandererPrefab == null) dmE.wandererPrefab = Resources.FindObjectsOfTypeAll<Wanderer>().Select(x => x.gameObject).FirstOrDefault(g => !g.scene.IsValid());
+                    if (dmE.wandererPrefab == null) { dmE.StartCoroutine(EnemiesPrefabRegister.LoadCommonBundle()); return "cargando enemigos comunes, repite (objetos Wanderer cargados: " + Resources.FindObjectsOfTypeAll<Wanderer>().Length + ")"; }
+                    dmE.SpawnWandererFeedback();
+                    dmE.SpawnWanderer();
+                    return "hay=" + Errante.Hay(dmE);
+                }
+                case "errinfo":
+                {
+                    var dmE = DungeonManager.Instance;
+                    if (dmE == null) return "sin mazmorra";
+                    var trE = Traverse.Create(dmE);
+                    bool derrotado = (gm.currentGameSlot.culturesDefeated & (int)Mathf.Pow(2f, (float)dmE.culture)) > 0;
+                    return $"hay={Errante.Hay(dmE)} load={trE.Field("loadWanderer").GetValue()} prefab={(trE.Field("wandererPrefab").GetValue() as UnityEngine.Object) != null} cultura={dmE.culture} derrotado={derrotado} jefeVisto={(dmE.bossRoom != null && dmE.bossRoom.hasBeenVisited)} sala={(dmE.currentDungeonRoom != null ? dmE.currentDungeonRoom.name : "-")} separate={Race.Separate}";
+                }
                 case "ask": Give.Ask(int.Parse(p[1]), int.Parse(p[2])); return "ok";
                 case "lagfake": Lag.Set(int.Parse(p[1]), float.Parse(p[2], CultureInfo.InvariantCulture)); return "ok";
                 case "history": return string.Join(" || ", History.Runs.Select(h => $"{h.When} {h.Dungeon} piso {h.Floor} oro {h.Gold} cayó [{h.Fell}]").ToArray());

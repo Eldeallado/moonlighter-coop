@@ -1,5 +1,10 @@
 # Novedades de Moonlighter Coop
 
+## 0.13.0 — en preparación
+- **El Errante sale a la vez para todos:** antes cada uno tenía su propio reloj y al invitado le salía por su cuenta. Ahora lo decide el anfitrión: cuando a él le sale el aviso o el Errante, a los demás también. En el modo carrera cada uno sigue con el suyo.
+- **En el móvil:** el chat se escribe con el teclado del teléfono, y las novedades se pueden leer también desde el juego del móvil.
+- El aviso de versión distinta ya no habla de F2 en el móvil.
+
 ## 0.12.0 — 10/11/2026
 - **Juego cruzado con el móvil:** ya se puede jugar con la versión de Android de Moonlighter (en el PC de anfitrión, F2 → «Unirse por IP: Abierto»).
 - **Unirse con código sin Steam:** al abrir la partida por IP sale un código que lleva la IP dentro (en casa, «IP» y 4 letras). Vale en «Unirse con un código» aunque no haya Steam.

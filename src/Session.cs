@@ -255,6 +255,7 @@ namespace MoonlighterCoop
                 case Msg.Lag: if (IsGuest) Lag.OnLag(data); break;
                 case Msg.RaceArrive: Race.OnArrive(data); break;
                 case Msg.Purchase: Purchases.OnPurchase(data); break;
+                case Msg.Wanderer: if (IsGuest) Errante.OnMsg(data); break;
                 case Msg.RaceDone: if (IsGuest) Race.OnDone(data); break;
                 case Msg.AskItem: Give.OnAsk(data); break;
                 case Msg.AskReply: Give.OnAskReply(data); break;
@@ -338,7 +339,7 @@ namespace MoonlighterCoop
                 case Msg.ShopResults: if (IsGuest) ShopResults.OnResults(data); break;
                 case Msg.Bye:
                     if (IsHost) { Plugin.Log.LogInfo($"[session] player {from.Id} left"); from.Close(); }
-                    else { SteamCoop.Status = data.Length > 0 && data[0] == 1 ? "El anfitrión te ha expulsado de la partida" : data.Length > 0 && data[0] == 2 ? $"El anfitrión tiene la versión {Encoding.UTF8.GetString(data, 1, data.Length - 1)} y tú la {Plugin.Version}: usad la misma (F2 → descargar)" : "El anfitrión ha cerrado la partida"; CoopMenu.HostClosed(); }
+                    else { SteamCoop.Status = data.Length > 0 && data[0] == 1 ? "El anfitrión te ha expulsado de la partida" : data.Length > 0 && data[0] == 2 ? $"El anfitrión tiene la versión {Encoding.UTF8.GetString(data, 1, data.Length - 1)} y tú la {Plugin.Version}: usad la misma " + Teclas.Nombre("(F2 → descargar)", "(actualiza el juego del PC o del móvil)") : "El anfitrión ha cerrado la partida"; CoopMenu.HostClosed(); }
                     break;
                 case Msg.PlayerLeft: if (IsGuest) RemovePlayer(data[0]); break;
                 case Msg.Projectiles: Projectiles.OnProjectiles(data); break;
