@@ -95,7 +95,8 @@ namespace MoonlighterCoop
                     var type = (Msg)r.ReadByte();
                     var data = r.ReadBytes(len - 1);
                     if (data.Length != len - 1) throw new EndOfStreamException();
-                    Inbox.Enqueue((type, data));
+                    // Pruebas: pérdidas, retardo y límites de Steam simulados (si no está activa, pasa tal cual)
+                    if (RedSimulada.Llega(this, Inbox, type, data)) Inbox.Enqueue((type, data));
                 }
             }
             catch (Exception e)

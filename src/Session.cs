@@ -161,7 +161,8 @@ namespace MoonlighterCoop
             Downed.Tick();
             if (Net.Juego && IsGuest && Puppet.Instance != null && !Race.Separate) Dungeon.GuestFollowTick(Puppet.Instance.Zone);
             if (Net.Juego) Race.Tick();
-            if (now >= _nextStatus) { _nextStatus = now + 0.5f; WriteStatus(); }
+            // Solo diagnóstico: mientras carga el héroe algún dato aún no existe; que no salte como error
+            if (now >= _nextStatus) { _nextStatus = now + 0.5f; try { WriteStatus(); } catch { } }
         }
 
         // Loading the save from the menu shows a "dummy" loading panel; on the guest nothing hid it again.

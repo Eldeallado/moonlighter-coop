@@ -39,6 +39,8 @@ namespace MoonlighterCoop
             public DateTime Recibido = DateTime.UtcNow, Enviado = DateTime.UtcNow, Inicio = DateTime.UtcNow, Hola;
             public readonly object L = new object();
             public int PuertoTcpLocal;
+            public uint UltimoAck;
+            public int AcksRepetidos;
         }
 
         private class Pendiente { public byte[] Paquete; public DateTime Ultimo; public int Veces; }
@@ -258,7 +260,7 @@ namespace MoonlighterCoop
                 try
                 {
                     // La dirección pública, y cada 20 s otra vez (de paso mantiene abierto el camino en el CGNAT)
-                    if (ahora >= _proximoStun) { PreguntarStun(); _proximoStun = ahora.AddSeconds(Publica == null ? 2 : 20); }
+                    if (ahora >= _proximoStun) { PreguntarStun(); _proximoStun = ahora.AddSeconds(Publica == null ? 2 : 10); }   // cada 10 s: algunos CGNAT cierran antes de 20 s el camino UDP sin uso, y el código dejaría de valer
                     List<Sesion> todas;
                     lock (_l) todas = new List<Sesion>(_sesiones.Values);
                     foreach (var s in todas) Atender(s, ahora);
@@ -310,7 +312,8 @@ namespace MoonlighterCoop
                 foreach (var kv in s.SinAck)
                 {
                     var pe = kv.Value;
-                    double rto = Math.Min(2000, 250 * Math.Pow(1.5, Math.Min(pe.Veces, 6)));
+                    // Como mucho 1 s entre reintentos: con 2 s, en una red mala la partida iba a tirones de varios segundos
+                    double rto = Math.Min(1000, 250 * Math.Pow(1.5, Math.Min(pe.Veces, 6)));
                     if ((ahora - pe.Ultimo).TotalMilliseconds >= rto) { pe.Ultimo = ahora; pe.Veces++; otraVez.Add(pe.Paquete); if (pe.Veces > 1) Reenviados++; }
                     if (++n >= 64) break;
                 }
@@ -429,13 +432,21 @@ namespace MoonlighterCoop
                 case Ack:
                     if (p.Length < 11) return;
                     uint hasta = Leer32(p, 7);
+                    byte[] yaMismo = null;
                     lock (s.L)
                     {
                         var quitar = new List<uint>();
                         foreach (var k in s.SinAck.Keys) { if (k < hasta) quitar.Add(k); else break; }
                         foreach (var k in quitar) s.SinAck.Remove(k);
                         Monitor.PulseAll(s.L);
+                        // Reenvío rápido: el otro repite "me falta el N" (le llegan los de después): se manda ya,
+                        // sin esperar al reintento por tiempo
+                        if (quitar.Count == 0 && hasta == s.UltimoAck) s.AcksRepetidos++; else s.AcksRepetidos = 0;
+                        s.UltimoAck = hasta;
+                        Pendiente falta;
+                        if (s.AcksRepetidos == 2 && s.SinAck.TryGetValue(hasta, out falta)) { falta.Ultimo = DateTime.UtcNow; yaMismo = falta.Paquete; Reenviados++; }
                     }
+                    if (yaMismo != null) Mandar(yaMismo, s.Remoto);
                     break;
                 case Close:
                     Cerrar(s, false);

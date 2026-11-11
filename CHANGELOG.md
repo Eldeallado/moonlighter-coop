@@ -1,5 +1,11 @@
 # Novedades de Moonlighter Coop
 
+## 0.13.2 — 11/11/2026
+- **Pantalla final al caer todos:** si eras fantasma, te salía «Escapó con el amuleto», conservabas la mochila y solo podías elegir «Ir a la villa», mientras los demás veían «Muerto» y perdían la mochila. Ahora todos ven lo mismo y pueden votar.
+- **Jugar desde fuera más fluido:** si se pierde algo por el camino, se reenvía al momento en vez de esperar, y como mucho se espera 1 segundo (antes hasta 2), así que con una conexión mala hay muchos menos tirones. El código «PU» aguanta más tiempo válido mientras esperas a que entren.
+- Menos errores internos en el registro.
+- Probado en 19 partidas con red simulada (wifi, datos móviles, red mala, 2 y 3 jugadores, y entrando desde fuera).
+
 ## 0.13.1 — 11/11/2026
 - **El fantasma por Steam:** al morir, los demás veían tu Will congelado donde caíste en vez de tu fantasma. Steam tiraba los paquetes grandes (los de morir y los de fantasma); ahora llegan siempre.
 - **Modo carrera:** de fantasma ya no vas pegado a tu compañero. Te mueves libre por la sala y, cuando él cambia de sala, pasas a la suya para seguir viéndole.

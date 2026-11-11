@@ -75,8 +75,17 @@ namespace MoonlighterCoop
 
         private HeroMerchantActions Actions => HeroMerchant.Instance?.heroMerchantController?.inputDevice;
 
+        // "inv on" de las pruebas: el juego quita la invencibilidad tras cada golpe (sus instantes de invencible),
+        // así que además se rellena la vida mientras esté puesto. Si no, en peleas largas el Will acababa muriendo.
+        private static bool _inmortal;
+
         private void Update()
         {
+            if (_inmortal && !Downed.Me)
+            {
+                var hm = HeroMerchant.Instance;
+                if (hm != null && (float)hm.heroMerchantStats.currentHealth.Value < (float)hm.heroMerchantStats.currentHealth.maxValue) hm.heroMerchantStats.RecoverAllHealth();
+            }
             // Both copies run side by side and only one has focus: keep reading input in the background.
             if (InputManager.SuspendInBackground) InputManager.SuspendInBackground = false;
             Traverse.Create(typeof(InputManager)).Field("applicationIsFocused").SetValue(true);
@@ -179,7 +188,7 @@ namespace MoonlighterCoop
                 case "gpress": _guiUntil[p[1]] = Time.unscaledTime + (p.Length > 2 ? F(p[2]) : 0.15f); return "ok";
                 case "tp": hero.heroMerchantController.TeleportTo(new Vector3(F(p[1]), F(p[2]))); return "ok";
                 case "god": if (p[1] == "on") hero.SetGodMode(); else { hero.SetNormalMode(); hero.heroMerchantStats.SetVencible(); } return "ok";
-                case "inv": if (p[1] == "on") { hero.SetNormalMode(); hero.heroMerchantStats.SetInvencible(); } else hero.heroMerchantStats.SetVencible(); return "ok";
+                case "inv": _inmortal = p[1] == "on"; if (_inmortal) { hero.SetNormalMode(); hero.heroMerchantStats.SetInvencible(); } else hero.heroMerchantStats.SetVencible(); return "ok";
                 case "dungeon": hero.LoadDungeonScene((ItemMaster.Culture)Enum.Parse(typeof(ItemMaster.Culture), p[1])); return "ok";
                 case "town": hero.LoadTownScene(); return "ok";
                 case "village": UnityEngine.Object.FindObjectOfType<ShopEntranceDoor>().GoToVillage(); return "ok";
@@ -437,6 +446,15 @@ namespace MoonlighterCoop
                     return $"orig={s0.texture?.name} tinted={(t1 != s0)} ui={u1?.texture?.name} {u1?.texture?.width}x{u1?.texture?.height} rect={tr} packed={s0.packed} mode={s0.packingMode}";
                 }
                 case "racestate": return $"separate={Race.Separate} waiting={Race.WaitingMe} rule={HostSettings.Race} zone={Dungeon.RoomZone()} ghost={Downed.Me}";
+                case "votar": Vote.Cast(p[1] == "replay" ? Vote.Choice.Replay : Vote.Choice.Village); return "votado " + p[1];
+                case "grabar":
+                    if (p[1] == "off") { _grabando = false; return "parado"; }
+                    _grabando = false;
+                    Plugin.Instance.StartCoroutine(Grabar(p[1], p.Length > 2 ? float.Parse(p[2], CultureInfo.InvariantCulture) : 5f));
+                    return "grabando en " + p[1];
+                case "red":
+                    if (p.Length >= 4) RedSimulada.Poner(double.Parse(p[1], CultureInfo.InvariantCulture), int.Parse(p[2]), int.Parse(p[3]));
+                    return RedSimulada.Estado();
                 case "posesize": return "bytes=" + (PoseCapture.Capture(Session.LocalZone(), Session.MyId).Length + 1) + " fantasma=" + Downed.Me + " fantasmas=" + string.Join(",", Downed.Ghosts);
                 case "puente":
                     return $"activo={Puente.Activo} estado={Puente.Estado} publica={Puente.Publica} fuera={Puente.CodigoFuera} respuesta={Puente.CodigoRespuesta} env={Puente.Enviados} rec={Puente.Recibidos} reenv={Puente.Reenviados}";
@@ -585,6 +603,52 @@ namespace MoonlighterCoop
         }
 
         private static string V(Vector3 v) => $"{v.x:F0},{v.y:F0}";
+
+        // Grabación continua para las pruebas largas: fotogramas JPG de 640 de ancho cada 1/fps s, numerados,
+        // hasta "grabar off". Luego ffmpeg los junta en un vídeo. Cada fotograma lleva su hora en el nombre del
+        // registro (grabar.txt) para cuadrar los pasos de la prueba con el vídeo.
+        private static bool _grabando;
+        public static System.Collections.IEnumerator Grabar(string dir, float fps)
+        {
+            Directory.CreateDirectory(dir);
+            _grabando = true;
+            int n = 0;
+            float paso = 1f / Mathf.Max(0.5f, fps), siguiente = Time.unscaledTime;
+            var log = new StreamWriter(Path.Combine(dir, "grabar.txt"), false);
+            try
+            {
+                while (_grabando)
+                {
+                    yield return new WaitForEndOfFrame();
+                    if (Time.unscaledTime < siguiente) continue;
+                    siguiente += paso;
+                    if (siguiente < Time.unscaledTime) siguiente = Time.unscaledTime + paso;
+                    Texture2D shot = null; RenderTexture rt = null; Texture2D small = null;
+                    try
+                    {
+                        shot = ScreenCapture.CaptureScreenshotAsTexture();
+                        int w = 640, h = Mathf.Max(2, Mathf.RoundToInt(640f * shot.height / shot.width) / 2 * 2);
+                        rt = RenderTexture.GetTemporary(w, h);
+                        Graphics.Blit(shot, rt);
+                        var old = RenderTexture.active; RenderTexture.active = rt;
+                        small = new Texture2D(w, h, TextureFormat.RGB24, false);
+                        small.ReadPixels(new Rect(0, 0, w, h), 0, 0); small.Apply();
+                        RenderTexture.active = old;
+                        File.WriteAllBytes(Path.Combine(dir, $"f{n:00000}.jpg"), small.EncodeToJPG(70));
+                        log.WriteLine($"{n} {DateTime.Now:HH:mm:ss.fff}");
+                        n++;
+                    }
+                    catch (Exception e) { Plugin.Log.LogWarning("[grabar] " + e.Message); }
+                    finally
+                    {
+                        if (shot != null) Destroy(shot);
+                        if (small != null) Destroy(small);
+                        if (rt != null) RenderTexture.ReleaseTemporary(rt);
+                    }
+                }
+            }
+            finally { log.Close(); }
+        }
 
         private static System.Collections.IEnumerator Record(string dir, int frames)
         {

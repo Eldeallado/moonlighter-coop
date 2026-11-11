@@ -92,6 +92,19 @@ namespace MoonlighterCoop
             if (hero == null) return;
             EndingRun = true;
             Vote.Reset();
+            // Un fantasma está marcado como vivo (para poder moverse): el juego, al ver un Will vivo, enseñaba
+            // "Escapó con el amuleto", le dejaba la mochila entera y solo le ofrecía "Ir a la villa", mientras los
+            // demás veían "Muerto" con la mochila perdida. Al acabar la expedición vuelve a estar muerto.
+            if (Me)
+            {
+                var st = hero.heroMerchantStats;
+                st.isDead = true;
+                bool v = st.currentHealth.variableStat;
+                st.currentHealth.variableStat = true;
+                st.currentHealth.Value = 0f;
+                st.currentHealth.variableStat = v;
+                hero.SetFlying(false);
+            }
             Dungeon.ApplyingRemote = true;
             try { hero.OnWillDeathAnimationEnded(); }
             finally { Dungeon.ApplyingRemote = false; }

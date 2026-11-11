@@ -30,8 +30,7 @@ namespace MoonlighterCoop
             // Steam no manda paquetes "rápidos" de más de 1200 bytes (los tira sin más): una pose grande (muriendo,
             // de fantasma, con muchos efectos a la vez) va por el canal seguro, que no tiene límite. Antes se perdían
             // todas y el otro veía tu Will congelado donde cayó en vez de tu fantasma.
-            bool rapido = (type == Msg.Pose || type == Msg.Enemies) && buf.Length <= 1200;
-            var mode = rapido ? EP2PSend.k_EP2PSendUnreliableNoDelay : EP2PSend.k_EP2PSendReliable;
+            var mode = SteamCoop.EsRapido(type, buf.Length) ? EP2PSend.k_EP2PSendUnreliableNoDelay : EP2PSend.k_EP2PSendReliable;
             if (!SteamNetworking.SendP2PPacket(SteamId, buf, (uint)buf.Length, mode, 0))
                 Plugin.Log.LogWarning($"[steam] send {type} ({buf.Length} bytes) failed");
         }
@@ -101,6 +100,11 @@ namespace MoonlighterCoop
 
         /// Players the host kicked out this session.
         public static readonly System.Collections.Generic.HashSet<string> Banned = new System.Collections.Generic.HashSet<string>();
+
+        /// Lo que va por el canal "rápido" de Steam (sin garantía, gana el más nuevo): poses y enemigos de hasta
+        /// 1200 bytes (contando el byte del tipo). Lo usa también el simulador de red de las pruebas (RedSimulada).
+        public const int LimiteRapido = 1200;
+        public static bool EsRapido(Msg type, int bytesConTipo) => (type == Msg.Pose || type == Msg.Enemies) && bytesConTipo <= LimiteRapido;
         // Por el adaptador UDP todos llegan como 127.0.0.1: entonces cuenta su IP de verdad (la sabe el Puente)
         public static string BanKey(IPeer p) => p is SteamPeer sp ? "steam:" + sp.SteamId.m_SteamID : "ip:" + (Puente.RemotoDe(p.Remote) ?? (p.Remote ?? "").Split(':')[0]);
 
