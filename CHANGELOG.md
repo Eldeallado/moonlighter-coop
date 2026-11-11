@@ -4,6 +4,9 @@
 - **El Errante sale a la vez para todos:** antes cada uno tenía su propio reloj y al invitado le salía por su cuenta. Ahora lo decide el anfitrión: cuando a él le sale el aviso o el Errante, a los demás también. En el modo carrera cada uno sigue con el suyo.
 - **En el móvil:** el chat se escribe con el teclado del teléfono, y las novedades se pueden leer también desde el juego del móvil.
 - El aviso de versión distinta ya no habla de F2 en el móvil.
+- **Un solo código para todos:** al crear la partida, el código grande es el que empieza por «IP» y vale para el móvil y para cualquier PC, tenga Steam o no. El de Steam sigue debajo, para amigos de PC.
+- **Jugar desde fuera de casa:** en el F2, «Pegar dirección» guarda la dirección de internet de tu PC (por ejemplo, la de un túnel) y el código la lleva dentro, así vale desde cualquier sitio.
+- Si escribes un código de Steam donde no hay Steam (el móvil), te dice que pidas el que empieza por «IP».
 
 ## 0.12.0 — 10/11/2026
 - **Juego cruzado con el móvil:** ya se puede jugar con la versión de Android de Moonlighter (en el PC de anfitrión, F2 → «Unirse por IP: Abierto»).

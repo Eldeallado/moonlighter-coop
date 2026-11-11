@@ -128,7 +128,7 @@ namespace MoonlighterCoop
             SteamMatchmaking.SetLobbyData(Lobby, "moonlighter_coop", Plugin.Version);
             Code = Encode(Lobby.GetAccountID().m_AccountID);
             if (Lobby != FromCode(Code)) Plugin.Log.LogWarning($"[steam] lobby id {Lobby.m_SteamID:X} does not round-trip through its code (instance {Lobby.GetUnAccountInstance():X})");
-            Status = "Partida creada. Código: " + Code;
+            Status = "Partida creada. Código: " + (Net.Listening ? CodigoIp.DelAnfitrion() : Code);
             Plugin.Log.LogInfo($"[steam] lobby {Lobby} created, code {Code}");
         }
 

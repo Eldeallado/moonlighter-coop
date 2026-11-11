@@ -144,9 +144,10 @@ namespace MoonlighterCoop
         {
             Backup.Now("al crear partida");
             Plugin.Role = "host";
-            // Steam only by default: opening a port for joining by IP is the host's choice (menu button).
+            // Siempre por IP (para que el móvil, que no tiene Steam, pueda entrar con el código) y además Steam si está.
+            // El anfitrión puede cerrar la IP en el menú si solo quiere amigos de Steam.
             if (SteamCoop.Available) SteamCoop.Host();
-            else Net.StartHost(Plugin.Port);
+            Net.StartHost(Plugin.Port);
             Plugin.Log.LogInfo("[menu] create game");
         }
 
@@ -169,6 +170,14 @@ namespace MoonlighterCoop
                 _ip = ip;
                 Plugin.Port = port;
                 JoinIp();
+                return;
+            }
+            if (!SteamCoop.Available)
+            {
+                // Sin Steam (el móvil) solo valen los códigos que empiezan por IP
+                SteamCoop.Status = string.IsNullOrWhiteSpace(_code) ? "Escribe el código del anfitrión"
+                    : "Ese código es de Steam y aquí no hay Steam: pide al anfitrión el código que empieza por «IP» (sale en su menú del cooperativo)";
+                Ui.Sound(Ui.SndError);
                 return;
             }
             Backup.Now("al unirte con código");
@@ -494,8 +503,9 @@ namespace MoonlighterCoop
             y = left.y;
             L(new Rect(left.x, y, left.width, 26 * k), host ? "Tu partida está abierta" : "Estás en la partida de tu amigo", SHead, Ui.Ink);
             y += 32 * k;
-            // Sin Steam (p. ej. el móvil de anfitrión) el código lleva la IP dentro
-            string codigo = !string.IsNullOrEmpty(SteamCoop.Code) ? SteamCoop.Code : (host && Net.Listening ? CodigoIp.Crear(LocalIp(), Plugin.Port) : null);
+            // El código grande lleva la IP dentro: vale para todos (móvil, PC con o sin Steam). Con dirección de
+            // internet, desde cualquier sitio; si no, con la misma wifi. El de Steam va aparte, debajo.
+            string codigo = host && Net.Listening ? CodigoIp.DelAnfitrion() : SteamCoop.Code;
             if (!string.IsNullOrEmpty(codigo))
             {
                 Ui.Section(new Rect(left.x, y, left.width, 20 * k), "Código para unirse");
@@ -518,14 +528,31 @@ namespace MoonlighterCoop
             y += 34 * k;
             if (host)
             {
-                // Joining by IP opens a port on this PC: only while the host wants it.
+                // Unirse por IP (y con el código «IP…»): abierto al crear la partida; se puede cerrar si solo se quiere Steam.
                 L(new Rect(left.x, y, cx - left.x, 28 * k), "Unirse por IP", SBody, Ui.Ink);
                 if (Choose(new Rect(cx, y, cw, 28 * k), Net.Listening ? "Abierto: " + LocalIp() : "Cerrado")) { if (Net.Listening) Net.StopHost(); else Net.StartHost(Plugin.Port); }
                 y += 34 * k;
-                // Con Steam el código grande es el de Steam: el del móvil (con la IP) va aquí debajo
-                if (Net.Listening && SteamCoop.Available)
+                if (Net.Listening)
                 {
-                    L(new Rect(left.x, y, left.width, 22 * k), "Código para el móvil (misma wifi): " + CodigoIp.Crear(LocalIp(), Plugin.Port), SBody, Ui.Gold);
+                    // Desde fuera de casa: la dirección de internet (la de un túnel) se pega aquí y el código la lleva dentro
+                    L(new Rect(left.x, y, cx - left.x, 28 * k), CodigoIp.HayInternet ? "Desde fuera: sí" : "Desde fuera: no", SBody, CodigoIp.HayInternet ? Ui.Green : Ui.InkSoft);
+                    string pega = string.IsNullOrEmpty(CodigoIp.Internet) ? "Pegar dirección" : "Quitar dirección";
+                    if (Btn(new Rect(cx, y, cw, 28 * k), pega, false, 14f))
+                    {
+                        if (string.IsNullOrEmpty(CodigoIp.Internet)) CodigoIp.CambiarInternet(GUIUtility.systemCopyBuffer);
+                        else CodigoIp.CambiarInternet("");
+                    }
+                    y += 34 * k;
+                    if (!string.IsNullOrEmpty(CodigoIp.Internet) && !CodigoIp.HayInternet)
+                    {
+                        L(new Rect(left.x, y, left.width, 22 * k), "La dirección copiada no vale (tiene que ser ip:puerto o nombre:puerto)", SSmall, Ui.Bad);
+                        y += 26 * k;
+                    }
+                }
+                // El código de Steam, aparte: para amigos de PC con Steam desde otra casa
+                if (!string.IsNullOrEmpty(SteamCoop.Code) && Net.Listening)
+                {
+                    L(new Rect(left.x, y, left.width, 22 * k), "Código de Steam (amigos de PC): " + SteamCoop.Code, SBody, Ui.Gold);
                     y += 28 * k;
                 }
             }

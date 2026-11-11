@@ -60,6 +60,8 @@ namespace MoonlighterCoop
         public static void SaveNewsSeen(string v) { if (_newsCfg != null) _newsCfg.Value = v; }
         private static BepInEx.Configuration.ConfigEntry<string> _nameCfg;
         public static void SaveName(string v) { if (_nameCfg != null) _nameCfg.Value = v; }
+        private static BepInEx.Configuration.ConfigEntry<string> _netCfg;
+        public static void SaveInternet(string v) { if (_netCfg != null) _netCfg.Value = v; }
         public static int WinW = 800, WinH = 450;
 
         private void Awake()
@@ -109,6 +111,8 @@ namespace MoonlighterCoop
             Changelog.Seen = _newsCfg.Value;
             _nameCfg = Config.Bind("Cooperativo", "Nombre", "", "Tu nombre en el cooperativo (se cambia en F2). Vacío = el de Steam");
             Nombres.Propio = _nameCfg.Value ?? "";
+            _netCfg = Config.Bind("Cooperativo", "DireccionInternet", "", "Dirección por la que te llegan desde internet (ip:puerto o nombre:puerto, p. ej. la de un túnel). Vacía = solo la wifi de casa");
+            CodigoIp.Internet = _netCfg.Value ?? "";
             SceneManager.sceneLoaded += (s, m) => Log.LogInfo($"[scene] loaded {s.name} ({m})");
             // The game turns its own log off; keep errors and the loading/room flow for debugging.
             Debug.unityLogger.logEnabled = true;

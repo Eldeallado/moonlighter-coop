@@ -14,6 +14,47 @@ namespace MoonlighterCoop
 
         public static bool EsCodigoIp(string code) => !string.IsNullOrEmpty(code) && code.Trim().ToUpperInvariant().StartsWith("IP");
 
+        /// Dirección por la que se llega a este PC desde internet ("ip:puerto" o "nombre:puerto"), p. ej. la de un
+        /// túnel: con CGNAT (muchas fibras) no se puede abrir un puerto en el router. Vacía = solo la wifi de casa.
+        /// Se guarda en la configuración (Cooperativo/DireccionInternet).
+        public static string Internet = "";
+        private static string _resuelta, _de;
+
+        /// El código que da el anfitrión: con dirección de internet vale desde cualquier sitio; si no, el de casa.
+        public static string DelAnfitrion()
+        {
+            if (TryInternet(out var ip, out var port)) return Crear(ip, port);
+            return Crear(IpLocal(), Plugin.Port);
+        }
+
+        public static bool HayInternet => TryInternet(out _, out _);
+
+        private static bool TryInternet(out string ip, out int port)
+        {
+            ip = null; port = 0;
+            string s = (Internet ?? "").Trim();
+            int c = s.LastIndexOf(':');
+            if (c <= 0 || !int.TryParse(s.Substring(c + 1), out port) || port <= 0 || port > 65535) return false;
+            string host = s.Substring(0, c);
+            if (_de != host)
+            {
+                // Un nombre (como los de los túneles) se convierte a su IPv4 una vez
+                _de = host; _resuelta = null;
+                if (IPAddress.TryParse(host, out var a) && a.AddressFamily == AddressFamily.InterNetwork) _resuelta = host;
+                else
+                    try { foreach (var x in Dns.GetHostAddresses(host)) if (x.AddressFamily == AddressFamily.InterNetwork) { _resuelta = x.ToString(); break; } }
+                    catch { }
+            }
+            ip = _resuelta;
+            return ip != null;
+        }
+
+        public static void CambiarInternet(string s)
+        {
+            Internet = (s ?? "").Trim();
+            Plugin.SaveInternet(Internet);
+        }
+
         public static string Crear(string ip, int port)
         {
             IPAddress a;

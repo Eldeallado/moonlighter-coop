@@ -473,7 +473,7 @@ namespace MoonlighterCoop
                     return "ok";
                 }
                 case "f3state": { var t3 = Traverse.Create(ColorMenu.Instance); return "id=" + t3.Property("FocusedId").GetValue<int>() + " part=" + t3.Field("_part").GetValue<int>() + " style=" + t3.Field("_style").GetValue<int>(); } { var t = Traverse.Create(CoopMenu.Instance); return $"focus={t.Field("_focus").GetValue<int>()} rects={t.Field("_lastRects").GetValue<List<Rect>>().Count} ach={t.Field("_showAch").GetValue<bool>()} rules={t.Field("_showRules").GetValue<bool>()} give={t.Field("_showGive").GetValue<bool>()} sel={t.Field("_listSel").GetValue<int>()} pad={PadNav.Active}"; }
-                case "f2page": { var m = CoopMenu.Instance; if (m != null) Traverse.Create(m).Field(p[1]).SetValue(true); return "ok"; }
+                case "f2page": { var m = CoopMenu.Instance; if (m != null) Traverse.Create(m).Field(p[1]).SetValue(p.Length > 2 ? bool.Parse(p[2]) : true); return "ok"; }
                 case "summary": Summary.Show(p[1] == "day" ? Summary.Kind.Day : Summary.Kind.Run); return "ok";
                 case "chat": Chat.Send(string.Join(" ", p.Skip(1).ToArray())); return "ok";
                 case "bars": EnemyBars.On = p[1] == "on"; return "ok";
