@@ -442,6 +442,12 @@ namespace MoonlighterCoop
             if (Btn(new Rect(r.x + r.width * 0.1f, y, r.width * 0.8f, bh), "Unirse por IP (misma red)", false, 20f)) _page = Page.Ip;
             y += bh + gap + 6 * k;
             if (Btn(new Rect(r.x + r.width * 0.25f, y, r.width * 0.5f, 38 * k), Teclas.Nombre("Color de tu Will (F3)", "Color de tu Will"))) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
+            // Solo en el móvil: cómo de fino va el juego (lo pone el port)
+            if (OpcionMovil.Texto != null)
+            {
+                y += 44 * k;
+                if (Btn(new Rect(r.x + r.width * 0.25f, y, r.width * 0.5f, 38 * k), OpcionMovil.Texto())) OpcionMovil.Siguiente?.Invoke();
+            }
         }
 
         private void DrawJoinCode(Rect r, float k)
@@ -526,6 +532,11 @@ namespace MoonlighterCoop
             if (Net.Connected && Btn(new Rect(right.x, y, right.width, bh), "Escribir en el chat", false, 16f, Ui.Tone.Wood, "talk")) { SetOpen(false); Chat.OpenTyping(); }
             if (Net.Connected) y += step;
             if (Btn(new Rect(right.x, y, right.width, bh), "Desatascarme", false, 16f, Ui.Tone.Wood, "GUI_Effect_Icon_Confuse")) { SetOpen(false); Arreglos.Desatascar(); }
+            if (OpcionMovil.Texto != null)
+            {
+                y += step;
+                if (Btn(new Rect(right.x, y, right.width, bh), OpcionMovil.Texto(), false, 16f, Ui.Tone.Wood)) OpcionMovil.Siguiente?.Invoke();
+            }
             if (Btn(new Rect(right.x, right.yMax - 38 * k, right.width, 38 * k), host ? "Cerrar la partida" : "Salir de la partida", false, 15f, Ui.Tone.Red, "Bag_Pendant")) LeaveGame();
 
             // ----- left: the open panel, or the game -----
