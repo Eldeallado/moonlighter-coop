@@ -1,6 +1,6 @@
 # Novedades de Moonlighter Coop
 
-## 0.13.1 — en preparación
+## 0.13.1 — 11/11/2026
 - **El fantasma por Steam:** al morir, los demás veían tu Will congelado donde caíste en vez de tu fantasma. Steam tiraba los paquetes grandes (los de morir y los de fantasma); ahora llegan siempre.
 - **Modo carrera:** de fantasma ya no vas pegado a tu compañero. Te mueves libre por la sala y, cuando él cambia de sala, pasas a la suya para seguir viéndole.
 - **En el móvil:** botón «Rendimiento» en el menú Coop (auto, batería o calidad).

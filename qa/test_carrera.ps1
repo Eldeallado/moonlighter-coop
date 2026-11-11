@@ -1,4 +1,4 @@
-# Race rule, two copies on the hidden desktop: separate rooms, waiting at the way down, going down together.
+﻿# Race rule, two copies on the hidden desktop: separate rooms, waiting at the way down, going down together.
 param([string]$Out = "$env:TEMP\coop_carrera")
 $q = $PSScriptRoot
 . "$q\oculto.ps1"
@@ -53,5 +53,10 @@ if ($m.Success) { Anf ("goroom " + $m.Groups[2].Value + " " + $m.Groups[3].Value
 "host se mueve: " + (Anf "racestate")
 "guest fantasma: " + (Inv "racestate")
 Inv "shot $Out\04_fantasma_sigue.png" | Out-Null; Start-Sleep 2
+# El fantasma se mueve libre (antes iba pegado al compañero)
+"estado fantasma: " + ((Inv "info") -replace 'doors=.*',''); $a = [regex]::Match((Inv "info"), 'pos=([-\d.]+),([-\d.]+)').Value
+Inv "stick 1 0" | Out-Null; Start-Sleep 2; Inv "stop" | Out-Null; Start-Sleep 1
+$b = [regex]::Match((Inv "info"), 'pos=([-\d.]+),([-\d.]+)').Value
+"fantasma antes $a  después $b  (anfitrión " + [regex]::Match((Anf "info"), 'pos=([-\d.]+),([-\d.]+)').Value + ")"
 Get-Process Moonlighter -ErrorAction SilentlyContinue | Stop-Process -Force
 Get-ChildItem $Out -Filter *.png | Select-Object Name, Length

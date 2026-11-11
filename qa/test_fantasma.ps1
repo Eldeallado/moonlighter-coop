@@ -1,4 +1,4 @@
-# El invitado muere en la mazmorra: tiene que quedarse de fantasma (y el anfitrión verlo así).
+﻿# El invitado muere en la mazmorra: tiene que quedarse de fantasma (y el anfitrión verlo así).
 # Mide también cuánto ocupa su pose de fantasma (por Steam, más de 1200 bytes no salían).
 param([string]$Out = "$env:TEMP\coop_fantasma")
 $q = $PSScriptRoot
