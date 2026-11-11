@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 using FullSerializer;
@@ -231,7 +231,7 @@ namespace MoonlighterCoop
 
         // Things one player does that every other player must see: the host passes them on.
         private static readonly System.Collections.Generic.HashSet<Msg> Relayed = new System.Collections.Generic.HashSet<Msg>
-        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.Bag, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods, Msg.Revive, Msg.Stats, Msg.Chat, Msg.Call, Msg.CallReply, Msg.Role, Msg.RoleHeal, Msg.ShopOwner, Msg.Give, Msg.AskItem, Msg.AskReply, Msg.RaceArrive, Msg.Purchase };
+        { Msg.Pose, Msg.ItemTaken, Msg.Downed, Msg.FountainHeal, Msg.Gold, Msg.TownArea, Msg.BreakAt, Msg.BreakDetailAt, Msg.EndRun, Msg.ShopState, Msg.Shelves, Msg.DayTime, Msg.Projectiles, Msg.LookData, Msg.Mods, Msg.Revive, Msg.Stats, Msg.Chat, Msg.Call, Msg.CallReply, Msg.Role, Msg.RoleHeal, Msg.ShopOwner, Msg.Give, Msg.AskItem, Msg.AskReply, Msg.RaceArrive, Msg.Purchase };
 
         private static void Handle(IPeer from, Msg type, byte[] data)
         {
@@ -346,7 +346,7 @@ namespace MoonlighterCoop
                 case Msg.Projectiles: Projectiles.OnProjectiles(data); break;
                 case Msg.GoldSet: if (IsGuest) Shared.OnGoldSet(data); break;
                 case Msg.DeadEnemies: if (IsGuest) EnemySync.OnDeadEnemies(data); break;
-                case Msg.Bag: Shared.OnBag(data); break;
+                case Msg.Bag: Shared.OnBag(from, data); break;   // the host answers with its own bag instead of passing it on
                 case Msg.Vote: Vote.OnVote(from.Id, data); break;
                 case Msg.VoteResult: if (IsGuest) Vote.OnResult(data); break;
                 case Msg.TownArea: TownSync.OnTownArea(data); break;

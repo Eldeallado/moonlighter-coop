@@ -78,7 +78,8 @@ if ($m.Success) { [void](D host "door $($m.Groups[1].Value)"); Esperar 10; Misma
 
 # 4. Pelear un rato todos
 & "$q\fight.ps1" -Who $quien -Rounds 10 | Out-Null
-Esperar 3
+# Un enemigo que solo le queda a un invitado se quita a los 3 s (EnemySync.Cull)
+Esperar 5
 $e = $quien | ForEach-Object { $x = (Info $_).enemies; if ($x) { ($x -split ";").Count } else { 0 } }
 Ok (($e | Select-Object -Unique).Count -eq 1) "mismos enemigos vivos tras pelear ($($e -join ' | '))"
 
@@ -94,12 +95,16 @@ Ok (($b | Select-Object -Unique).Count -eq 1) "misma mochila ($($b -join ' | '))
 Ok ((D guest "posesize") -match "fantasma=True") "el invitado muerto es fantasma"
 Ok ((D host "posesize") -match "fantasmas=.*1") "el anfitrión ve al invitado como fantasma"
 $a = (Info guest).pos; [void](D guest "stick 1 0"); Esperar 2; [void](D guest "stop"); Esperar 1; $c = (Info guest).pos
+# Pegado a la pared derecha no avanza: hacia el otro lado
+if ($a -eq $c) { [void](D guest "stick -1 0"); Esperar 2; [void](D guest "stop"); Esperar 1; $c = (Info guest).pos }
 Ok ($a -ne $c) "el fantasma se mueve ($a -> $c)"
 Nota ("tamaño de poses: " + ($quien | ForEach-Object { "$_ " + (D $_ "posesize") }) -join " | ")
 
 # 7. Siguiente piso: el fantasma revive
 [void](D host "nextfloor"); Esperar 45
 MismaSala "bajar de piso"
+$b = $quien | ForEach-Object { (Info $_).bag }
+Ok (($b | Select-Object -Unique).Count -eq 1) "misma mochila al bajar de piso ($($b -join ' | '))"
 Ok ((D guest "posesize") -match "fantasma=False") "el fantasma revive al bajar de piso"
 foreach ($w in $quien) { [void](D $w "inv on") }
 

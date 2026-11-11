@@ -1,5 +1,10 @@
 # Novedades de Moonlighter Coop
 
+## 0.13.3 — 11/11/2026
+- **Mochila compartida con lag:** si dos jugadores cogían cosas a la vez con mala conexión, cada uno podía quedarse con una mochila distinta (a uno le salían objetos de más). Ahora el anfitrión junta lo que coge cada uno y todos acaban con la misma mochila.
+- **Enemigos fantasma:** si el aviso de que un enemigo había muerto se perdía por el camino, a los invitados se les quedaba vivo (y la sala cerrada). Ahora, si el anfitrión ya no lo tiene, desaparece también para ellos a los 3 segundos.
+- Compatible con la 0.13.x: se puede jugar con alguien que aún tenga la 0.13.2 (los arreglos van mejor si todos tienen la 0.13.3).
+
 ## 0.13.2 — 11/11/2026
 - **Pantalla final al caer todos:** si eras fantasma, te salía «Escapó con el amuleto», conservabas la mochila y solo podías elegir «Ir a la villa», mientras los demás veían «Muerto» y perdían la mochila. Ahora todos ven lo mismo y pueden votar.
 - **Jugar desde fuera más fluido:** si se pierde algo por el camino, se reenvía al momento en vez de esperar, y como mucho se espera 1 segundo (antes hasta 2), así que con una conexión mala hay muchos menos tirones. El código «PU» aguanta más tiempo válido mientras esperas a que entren.

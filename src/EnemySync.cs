@@ -14,7 +14,7 @@ namespace MoonlighterCoop
         private static readonly Dictionary<string, Enemy> _byId = new Dictionary<string, Enemy>();
         private static readonly Dictionary<Enemy, string> _idOf = new Dictionary<Enemy, string>();
         private static readonly Dictionary<DungeonRoom, int> _counter = new Dictionary<DungeonRoom, int>();
-        private static float _nextSend;
+        private static float _nextSend, _nextEmpty;
         public static bool ApplyingDeath;
         public static int HitsSent, HitsApplied, DeathsSent, DeathsApplied, StatesApplied;
 
@@ -106,7 +106,8 @@ namespace MoonlighterCoop
                 var bid = IdOf(br.Boss.enemy);
                 if (bid != null && !list.Exists(x => x.Item1 == bid)) list.Add((bid, br.Boss.enemy));
             }
-            if (list.Count == 0) return;
+            // With nothing alive, still say so now and then: a guest's leftover enemy goes away (see Cull)
+            if (list.Count == 0) { if (now < _nextEmpty) return; _nextEmpty = now + 0.5f; }
             var ms = new MemoryStream(); var w = new BinaryWriter(ms);
             w.Write((short)list.Count);
             foreach (var (id, e) in list)
@@ -128,6 +129,8 @@ namespace MoonlighterCoop
                     w.Write(st.normalizedTime);
                 }
             }
+            // Which room this list is (old versions stop reading before it)
+            w.Write(RoomKey(dm.currentDungeonRoom));
             Net.Send(Msg.Enemies, ms.ToArray());
         }
 
@@ -168,6 +171,7 @@ namespace MoonlighterCoop
         {
             var r = new BinaryReader(new MemoryStream(data));
             int n = r.ReadInt16();
+            var seen = new HashSet<string>();
             for (int i = 0; i < n; i++)
             {
                 string id = r.ReadString();
@@ -179,11 +183,44 @@ namespace MoonlighterCoop
                 var hashes = new int[na]; var times = new float[na];
                 for (int k = 0; k < na; k++) { hashes[k] = r.ReadInt32(); times[k] = r.ReadSingle(); }
 
+                seen.Add(id);
                 var e = Find(id);
                 if (e == null || !e.gameObject.activeInHierarchy) continue;
                 StatesApplied++;
                 var mirror = e.GetComponent<EnemyMirror>() ?? e.gameObject.AddComponent<EnemyMirror>();
                 mirror.Apply(e, pos, scaleX, hp, flip, hashes, times);
+            }
+            if (r.BaseStream.Position < r.BaseStream.Length) Cull(r.ReadString(), seen);
+        }
+
+        private static string RoomKey(DungeonRoom room) => $"{room.x},{room.y}{(room.isSecret ? "s" : "")}{(room is DungeonBossRoom ? "b" : "")}";
+
+        // Guest: an enemy of ours the host has not had for a while (its death got lost on the way): take it away
+        private static readonly Dictionary<Enemy, float> _missingSince = new Dictionary<Enemy, float>();
+        public static int Culled;
+
+        private static void Cull(string room, HashSet<string> seen)
+        {
+            var dm = DungeonManager.Instance;
+            if (!Session.IsGuest || Race.Separate || dm == null || dm.currentDungeonRoom == null || GameManager.Instance == null || !GameManager.Instance.NotLoadingScene) return;
+            if (RoomKey(dm.currentDungeonRoom) != room) { _missingSince.Clear(); return; }
+            float now = Time.unscaledTime;
+            var gone = new List<Enemy>();
+            foreach (var e in dm.currentDungeonRoom.roomEnemies)
+            {
+                if (e == null || !e.gameObject.activeInHierarchy || e.enemyStats == null || !e.enemyStats.isAlive) continue;
+                var id = IdOf(e);
+                if (id != null && seen.Contains(id)) { _missingSince.Remove(e); continue; }
+                if (!_missingSince.TryGetValue(e, out float since)) { _missingSince[e] = now; continue; }
+                if (now - since > 3f) gone.Add(e);
+            }
+            foreach (var e in gone)
+            {
+                _missingSince.Remove(e);
+                dm.currentDungeonRoom.roomEnemies.Remove(e);
+                e.gameObject.SetActive(false);
+                Culled++;
+                Plugin.Log.LogInfo($"[enemy] {IdOf(e) ?? e.name} is not on the host any more: removed");
             }
         }
 
