@@ -437,6 +437,12 @@ namespace MoonlighterCoop
                     return $"orig={s0.texture?.name} tinted={(t1 != s0)} ui={u1?.texture?.name} {u1?.texture?.width}x{u1?.texture?.height} rect={tr} packed={s0.packed} mode={s0.packingMode}";
                 }
                 case "racestate": return $"separate={Race.Separate} waiting={Race.WaitingMe} rule={HostSettings.Race} zone={Dungeon.RoomZone()} ghost={Downed.Me}";
+                case "puente":
+                    return $"activo={Puente.Activo} estado={Puente.Estado} publica={Puente.Publica} fuera={Puente.CodigoFuera} respuesta={Puente.CodigoRespuesta} env={Puente.Enviados} rec={Puente.Recibidos} reenv={Puente.Reenviados}";
+                case "puenteprueba":
+                    // El código del anfitrión pero apuntando a este mismo PC (pruebas sin salir a internet)
+                    return Puente.CodigoPara(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, Puente.PuertoUdp), false);
+                case "perdida": Puente.PerdidaPrueba = double.Parse(p[1], CultureInfo.InvariantCulture); return "perdida=" + Puente.PerdidaPrueba;
                 case "errante":
                 {
                     // Anfitrión: hace que el juego saque al Errante ya (como si se hubiera acabado su tiempo)

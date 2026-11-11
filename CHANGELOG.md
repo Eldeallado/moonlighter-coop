@@ -5,7 +5,10 @@
 - **En el móvil:** el chat se escribe con el teclado del teléfono, y las novedades se pueden leer también desde el juego del móvil.
 - El aviso de versión distinta ya no habla de F2 en el móvil.
 - **Un solo código para todos:** al crear la partida, el código grande es el que empieza por «IP» y vale para el móvil y para cualquier PC, tenga Steam o no. El de Steam sigue debajo, para amigos de PC.
-- **Jugar desde fuera de casa:** en el F2, «Pegar dirección» guarda la dirección de internet de tu PC (por ejemplo, la de un túnel) y el código la lleva dentro, así vale desde cualquier sitio.
+- **Jugar desde fuera de casa, sin abrir puertos ni túneles:** el código grande (empieza por «PU») vale también desde otra casa o con datos móviles. Lleva la dirección de internet del anfitrión y una clave secreta; la partida va directa entre los dos por UDP, y si se pierde algo se reenvía solo. En la misma wifi se entra directo, como antes.
+- **Si a un amigo no le deja entrar:** en su pantalla de unirse sale «Copiar mi código de vuelta» (empieza por «RE»). Te lo manda, lo copias y en tu F2 pulsas «Pegar respuesta»: tu PC le llama primero y así los routers dejan pasar la conexión.
+- Los jugadores que entran desde fuera salen con su nombre, y «Echar» a uno no echa a los demás.
+- El texto de la dificultad ya no se sale del menú con varios jugadores.
 - Si escribes un código de Steam donde no hay Steam (el móvil), te dice que pidas el que empieza por «IP».
 
 ## 0.12.0 — 10/11/2026

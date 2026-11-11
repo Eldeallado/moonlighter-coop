@@ -97,7 +97,8 @@ namespace MoonlighterCoop
 
         /// Players the host kicked out this session.
         public static readonly System.Collections.Generic.HashSet<string> Banned = new System.Collections.Generic.HashSet<string>();
-        public static string BanKey(IPeer p) => p is SteamPeer sp ? "steam:" + sp.SteamId.m_SteamID : "ip:" + (p.Remote ?? "").Split(':')[0];
+        // Por el adaptador UDP todos llegan como 127.0.0.1: entonces cuenta su IP de verdad (la sabe el Puente)
+        public static string BanKey(IPeer p) => p is SteamPeer sp ? "steam:" + sp.SteamId.m_SteamID : "ip:" + (Puente.RemotoDe(p.Remote) ?? (p.Remote ?? "").Split(':')[0]);
 
         public static string MyName => Available ? SteamFriends.GetPersonaName() : "";
 
@@ -217,7 +218,14 @@ namespace MoonlighterCoop
 
         private static void OnSessionRequest(P2PSessionRequest_t r) => AcceptGuest(r.m_steamIDRemote);
 
-        public static string PeerName(IPeer p) => p is SteamPeer sp && Available ? SteamFriends.GetFriendPersonaName(sp.SteamId) : p.Remote;
+        // Sin Steam: el nombre que ha puesto (llega con su muñeco); si aún no, su IP (la de verdad si entra por el adaptador)
+        public static string PeerName(IPeer p)
+        {
+            if (p is SteamPeer sp && Available) return SteamFriends.GetFriendPersonaName(sp.SteamId);
+            if (Puppet.All.TryGetValue(p.Id, out var m) && m != null && !string.IsNullOrEmpty(m.Name)) return m.Name;
+            string real = Puente.RemotoDe(p.Remote);
+            return real != null ? real + " (desde fuera)" : p.Remote;
+        }
 
         /// Every frame: deliver P2P packets to each peer's inbox; join a lobby from the command line once ready.
         public static void Tick()

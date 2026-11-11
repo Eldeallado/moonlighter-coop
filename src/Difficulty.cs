@@ -29,6 +29,13 @@ namespace MoonlighterCoop
             return Mode == 2 ? f * 1.25f : f;
         }
 
+        /// Corto, para el selector del menú (el largo no cabe con 2 o más jugadores).
+        public static string Short(int players)
+        {
+            if (Mode == 0 || players <= 1) return Names[Mode];
+            return $"{Names[Mode].Split(' ')[0]} (+{Mathf.RoundToInt((Life(players) - 1f) * 100f)}% vida)";
+        }
+
         public static string Describe(int players)
         {
             if (Mode == 0 || players <= 1) return Names[Mode];

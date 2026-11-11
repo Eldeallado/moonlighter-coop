@@ -21,6 +21,7 @@ namespace MoonlighterCoop
         private bool _cursorWas;
         private string _copied = "";
         private float _copiedAt;
+        private float _respuestaOk, _respuestaMal;
 
         private void Awake() { Instance = this; }
 
@@ -124,6 +125,7 @@ namespace MoonlighterCoop
 
         private static string LocalIp() => CodigoIp.IpLocal();
 
+
         // ---------- actions ----------
 
         // For the QA remote.
@@ -148,6 +150,8 @@ namespace MoonlighterCoop
             // El anfitrión puede cerrar la IP en el menú si solo quiere amigos de Steam.
             if (SteamCoop.Available) SteamCoop.Host();
             Net.StartHost(Plugin.Port);
+            // Y el adaptador para entrar desde fuera de casa (código «PU»)
+            Puente.Abrir();
             Plugin.Log.LogInfo("[menu] create game");
         }
 
@@ -172,11 +176,30 @@ namespace MoonlighterCoop
                 JoinIp();
                 return;
             }
+            // Código «PU»: vale en casa y fuera. En la misma wifi se entra directo; si no, por el adaptador UDP.
+            if (Puente.Leer(_code, out var destino, out var casa, out var clave))
+            {
+                Backup.Now("al unirte con código");
+                string mia = LocalIp();
+                if (casa != "" && mia.StartsWith(casa.Substring(0, casa.LastIndexOf('.') + 1)) && Puente.EnCasa(casa, clave))
+                {
+                    _ip = casa;
+                    Plugin.Port = Plugin.DefaultPort;
+                    JoinIp();
+                    return;
+                }
+                int local = Puente.Unirse(destino, clave);
+                _ip = "127.0.0.1";
+                Plugin.Port = local;
+                JoinIp();
+                SteamCoop.Status = "Conectando por internet…";
+                return;
+            }
             if (!SteamCoop.Available)
             {
-                // Sin Steam (el móvil) solo valen los códigos que empiezan por IP
+                // Sin Steam (el móvil) solo valen los códigos que empiezan por IP o PU
                 SteamCoop.Status = string.IsNullOrWhiteSpace(_code) ? "Escribe el código del anfitrión"
-                    : "Ese código es de Steam y aquí no hay Steam: pide al anfitrión el código que empieza por «IP» (sale en su menú del cooperativo)";
+                    : "Ese código es de Steam y aquí no hay Steam: pide al anfitrión el código grande de su menú del cooperativo (empieza por «PU» o «IP»)";
                 Ui.Sound(Ui.SndError);
                 return;
             }
@@ -214,6 +237,8 @@ namespace MoonlighterCoop
             string status = SteamCoop.Status;
             Net.CloseAll();
             Net.StopHost();
+            Puente.Detener();
+            Plugin.Port = Plugin.DefaultPort;   // el invitado por el puente usaba un puerto local
             SteamCoop.Leave();
             Session.Reset();
             Plugin.Role = "";
@@ -447,6 +472,15 @@ namespace MoonlighterCoop
             y += 62 * k;
             if (Btn(new Rect(r.x + r.width * 0.35f, y, r.width * 0.3f, 36 * k), "Atrás")) _page = Page.Main;
             L(new Rect(r.x, y + 44 * k, r.width, 40 * k), "Al unirte vuelves al menú principal y entras en la partida de tu amigo.", SSmall, Ui.InkSoft, TextAnchor.MiddleCenter, true);
+            // Entrando desde fuera por el adaptador: cómo va, y el código de vuelta por si el anfitrión tiene que llamarte
+            if (Puente.Activo && !Session.IsHost && !Net.Connected)
+            {
+                y += 86 * k;
+                L(new Rect(r.x, y, r.width, 22 * k), Puente.Estado, SSmall, Ui.Gold, TextAnchor.MiddleCenter, true);
+                string re = Puente.CodigoRespuesta;
+                if (re != null && Btn(new Rect(r.x + r.width * 0.2f, y + 28 * k, r.width * 0.6f, 32 * k), _copied == re && Time.unscaledTime - _copiedAt < 2f ? "¡Copiado! Mándaselo" : "Copiar mi código de vuelta", false, 15f))
+                { GUIUtility.systemCopyBuffer = re; _copied = re; _copiedAt = Time.unscaledTime; }
+            }
         }
 
         private void DrawJoinIp(Rect r, float k)
@@ -503,16 +537,19 @@ namespace MoonlighterCoop
             y = left.y;
             L(new Rect(left.x, y, left.width, 26 * k), host ? "Tu partida está abierta" : "Estás en la partida de tu amigo", SHead, Ui.Ink);
             y += 32 * k;
-            // El código grande lleva la IP dentro: vale para todos (móvil, PC con o sin Steam). Con dirección de
-            // internet, desde cualquier sitio; si no, con la misma wifi. El de Steam va aparte, debajo.
-            string codigo = host && Net.Listening ? CodigoIp.DelAnfitrion() : SteamCoop.Code;
+            // El código grande vale para todos (móvil, PC con o sin Steam): el «PU» lleva la dirección de internet,
+            // la de casa y la clave, así que sirve en la misma wifi y desde fuera. Mientras el adaptador aún no sabe
+            // su dirección de internet, el «IP» de casa. El de Steam va aparte, debajo.
+            string codigo = host && Net.Listening ? (Puente.CodigoFuera ?? CodigoIp.DelAnfitrion()) : SteamCoop.Code;
             if (!string.IsNullOrEmpty(codigo))
             {
                 Ui.Section(new Rect(left.x, y, left.width, 20 * k), "Código para unirse");
                 y += 24 * k;
                 var cr = new Rect(left.x, y, 236 * k, 60 * k);
                 Ui.Slot(cr);
-                Ui.Shadowed(cr, codigo, codigo.Length > 8 ? 26f : 38f, Ui.Gold, new Color(0f, 0f, 0f, 0.6f));
+                // El «PU» es largo: en dos líneas de 10 y 10 para que quepa y se lea bien
+                string ver = codigo.Length > 12 ? codigo.Substring(0, 10) + "\n" + codigo.Substring(10) : codigo;
+                Ui.Shadowed(cr, ver, codigo.Length > 12 ? 19f : codigo.Length > 8 ? 26f : 38f, Ui.Gold, new Color(0f, 0f, 0f, 0.6f));
                 float bx = cr.xMax + 12 * k, bw = left.xMax - bx;
                 if (Btn(new Rect(bx, y, bw, 28 * k), _copied == codigo && Time.unscaledTime - _copiedAt < 2f ? "¡Copiado!" : "Copiar código", false, 15f))
                 { GUIUtility.systemCopyBuffer = codigo; _copied = codigo; _copiedAt = Time.unscaledTime; }
@@ -523,29 +560,30 @@ namespace MoonlighterCoop
             y += 26 * k;
             float cw = 230 * k, cx = left.xMax - cw;
             L(new Rect(left.x, y, cx - left.x, 28 * k), "Dificultad", SBody, Ui.Ink);
-            if (host) { if (Choose(new Rect(cx, y, cw, 28 * k), Difficulty.Describe(Session.Players))) { Difficulty.Mode = (Difficulty.Mode + 1) % 3; Plugin.SaveDifficulty(Difficulty.Mode); } }
-            else L(new Rect(cx, y, cw, 28 * k), Difficulty.Describe(Session.Players), SBody, Ui.InkSoft, TextAnchor.MiddleCenter);
+            if (host) { if (Choose(new Rect(cx, y, cw, 28 * k), Difficulty.Short(Session.Players))) { Difficulty.Mode = (Difficulty.Mode + 1) % 3; Plugin.SaveDifficulty(Difficulty.Mode); } }
+            else L(new Rect(cx, y, cw, 28 * k), Difficulty.Short(Session.Players), SBody, Ui.InkSoft, TextAnchor.MiddleCenter);
             y += 34 * k;
             if (host)
             {
                 // Unirse por IP (y con el código «IP…»): abierto al crear la partida; se puede cerrar si solo se quiere Steam.
                 L(new Rect(left.x, y, cx - left.x, 28 * k), "Unirse por IP", SBody, Ui.Ink);
-                if (Choose(new Rect(cx, y, cw, 28 * k), Net.Listening ? "Abierto: " + LocalIp() : "Cerrado")) { if (Net.Listening) Net.StopHost(); else Net.StartHost(Plugin.Port); }
+                if (Choose(new Rect(cx, y, cw, 28 * k), Net.Listening ? "Abierto: " + LocalIp() : "Cerrado")) { if (Net.Listening) { Net.StopHost(); Puente.Detener(); } else { Net.StartHost(Plugin.Port); Puente.Abrir(); } }
                 y += 34 * k;
                 if (Net.Listening)
                 {
-                    // Desde fuera de casa: la dirección de internet (la de un túnel) se pega aquí y el código la lleva dentro
-                    L(new Rect(left.x, y, cx - left.x, 28 * k), CodigoIp.HayInternet ? "Desde fuera: sí" : "Desde fuera: no", SBody, CodigoIp.HayInternet ? Ui.Green : Ui.InkSoft);
-                    string pega = string.IsNullOrEmpty(CodigoIp.Internet) ? "Pegar dirección" : "Quitar dirección";
-                    if (Btn(new Rect(cx, y, cw, 28 * k), pega, false, 14f))
+                    // Desde fuera de casa (el adaptador UDP). Si a un amigo no le deja entrar, te pasa su código «RE»
+                    // y lo pegas aquí: tu PC le "llama" primero y así su router y el tuyo dejan pasar la conexión.
+                    bool listo = Puente.CodigoFuera != null;
+                    L(new Rect(left.x, y, cx - left.x, 28 * k), listo ? "Desde fuera: sí" : "Desde fuera: preparando…", SBody, listo ? Ui.Green : Ui.InkSoft);
+                    if (Btn(new Rect(cx, y, cw, 28 * k), _respuestaOk > Time.unscaledTime ? "¡Llamándole!" : "Pegar respuesta", false, 14f))
                     {
-                        if (string.IsNullOrEmpty(CodigoIp.Internet)) CodigoIp.CambiarInternet(GUIUtility.systemCopyBuffer);
-                        else CodigoIp.CambiarInternet("");
+                        if (Puente.Responder(GUIUtility.systemCopyBuffer)) _respuestaOk = Time.unscaledTime + 30f;
+                        else { _respuestaMal = Time.unscaledTime + 4f; Ui.Sound(Ui.SndError); }
                     }
                     y += 34 * k;
-                    if (!string.IsNullOrEmpty(CodigoIp.Internet) && !CodigoIp.HayInternet)
+                    if (_respuestaMal > Time.unscaledTime)
                     {
-                        L(new Rect(left.x, y, left.width, 22 * k), "La dirección copiada no vale (tiene que ser ip:puerto o nombre:puerto)", SSmall, Ui.Bad);
+                        L(new Rect(left.x, y, left.width, 22 * k), "Copia antes el código «RE…» que te ha mandado tu amigo", SSmall, Ui.Bad);
                         y += 26 * k;
                     }
                 }
