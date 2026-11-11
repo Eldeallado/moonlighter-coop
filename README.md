@@ -34,15 +34,16 @@ Todos los jugadores necesitan el mod instalado (la misma versión).
 | **F3** | Aspecto de tu Will: color de chaleco, camiseta, pantalón, mochila, zapatos, gema, pelo y piel (barras de tono, intensidad y brillo, con vista previa), o un estilo entero (Zenón, Herrero, Bruja, Pete, Gólem, Bosque, Desierto, Tecnología, Fantasma) |
 | **L3 + R3** (mando) | Abre el menú cooperativo con el mando: cruceta para moverse, A aceptar, B volver |
 
-1. **Quien hace de anfitrión** carga su partida, pulsa **F2 → Crear partida** y le sale un **código de 7 letras** (también puede invitar a amigos de Steam desde ahí).
-2. **Los demás** pulsan **F2 → Unirse con un código** y lo escriben. Entran solos en la partida del anfitrión.
-3. ¿Misma casa o red? El anfitrión pone **Unirse por IP** en **Abierto** y le sale también un **código que empieza por IP** (en casa, «IP» y 4 letras). Ese código vale en **Unirse con un código** aunque no haya Steam, y es el que usa el móvil.
-4. Arriba del F2 puedes escribir **tu nombre**; si lo dejas vacío, se usa el de Steam.
+1. **Quien hace de anfitrión** carga su partida y pulsa **F2 → Crear partida**. Le sale un **código grande que empieza por «PU»**: vale para todos (PC con o sin Steam, y móvil), en la misma casa y **desde otra casa o con datos móviles**, sin abrir puertos ni instalar nada más. Pulsa **Copiar código** y pásaselo a tus amigos.
+2. **Los demás** pulsan **F2 → Unirse con un código** y lo pegan. Entran solos en la partida del anfitrión.
+3. **Si a alguien de fuera no le deja entrar** (depende de su router o de su compañía), en su pantalla sale **Copiar mi código de vuelta** (empieza por «RE»). Te lo manda, lo copias y en tu F2 pulsas **Pegar respuesta**: tu PC le llama primero y así entra.
+4. Debajo sale también el **código de Steam** (7 letras), para amigos de PC con Steam; desde ahí puedes invitarles directamente.
+5. Arriba del F2 puedes escribir **tu nombre**; si lo dejas vacío, se usa el de Steam.
 
 ### Con el móvil
 
-1. En el PC, crea la partida y pon **Unirse por IP** en **Abierto**.
-2. En el móvil, toca el botón **Coop** → **Unirse con un código** y escribe el código IP (o la IP del PC en **Unirse por IP**).
+1. En el PC, crea la partida (F2 → Crear partida).
+2. En el móvil, toca el botón **Coop** → **Unirse con un código** y pega el código del PC (o la IP del PC en **Unirse por IP**, si estáis en la misma wifi).
 3. En el móvil, los avisos salen como botones en pantalla: **¡Voy!** / **¡Espera!**, **Revivir**, **Dárselo**, **Chat**, y la votación del final con **Jugar de nuevo** / **Ir a la villa**. El botón **Colores** abre el aspecto de Will.
 
 PC y móvil tienen que llevar versiones compatibles del mod (se comprueba solo al conectar).
@@ -52,7 +53,7 @@ Se juega con la partida del anfitrión; la de cada invitado no se modifica.
 ## Características
 
 **Conexión**
-- Online por Steam (sin abrir puertos) con código de partida, o por IP en red local / VPN.
+- Online con un código de partida, sin abrir puertos en el router: la conexión va directa entre los jugadores (por UDP, atravesando el router de cada uno), y si se pierde algún paquete se reenvía solo. También por Steam, y por IP en red local o VPN.
 - Hasta 5 jugadores. Cada uno tiene su color y su nombre.
 - Vida de los compañeros arriba a la izquierda, debajo de la tuya.
 - El anfitrión puede expulsar a un jugador (no puede volver a entrar en esa sesión).
@@ -87,10 +88,11 @@ Se juega con la partida del anfitrión; la de cada invitado no se modifica.
 ## Seguridad
 
 - Por Steam la partida es **invisible**: no sale en ninguna lista y solo se puede entrar con el código.
-- **No se abre ningún puerto** en tu PC salvo que el anfitrión active "Permitir unirse por IP" (y se cierra al terminar).
+- **No se abre ningún puerto en el router.** Mientras el anfitrión tiene la partida creada, su juego escucha en el PC (TCP 7795 para la red de casa y UDP 7796 para los de fuera); se cierra al cerrar la partida, y el anfitrión puede apagarlo en F2 → «Unirse por IP».
+- El código «PU» lleva una **clave secreta**: sin ella, el juego del anfitrión no contesta a nadie que llegue por internet.
 - Al unirte, la partida que manda el anfitrión **se revisa antes de cargarla**: se rechaza si es demasiado grande o pide crear tipos de datos que no son del juego.
 - Aun así, como en cualquier juego online con mods: **juega solo con gente de confianza** y pasa el código solo a quien quieras que entre.
-- El mod no se conecta a ningún servidor propio, no recoge datos ni toca tu cuenta: solo usa la red de Steam o la conexión directa entre jugadores, y consulta la página pública de GitHub del mod para saber si hay versión nueva.
+- El mod no se conecta a ningún servidor propio, no recoge datos ni toca tu cuenta: solo usa la red de Steam o la conexión directa entre jugadores, consulta la página pública de GitHub del mod para saber si hay versión nueva y pregunta a un servidor STUN público (de Google o Cloudflare) cuál es su dirección de internet, para poder hacer el código «PU». Por esos servidores no pasa nada de la partida.
 
 ## Compatibilidad
 

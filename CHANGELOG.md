@@ -1,6 +1,6 @@
 # Novedades de Moonlighter Coop
 
-## 0.13.0 — en preparación
+## 0.13.0 — 11/11/2026
 - **El Errante sale a la vez para todos:** antes cada uno tenía su propio reloj y al invitado le salía por su cuenta. Ahora lo decide el anfitrión: cuando a él le sale el aviso o el Errante, a los demás también. En el modo carrera cada uno sigue con el suyo.
 - **En el móvil:** el chat se escribe con el teclado del teléfono, y las novedades se pueden leer también desde el juego del móvil.
 - El aviso de versión distinta ya no habla de F2 en el móvil.
