@@ -62,8 +62,29 @@ namespace MoonlighterCoop
             _bagDirtyAt = Time.unscaledTime;
         }
 
+        // Guest: we sent a change the host has not answered yet (its repeats must not undo it)
+        private static bool _sentSinceBase;
+        private static float _nextRepeat;
+
+        /// New game or new host: their bag numbers start again
+        public static void ResetBag()
+        {
+            _baseVersion = -1; _sentSinceBase = false; _lastFrom.Clear();
+        }
+
         public static void Tick()
         {
+            // Host: the bag again now and then, so whoever missed one (loading a floor, a lost message) catches up
+            if (Session.IsHost && Net.Juego && Time.unscaledTime >= _nextRepeat)
+            {
+                _nextRepeat = Time.unscaledTime + 3f;
+                if (!_bagDirty && Net.ConnectedCount > 0)
+                {
+                    if (!_history.ContainsKey(_version)) Remember();
+                    var again = BagBytes(_version);
+                    if (again != null) Net.Send(Msg.Bag, again);
+                }
+            }
             // Wait a moment so a move (take from one slot, drop in another) goes as one snapshot.
             if (!_bagDirty || Time.unscaledTime - _bagDirtyAt < 0.25f || !Net.Juego) return;
             SendBag();
@@ -72,7 +93,8 @@ namespace MoonlighterCoop
         private static void SendBag()
         {
             _bagDirty = false;
-            if (Session.IsHost) { _version++; Remember(); }
+            if (Session.IsHost) { _version++; Remember(); _nextRepeat = Time.unscaledTime + 3f; }
+            else _sentSinceBase = true;
             var bag = BagBytes(Session.IsHost ? _version : _baseVersion);
             if (bag == null) return;
             Net.Send(Msg.Bag, bag);
@@ -198,12 +220,21 @@ namespace MoonlighterCoop
 
             if (Session.IsGuest)
             {
+                if (stamp.HasValue)
+                {
+                    // An old one, or a repeat while our change is still on its way: the host's answer will bring both
+                    if (stamp.Value < _baseVersion || (stamp.Value == _baseVersion && (_sentSinceBase || _bagDirty))) return;
+                    if (stamp.Value > _baseVersion) _sentSinceBase = false;
+                }
                 // A change of ours not sent yet would be lost under the host's snapshot: send it first
                 if (_bagDirty) SendBag();
                 Apply(inv, slots);
                 if (stamp.HasValue) _baseVersion = stamp.Value;
                 return;
             }
+
+            // Host: a change of our own not sent yet goes first, so the guest's one is added to it, not on top of it
+            if (_bagDirty) SendBag();
 
             // Host: a guest's bag changed
             System.Collections.Generic.Dictionary<string, int> reference = null;

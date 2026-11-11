@@ -15,7 +15,7 @@ namespace MoonlighterCoop
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "elde_al_lado.moonlighter.coop";
-        public const string Version = "0.13.3";
+        public const string Version = "0.13.4";
 
         public static Plugin Instance;
         public static ManualLogSource Log;

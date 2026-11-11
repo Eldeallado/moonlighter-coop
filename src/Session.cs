@@ -33,6 +33,7 @@ namespace MoonlighterCoop
         {
             GuestLoaded = false; SaveSent = false; Welcomed = false; MyId = 0; _knownPlayers = 0; _helloReceived = false; _peerEnTutorial.Clear(); _hostEnTutorial = false;
             _pendingSave = null; _menuSeenAt = -1f; LastPing = -1f;
+            Shared.ResetBag();
             _helloSentTo.Clear(); _helloFrom.Clear(); _saveSentTo.Clear(); _liveIds.Clear();
             foreach (var p in Puppet.All.Values) if (p != null) UnityEngine.Object.Destroy(p.gameObject);
             Puppet.All.Clear();
@@ -239,7 +240,7 @@ namespace MoonlighterCoop
             switch (type)
             {
                 case Msg.Welcome:
-                    if (IsGuest) { MyId = data[0]; Welcomed = true; SteamCoop.Status = "Conectado: eres el jugador " + (MyId + 1); Plugin.Log.LogInfo($"[session] I am player {MyId}"); }
+                    if (IsGuest) { MyId = data[0]; Welcomed = true; Shared.ResetBag(); SteamCoop.Status = "Conectado: eres el jugador " + (MyId + 1); Plugin.Log.LogInfo($"[session] I am player {MyId}"); }
                     break;
                 case Msg.PlayerCount:
                     _knownPlayers = data[0];

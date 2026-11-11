@@ -1,5 +1,9 @@
 # Novedades de Moonlighter Coop
 
+## 0.13.4 — 11/11/2026
+- **En el móvil: mover los botones.** En el menú Coop, «Mover botones»: tocas un botón y lo arrastras a donde quieras, lo haces más grande o más pequeño, y «Listo» lo guarda en el móvil. «Como estaba» y «Todos como al principio» lo deshacen.
+- **Mochila compartida aún más firme:** con mucho lag todavía podía quedarse alguien con una mochila distinta (si el anfitrión acababa de coger algo, o si te llegaba mientras cargaba el piso). Ahora el anfitrión manda primero lo suyo y repite su mochila cada 3 segundos, así que todos se igualan solos.
+
 ## 0.13.3 — 11/11/2026
 - **Mochila compartida con lag:** si dos jugadores cogían cosas a la vez con mala conexión, cada uno podía quedarse con una mochila distinta (a uno le salían objetos de más). Ahora el anfitrión junta lo que coge cada uno y todos acaban con la misma mochila.
 - **Enemigos fantasma:** si el aviso de que un enemigo había muerto se perdía por el camino, a los invitados se les quedaba vivo (y la sala cerrada). Ahora, si el anfitrión ya no lo tiene, desaparece también para ellos a los 3 segundos.

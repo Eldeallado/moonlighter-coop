@@ -446,7 +446,9 @@ namespace MoonlighterCoop
             if (OpcionMovil.Texto != null)
             {
                 y += 44 * k;
-                if (Btn(new Rect(r.x + r.width * 0.25f, y, r.width * 0.5f, 38 * k), OpcionMovil.Texto())) OpcionMovil.Siguiente?.Invoke();
+                // Rendimiento y Mover botones en la misma fila, para que el menú no crezca
+                if (Btn(new Rect(r.x + r.width * 0.11f, y, r.width * 0.38f, 38 * k), OpcionMovil.Texto())) OpcionMovil.Siguiente?.Invoke();
+                if (OpcionMovil.MoverBotones != null && Btn(new Rect(r.x + r.width * 0.51f, y, r.width * 0.38f, 38 * k), "Mover botones")) { SetOpen(false); OpcionMovil.MoverBotones(); }
             }
         }
 
@@ -535,7 +537,9 @@ namespace MoonlighterCoop
             if (OpcionMovil.Texto != null)
             {
                 y += step;
-                if (Btn(new Rect(right.x, y, right.width, bh), OpcionMovil.Texto(), false, 16f, Ui.Tone.Wood)) OpcionMovil.Siguiente?.Invoke();
+                float half = (right.width - 6 * k) / 2f;
+                if (Btn(new Rect(right.x, y, half, bh), OpcionMovil.Texto(), false, 14f, Ui.Tone.Wood)) OpcionMovil.Siguiente?.Invoke();
+                if (OpcionMovil.MoverBotones != null && Btn(new Rect(right.xMax - half, y, half, bh), "Mover botones", false, 14f, Ui.Tone.Wood)) { SetOpen(false); OpcionMovil.MoverBotones(); }
             }
             if (Btn(new Rect(right.x, right.yMax - 38 * k, right.width, 38 * k), host ? "Cerrar la partida" : "Salir de la partida", false, 15f, Ui.Tone.Red, "Bag_Pendant")) LeaveGame();
 

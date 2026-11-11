@@ -1,7 +1,7 @@
 ﻿# Barrido de pruebas: una partida entera grabada en vídeo, con la red simulada que se pida, comprobando en
 # cada paso que los juegos coinciden. Deja en $Out: vídeos (mp4), registros de cada copia e informe.txt.
 #   -Red "perdida,retardo,variacion"  (p. ej. "0.08,90,120" = datos móviles)
-#   -Jugadores 2|3   -Puente (los invitados entran por el adaptador UDP, con -PerdidaPuente)
+#   -Jugadores 2|3|4   -Puente (los invitados entran por el adaptador UDP, con -PerdidaPuente)
 param([string]$Nombre = "prueba", [string]$Red = "0,0,0", [int]$Jugadores = 2, [switch]$Puente, [double]$PerdidaPuente = 0.1,
       [string]$Out = "$env:TEMP\coop_barrido")
 $q = $PSScriptRoot
@@ -10,8 +10,8 @@ $Out = Join-Path $Out $Nombre
 if (Test-Path $Out) { Remove-Item -LiteralPath $Out -Recurse -Force }
 New-Item -ItemType Directory -Force $Out | Out-Null
 $inf = Join-Path $Out "informe.txt"
-$quien = @("host", "guest", "guest2")[0..($Jugadores - 1)]
-$dirs = @{ host = "test-host"; guest = "test-guest"; guest2 = "test-guest2" }
+$quien = @("host", "guest", "guest2", "guest3")[0..($Jugadores - 1)]
+$dirs = @{ host = "test-host"; guest = "test-guest"; guest2 = "test-guest2"; guest3 = "test-guest3" }
 $fallos = 0
 $t0 = Get-Date
 function Nota($s) { $l = "[{0,6:N0} s] {1}" -f ((Get-Date) - $t0).TotalSeconds, $s; $l; Add-Content $inf $l -Encoding UTF8 }

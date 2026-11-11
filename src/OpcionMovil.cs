@@ -7,5 +7,7 @@ namespace MoonlighterCoop
     {
         public static System.Func<string> Texto;
         public static System.Action Siguiente;
+        /// Abre el editor para colocar los botones táctiles a gusto (null en el PC)
+        public static System.Action MoverBotones;
     }
 }
