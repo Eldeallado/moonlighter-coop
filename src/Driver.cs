@@ -445,6 +445,21 @@ namespace MoonlighterCoop
                     string tr; try { tr = u1.textureRect.ToString(); } catch (Exception e) { tr = "ERR " + e.Message; }
                     return $"orig={s0.texture?.name} tinted={(t1 != s0)} ui={u1?.texture?.name} {u1?.texture?.width}x{u1?.texture?.height} rect={tr} packed={s0.packed} mode={s0.packingMode}";
                 }
+                case "preview": // lo que enseña la mochila de Will: dibujo, tamaño y si es la copia recoloreada
+                {
+                    var hip = UnityEngine.Object.FindObjectOfType<HeroInventoryPanel>();
+                    if (hip == null) return "sin panel";
+                    var sb4 = new StringBuilder();
+                    foreach (var (n, img) in new[] { ("base", hip.imageBasePreview), ("head", hip.imageHeadPreview), ("chest", hip.imageChestPreview), ("boots", hip.imageBootsPreview) })
+                    {
+                        if (img == null) { sb4.Append(n + "=null "); continue; }
+                        var s = img.overrideSprite;
+                        sb4.Append($"{n}: activo={img.isActiveAndEnabled} caja={img.rectTransform.rect.width:0}x{img.rectTransform.rect.height:0} aspecto={img.preserveAspect} tipo={img.type} malla={img.useSpriteMesh} ");
+                        if (s == null) { sb4.Append("sprite=null | "); continue; }
+                        sb4.Append($"sprite={s.name} rect={s.rect.width:0}x{s.rect.height:0} tex={s.texture?.width}x{s.texture?.height} recolor={Recolor.IsTinted(s)} copiaUi={s.name.EndsWith(" (coop ui)")} | ");
+                    }
+                    return sb4.ToString();
+                }
                 case "racestate": return $"separate={Race.Separate} waiting={Race.WaitingMe} rule={HostSettings.Race} zone={Dungeon.RoomZone()} ghost={Downed.Me}";
                 case "votar": Vote.Cast(p[1] == "replay" ? Vote.Choice.Replay : Vote.Choice.Village); return "votado " + p[1];
                 case "grabar":

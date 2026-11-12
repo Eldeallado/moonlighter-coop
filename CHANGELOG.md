@@ -1,5 +1,11 @@
 # Novedades de Moonlighter Coop
 
+## 0.13.5 — 12/11/2026
+- **En el móvil: Will ya no sale gigante en la mochila.** Los dibujos de Will del móvil vienen sin el margen que tienen en el PC y la mochila los estiraba hasta llenar el recuadro. Ahora se colocan en su marco, con colores o sin ellos.
+- **En el móvil: menú Coop dentro de la partida** sin botones montados encima de «Salir de la partida».
+- **En el móvil:** plegables y tablets que arrancan en vertical ya no se ven borrosos, y la calidad automática ya no se pone en «baja» en móviles potentes que no dicen bien cuántos núcleos tienen.
+- **Mover botones:** el texto crece con el botón y «Reiniciar todos» deja todos como al principio.
+
 ## 0.13.4 — 11/11/2026
 - **En el móvil: mover los botones.** En el menú Coop, «Mover botones»: tocas un botón y lo arrastras a donde quieras, lo haces más grande o más pequeño, y «Listo» lo guarda en el móvil. «Como estaba» y «Todos como al principio» lo deshacen.
 - **Mochila compartida aún más firme:** con mucho lag todavía podía quedarse alguien con una mochila distinta (si el anfitrión acababa de coger algo, o si te llegaba mientras cargaba el piso). Ahora el anfitrión manda primero lo suyo y repite su mochila cada 3 segundos, así que todos se igualan solos.

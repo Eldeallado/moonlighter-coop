@@ -261,6 +261,7 @@ namespace MoonlighterCoop
         }
 
         private static readonly Dictionary<Sprite, Sprite> _ui = new Dictionary<Sprite, Sprite>();
+        private const int Marco = 128;
         private static readonly Dictionary<Texture2D, Color32[]> _pixels = new Dictionary<Texture2D, Color32[]>();
 
         /// The game's menus (the inventory's Will preview) draw a sprite into a box using its full frame, padding
@@ -268,20 +269,28 @@ namespace MoonlighterCoop
         /// menu a copy with the original frame, cut out of the tinted sheet triangle by triangle.
         public static Sprite UiSprite(Sprite tinted)
         {
-            if (tinted == null || !IsTinted(tinted)) return tinted;
+            if (tinted == null) return tinted;
+            bool tinte = IsTinted(tinted);
+            // Sin colores solo hace falta en el móvil (dibujo recortado); en el PC el original ya va bien
+            if (!tinte && !Recortado(tinted)) return tinted;
             if (_ui.TryGetValue(tinted, out var u) && u != null) return u;
             var orig = Original(tinted);
             try
             {
-                var src = tinted.texture;
+                var src = tinte ? tinted.texture : Legible(orig.texture);
                 int fw = Mathf.Max(1, Mathf.RoundToInt(orig.rect.width)), fh = Mathf.Max(1, Mathf.RoundToInt(orig.rect.height));
+                var pivotPx = orig.pivot;
+                // En el móvil los dibujos de Will vienen recortados sin margen (23x41 en vez del marco de 128x128 del
+                // PC) y la mochila los estiraba a todo el recuadro: Will gigante. Se monta el marco del PC (128x128,
+                // pivote en el centro) con el muñeco en el mismo sitio. En el PC el dibujo ya mide 128 y no cambia.
+                if (Recortado(orig)) { fw = fh = Marco; pivotPx = new Vector2(Marco / 2f, Marco / 2f); }
                 var outPx = new Color32[fw * fh];
                 if (!_pixels.TryGetValue(src, out var srcPx)) _pixels[src] = srcPx = src.GetPixels32();
                 int W = src.width, H = src.height;
                 var verts = orig.vertices; var uvs = orig.uv; var tris = orig.triangles;
                 float ppu = orig.pixelsPerUnit;
                 var fp = new Vector2[verts.Length];
-                for (int i = 0; i < verts.Length; i++) fp[i] = verts[i] * ppu + orig.pivot;
+                for (int i = 0; i < verts.Length; i++) fp[i] = verts[i] * ppu + pivotPx;
                 for (int t = 0; t + 2 < tris.Length; t += 3)
                 {
                     Vector2 a = fp[tris[t]], b = fp[tris[t + 1]], c = fp[tris[t + 2]];
@@ -306,7 +315,7 @@ namespace MoonlighterCoop
                 var tex = new Texture2D(fw, fh, TextureFormat.RGBA32, false) { filterMode = src.filterMode, wrapMode = TextureWrapMode.Clamp };
                 tex.SetPixels32(outPx);
                 tex.Apply(false, true);
-                u = Sprite.Create(tex, new Rect(0, 0, fw, fh), new Vector2(orig.pivot.x / fw, orig.pivot.y / fh), ppu, 0, SpriteMeshType.FullRect);
+                u = Sprite.Create(tex, new Rect(0, 0, fw, fh), new Vector2(pivotPx.x / fw, pivotPx.y / fh), ppu, 0, SpriteMeshType.FullRect);
                 u.name = orig.name + " (coop ui)";
             }
             catch (System.Exception e) { Plugin.Log.LogWarning($"[recolor] ui copy of {orig.name}: {e.Message}"); u = orig; }
@@ -315,6 +324,16 @@ namespace MoonlighterCoop
         }
 
         private static bool IsUiCopy(Sprite s) => s.name.EndsWith(" (coop ui)");
+
+        /// Un dibujo de Will o de su armadura sin el marco de 128 (así vienen en el móvil)
+        public static bool Recortado(Sprite s) => Application.platform == RuntimePlatform.Android && s != null && !IsUiCopy(s) && !s.name.StartsWith("empty") && s.rect.width < Marco && s.rect.height < Marco;
+
+        private static readonly Dictionary<Texture2D, Texture2D> _legibles = new Dictionary<Texture2D, Texture2D>();
+        private static Texture2D Legible(Texture2D t)
+        {
+            if (!_legibles.TryGetValue(t, out var c) || c == null) _legibles[t] = c = ReadableCopy(t);
+            return c;
+        }
 
         /// Drop the recoloured copies of looks nobody wears any more (dragging the bars makes many).
         public static void Prune(HashSet<int> keep)
@@ -481,7 +500,7 @@ namespace MoonlighterCoop
         {
             foreach (var img in new[] { __instance.imageBasePreview, __instance.imageHeadPreview, __instance.imageChestPreview, __instance.imageBootsPreview,
                                         __instance.imageExtraHeadPreview, __instance.imageExtraChestPreview, __instance.imageExtraBootsPreview })
-                if (img != null && img.overrideSprite != null && Recolor.IsTinted(img.overrideSprite)) img.overrideSprite = Recolor.UiSprite(img.overrideSprite);
+                if (img != null && img.overrideSprite != null && (Recolor.IsTinted(img.overrideSprite) || Recolor.Recortado(img.overrideSprite))) img.overrideSprite = Recolor.UiSprite(img.overrideSprite);
         }
     }
 }

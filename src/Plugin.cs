@@ -15,7 +15,7 @@ namespace MoonlighterCoop
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "elde_al_lado.moonlighter.coop";
-        public const string Version = "0.13.4";
+        public const string Version = "0.13.5";
 
         public static Plugin Instance;
         public static ManualLogSource Log;
@@ -128,6 +128,9 @@ namespace MoonlighterCoop
 
         private static void ParseArgs()
         {
+            // En el móvil no hay línea de comandos: el control de pruebas se enciende con un archivo que solo se
+            // puede poner por el cable de depuración (adb), nunca desde el juego
+            try { if (System.IO.File.Exists(System.IO.Path.Combine(UnityEngine.Application.persistentDataPath, "coop_drive"))) Drive = true; } catch { }
             var a = Environment.GetCommandLineArgs();
             for (int i = 0; i < a.Length; i++)
             {

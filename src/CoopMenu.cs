@@ -529,17 +529,24 @@ namespace MoonlighterCoop
             y += step;
             if (Btn(new Rect(right.x, y, right.width, bh), "Aspecto de tu Will", false, 16f, Ui.Tone.Wood, "Bag_Mirror")) { SetOpen(false); ColorMenu.Instance?.SetOpen(true); }
             y += step;
-            if (Btn(new Rect(right.x, y, right.width, bh), "Vida de enemigos: " + (EnemyBars.On ? "sí" : "no"), EnemyBars.On, 16f, Ui.Tone.Wood, "HealthBar_Heart")) EnemyBars.Toggle();
+            bool movil = OpcionMovil.Texto != null;
+            float half = (right.width - 6 * k) / 2f;
+            if (movil)
+            {
+                // En el móvil hay una fila más (Rendimiento y Mover botones): de dos en dos para no pisar «Salir»
+                if (Btn(new Rect(right.x, y, half, bh), "Vida enemigos: " + (EnemyBars.On ? "sí" : "no"), EnemyBars.On, 13f, Ui.Tone.Wood)) EnemyBars.Toggle();
+                if (Btn(new Rect(right.xMax - half, y, half, bh), "Desatascarme", false, 13f, Ui.Tone.Wood)) { SetOpen(false); Arreglos.Desatascar(); }
+            }
+            else if (Btn(new Rect(right.x, y, right.width, bh), "Vida de enemigos: " + (EnemyBars.On ? "sí" : "no"), EnemyBars.On, 16f, Ui.Tone.Wood, "HealthBar_Heart")) EnemyBars.Toggle();
             y += step;
             if (Net.Connected && Btn(new Rect(right.x, y, right.width, bh), "Escribir en el chat", false, 16f, Ui.Tone.Wood, "talk")) { SetOpen(false); Chat.OpenTyping(); }
             if (Net.Connected) y += step;
-            if (Btn(new Rect(right.x, y, right.width, bh), "Desatascarme", false, 16f, Ui.Tone.Wood, "GUI_Effect_Icon_Confuse")) { SetOpen(false); Arreglos.Desatascar(); }
-            if (OpcionMovil.Texto != null)
+            if (!movil && Btn(new Rect(right.x, y, right.width, bh), "Desatascarme", false, 16f, Ui.Tone.Wood, "GUI_Effect_Icon_Confuse")) { SetOpen(false); Arreglos.Desatascar(); }
+            if (movil)
             {
-                y += step;
-                float half = (right.width - 6 * k) / 2f;
-                if (Btn(new Rect(right.x, y, half, bh), OpcionMovil.Texto(), false, 14f, Ui.Tone.Wood)) OpcionMovil.Siguiente?.Invoke();
-                if (OpcionMovil.MoverBotones != null && Btn(new Rect(right.xMax - half, y, half, bh), "Mover botones", false, 14f, Ui.Tone.Wood)) { SetOpen(false); OpcionMovil.MoverBotones(); }
+                string rend = OpcionMovil.Texto().Replace("Rendimiento: ", "");
+                if (Btn(new Rect(right.x, y, half, bh), char.ToUpper(rend[0]) + rend.Substring(1), false, 13f, Ui.Tone.Wood)) OpcionMovil.Siguiente?.Invoke();
+                if (OpcionMovil.MoverBotones != null && Btn(new Rect(right.xMax - half, y, half, bh), "Mover botones", false, 13f, Ui.Tone.Wood)) { SetOpen(false); OpcionMovil.MoverBotones(); }
             }
             if (Btn(new Rect(right.x, right.yMax - 38 * k, right.width, 38 * k), host ? "Cerrar la partida" : "Salir de la partida", false, 15f, Ui.Tone.Red, "Bag_Pendant")) LeaveGame();
 
